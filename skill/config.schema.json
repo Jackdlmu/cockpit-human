@@ -1,0 +1,44 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "YonCockpit 智能驾驶舱配置",
+  "type": "object",
+  "properties": {
+    "adapterType": {
+      "type": "string",
+      "enum": ["mock", "http", "yonclaw"],
+      "default": "mock",
+      "description": "智能体平台适配器类型。mock 使用本地模拟数据；http 对接任意 REST API；yonclaw 对接 YonClaw / OpenClaw 内核。"
+    },
+    "agentPlatformUrl": {
+      "type": "string",
+      "format": "uri",
+      "description": "智能体平台服务地址。当 adapterType 为 http 或 yonclaw 时必填。",
+      "examples": ["http://localhost:8080", "https://api.yonclaw.example.com"]
+    },
+    "agentPlatformApiKey": {
+      "type": "string",
+      "description": "智能体平台 API 密钥。用于 HTTP / YonClaw 适配器认证。"
+    },
+    "port": {
+      "type": "integer",
+      "default": 3001,
+      "minimum": 1024,
+      "maximum": 65535,
+      "description": "后端服务监听端口。"
+    },
+    "corsOrigins": {
+      "type": "array",
+      "items": { "type": "string", "format": "uri" },
+      "default": ["http://localhost:3000"],
+      "description": "允许的 CORS 来源列表。"
+    }
+  },
+  "required": ["adapterType"],
+  "dependencies": {
+    "agentPlatformUrl": {
+      "properties": {
+        "adapterType": { "enum": ["http", "yonclaw"] }
+      }
+    }
+  }
+}

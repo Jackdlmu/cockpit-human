@@ -1,0 +1,77 @@
+import type { CockpitTemplate } from './types';
+
+export const financeTemplate: CockpitTemplate = {
+  id: 'finance',
+  name: '财务审批中心',
+  domain: '财务',
+  keywords: [
+    '财务', '审批', '报销', '预算', '支出', '费用', '发票', '成本',
+    '会计', '审计', '税务', '资金', '流水', '对账', '合规',
+    'finance', 'approval', 'expense', 'budget', 'accounting', 'audit',
+  ],
+  icon: 'CheckCircle',
+  color: '#f59e0b',
+  agentIds: ['finance-agent', 'legal-agent'],
+  primaryAgentId: 'finance-agent',
+  description: '集中处理各类财务审批，财务管家+法务合规官联合审核',
+  widgets: [
+    {
+      id: 'w-metric-pending',
+      type: 'metric',
+      title: '待审批',
+      position: { x: 0, y: 0, w: 3, h: 2 },
+      data: { value: '12笔', change: '+3', trend: 'down' },
+      dataSource: {
+        type: 'skill',
+        skillId: 'finance.getPendingApprovals',
+        agentId: 'finance-agent',
+        transform: '({ count, change }) => ({ value: String(count), change: `${change>0?"+":""}${change}`, trend: change>0?"up":"down" })',
+        fallbackToStatic: true,
+      },
+    },
+    {
+      id: 'w-metric-approved',
+      type: 'metric',
+      title: '今日已审',
+      position: { x: 3, y: 0, w: 3, h: 2 },
+      data: { value: '28笔', change: '+5', trend: 'up' },
+      dataSource: {
+        type: 'skill',
+        skillId: 'finance.getTodayApprovedCount',
+        agentId: 'finance-agent',
+        transform: '({ count, change }) => ({ value: String(count), change: `${change>0?"+":""}${change}`, trend: change>0?"up":"down" })',
+        fallbackToStatic: true,
+      },
+    },
+    {
+      id: 'w-table-list',
+      type: 'table',
+      title: '待审批列表',
+      position: { x: 0, y: 2, w: 6, h: 4 },
+      data: { rows: [['张三', '差旅报销', '¥3,500', '待审核'], ['李四', '办公采购', '¥12,800', '待审核'], ['王五', '客户招待', '¥2,400', '待审核']] },
+      dataSource: {
+        type: 'skill',
+        skillId: 'finance.getApprovalList',
+        agentId: 'finance-agent',
+        input: { status: 'pending', limit: 10 },
+        transform: '({ rows }) => ({ rows })',
+        fallbackToStatic: true,
+      },
+    },
+    {
+      id: 'w-chart-trend',
+      type: 'chart',
+      title: '审批趋势',
+      position: { x: 6, y: 0, w: 6, h: 6 },
+      data: { labels: ['周一', '周二', '周三', '周四', '周五'], values: [18, 22, 15, 28, 25] },
+      dataSource: {
+        type: 'skill',
+        skillId: 'finance.getApprovalTrend',
+        agentId: 'finance-agent',
+        input: { days: 5 },
+        transform: '({ labels, values }) => ({ labels, values })',
+        fallbackToStatic: true,
+      },
+    },
+  ],
+};

@@ -1,0 +1,2111 @@
+{
+  "workspaces": [
+    {
+      "id": "ws-sales-dashboard",
+      "name": "销售业绩驾驶舱",
+      "color": "#6366f1",
+      "icon": "BarChart3",
+      "status": "running",
+      "description": "实时展示华东区销售数据、业绩趋势和客户排行，由销售助手+营销智脑联合驱动",
+      "createdAt": "2025-11-01",
+      "updatedAt": "2026-05-25",
+      "agentIds": [
+        "sales-agent",
+        "marketing-agent"
+      ],
+      "primaryAgentId": "sales-agent",
+      "widgets": [
+        {
+          "id": "w1",
+          "type": "metric",
+          "title": "本月销售额",
+          "position": {
+            "x": 0,
+            "y": 0,
+            "w": 3,
+            "h": 2
+          },
+          "data": {
+            "value": "¥2,847万",
+            "change": "+23%",
+            "trend": "up"
+          }
+        },
+        {
+          "id": "w2",
+          "type": "chart",
+          "title": "业绩趋势",
+          "position": {
+            "x": 3,
+            "y": 0,
+            "w": 6,
+            "h": 4
+          },
+          "data": {
+            "labels": [
+              "7月",
+              "8月",
+              "9月",
+              "10月",
+              "11月"
+            ],
+            "values": [
+              820,
+              956,
+              1071,
+              1250,
+              980
+            ]
+          }
+        },
+        {
+          "id": "w3",
+          "type": "table",
+          "title": "Top 5 客户",
+          "position": {
+            "x": 0,
+            "y": 2,
+            "w": 3,
+            "h": 4
+          },
+          "data": {
+            "rows": [
+              [
+                "华为",
+                "¥580万"
+              ],
+              [
+                "阿里",
+                "¥420万"
+              ],
+              [
+                "腾讯",
+                "¥365万"
+              ],
+              [
+                "比亚迪",
+                "¥310万"
+              ],
+              [
+                "小米",
+                "¥285万"
+              ]
+            ]
+          }
+        },
+        {
+          "id": "w4",
+          "type": "metric",
+          "title": "订单转化率",
+          "position": {
+            "x": 9,
+            "y": 0,
+            "w": 3,
+            "h": 2
+          },
+          "data": {
+            "value": "68.5%",
+            "change": "+5.2%",
+            "trend": "up"
+          }
+        },
+        {
+          "id": "w5",
+          "type": "kanban",
+          "title": "商机漏斗",
+          "position": {
+            "x": 9,
+            "y": 2,
+            "w": 3,
+            "h": 4
+          },
+          "data": {
+            "stages": [
+              "线索 3200",
+              "接触 1850",
+              "确认 1200",
+              "谈判 780"
+            ]
+          }
+        },
+        {
+          "id": "w-1779710748241-0",
+          "type": "metric",
+          "title": "本月回款",
+          "position": {
+            "x": 0,
+            "y": 6,
+            "w": 3,
+            "h": 2
+          },
+          "data": {}
+        },
+        {
+          "id": "w-1779710748241-1",
+          "type": "chart",
+          "title": "区域对比",
+          "position": {
+            "x": 3,
+            "y": 6,
+            "w": 6,
+            "h": 4
+          },
+          "data": {}
+        },
+        {
+          "id": "w-1779710748241-2",
+          "type": "table",
+          "title": "客户明细",
+          "position": {
+            "x": 9,
+            "y": 6,
+            "w": 3,
+            "h": 4
+          },
+          "data": {}
+        },
+        {
+          "type": "metric",
+          "title": "毛利额",
+          "data": {
+            "value": "¥420万"
+          },
+          "id": "w-1779710760900-0",
+          "position": {
+            "x": 3,
+            "y": 4,
+            "w": 3,
+            "h": 2
+          }
+        },
+        {
+          "type": "metric",
+          "title": "客单价",
+          "data": {
+            "value": "¥18万"
+          },
+          "id": "w-1779710760900-1",
+          "position": {
+            "x": 3,
+            "y": 4,
+            "w": 3,
+            "h": 2
+          }
+        },
+        {
+          "id": "w-1779710833944-0",
+          "type": "chart",
+          "title": "月度营收趋势",
+          "position": {
+            "x": 6,
+            "y": 0,
+            "w": 6,
+            "h": 4
+          },
+          "data": {}
+        },
+        {
+          "id": "w-1779710833944-1",
+          "type": "chart",
+          "title": "各区域销售额对比",
+          "position": {
+            "x": 0,
+            "y": 10,
+            "w": 6,
+            "h": 4
+          },
+          "data": {}
+        },
+        {
+          "id": "w-1779710833944-2",
+          "type": "table",
+          "title": "Top10客户排名",
+          "position": {
+            "x": 6,
+            "y": 10,
+            "w": 6,
+            "h": 4
+          },
+          "data": {}
+        }
+      ]
+    },
+    {
+      "id": "ws-hr-onboarding",
+      "name": "入职管理台",
+      "color": "#10b981",
+      "icon": "UserPlus",
+      "status": "running",
+      "description": "新员工入职全流程跟踪，HR助手+IT运维助手联合协作",
+      "createdAt": "2025-10-15",
+      "updatedAt": "2025-11-21",
+      "agentIds": [
+        "hr-agent",
+        "it-agent"
+      ],
+      "primaryAgentId": "hr-agent",
+      "widgets": [
+        {
+          "id": "w1",
+          "type": "metric",
+          "title": "本月入职人数",
+          "position": {
+            "x": 0,
+            "y": 0,
+            "w": 3,
+            "h": 2
+          },
+          "data": {
+            "value": "12人",
+            "change": "+3",
+            "trend": "up"
+          }
+        },
+        {
+          "id": "w2",
+          "type": "timeline",
+          "title": "入职进度",
+          "position": {
+            "x": 3,
+            "y": 0,
+            "w": 9,
+            "h": 4
+          },
+          "data": {
+            "steps": [
+              "信息录入✓",
+              "IT开通✓",
+              "经理确认→",
+              "工位分配",
+              "培训安排",
+              "权限开通"
+            ]
+          }
+        },
+        {
+          "id": "w3",
+          "type": "table",
+          "title": "待办入职",
+          "position": {
+            "x": 0,
+            "y": 2,
+            "w": 6,
+            "h": 4
+          },
+          "data": {
+            "rows": [
+              [
+                "王小明",
+                "技术部",
+                "12/01",
+                "待确认"
+              ],
+              [
+                "李红",
+                "市场部",
+                "12/03",
+                "信息录入"
+              ],
+              [
+                "张伟",
+                "销售部",
+                "12/05",
+                "IT开通"
+              ]
+            ]
+          }
+        },
+        {
+          "id": "w4",
+          "type": "metric",
+          "title": "平均入职周期",
+          "position": {
+            "x": 6,
+            "y": 2,
+            "w": 3,
+            "h": 2
+          },
+          "data": {
+            "value": "3.2天",
+            "change": "-0.5",
+            "trend": "up"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ws-finance-approval",
+      "name": "财务审批中心",
+      "color": "#f59e0b",
+      "icon": "CheckCircle",
+      "status": "running",
+      "description": "集中处理各类财务审批，财务管家+法务合规官联合审核",
+      "createdAt": "2025-09-20",
+      "updatedAt": "2025-11-22",
+      "agentIds": [
+        "finance-agent",
+        "legal-agent"
+      ],
+      "primaryAgentId": "finance-agent",
+      "widgets": [
+        {
+          "id": "w1",
+          "type": "metric",
+          "title": "待审批",
+          "position": {
+            "x": 0,
+            "y": 0,
+            "w": 3,
+            "h": 2
+          },
+          "data": {
+            "value": "8笔",
+            "change": "-2",
+            "trend": "up"
+          }
+        },
+        {
+          "id": "w2",
+          "type": "metric",
+          "title": "今日已审",
+          "position": {
+            "x": 3,
+            "y": 0,
+            "w": 3,
+            "h": 2
+          },
+          "data": {
+            "value": "15笔",
+            "change": "+5",
+            "trend": "up"
+          }
+        },
+        {
+          "id": "w3",
+          "type": "table",
+          "title": "待审批列表",
+          "position": {
+            "x": 0,
+            "y": 2,
+            "w": 6,
+            "h": 4
+          },
+          "data": {
+            "rows": [
+              [
+                "张明",
+                "差旅费",
+                "¥4,580",
+                "紧急"
+              ],
+              [
+                "李娜",
+                "采购申请",
+                "¥12,000",
+                ""
+              ],
+              [
+                "王强",
+                "加班补贴",
+                "¥2,400",
+                ""
+              ]
+            ]
+          }
+        },
+        {
+          "id": "w4",
+          "type": "chart",
+          "title": "审批趋势",
+          "position": {
+            "x": 6,
+            "y": 0,
+            "w": 6,
+            "h": 6
+          },
+          "data": {
+            "labels": [
+              "周一",
+              "周二",
+              "周三",
+              "周四",
+              "周五"
+            ],
+            "values": [
+              8,
+              12,
+              15,
+              10,
+              18
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "ws-it-monitor",
+      "name": "系统监控大屏",
+      "color": "#ef4444",
+      "icon": "Monitor",
+      "status": "error",
+      "description": "实时监控系统运行状态，IT运维助手+客服小助手联合保障",
+      "createdAt": "2025-08-01",
+      "updatedAt": "2025-11-22",
+      "agentIds": [
+        "it-agent",
+        "customer-service-agent"
+      ],
+      "primaryAgentId": "it-agent",
+      "widgets": [
+        {
+          "id": "w1",
+          "type": "metric",
+          "title": "系统可用性",
+          "position": {
+            "x": 0,
+            "y": 0,
+            "w": 3,
+            "h": 2
+          },
+          "data": {
+            "value": "99.2%",
+            "change": "-0.3%",
+            "trend": "down"
+          }
+        },
+        {
+          "id": "w2",
+          "type": "metric",
+          "title": "活跃告警",
+          "position": {
+            "x": 3,
+            "y": 0,
+            "w": 3,
+            "h": 2
+          },
+          "data": {
+            "value": "3个",
+            "change": "+1",
+            "trend": "down"
+          }
+        },
+        {
+          "id": "w3",
+          "type": "list",
+          "title": "告警列表",
+          "position": {
+            "x": 0,
+            "y": 2,
+            "w": 6,
+            "h": 4
+          },
+          "data": {
+            "items": [
+              "【严重】订单服务响应超时 > 5s",
+              "【警告】数据库连接池使用率 85%",
+              "【警告】CDN节点延迟增加"
+            ]
+          }
+        },
+        {
+          "id": "w4",
+          "type": "chart",
+          "title": "CPU/内存趋势",
+          "position": {
+            "x": 6,
+            "y": 0,
+            "w": 6,
+            "h": 6
+          },
+          "data": {
+            "labels": [
+              "00:00",
+              "04:00",
+              "08:00",
+              "12:00",
+              "16:00",
+              "20:00"
+            ],
+            "values": [
+              45,
+              38,
+              62,
+              78,
+              85,
+              72
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "ws-1779668972075-z5f",
+      "name": "绩效分析驾驶舱",
+      "description": "以人力技能和协同技能驱动的综合绩效驾驶舱，覆盖待办事项、任务执行、绩效数据、考勤统计、员工画像五大核心模块",
+      "icon": "BarChart3",
+      "color": "#10b981",
+      "status": "running",
+      "createdAt": "2026-05-25",
+      "updatedAt": "2026-05-25",
+      "agentIds": [
+        "hr-agent",
+        "workbench-agent"
+      ],
+      "primaryAgentId": "hr-agent",
+      "widgets": [
+        {
+          "id": "w-todo",
+          "type": "metric",
+          "title": "待办事项",
+          "position": {
+            "x": 0,
+            "y": 0,
+            "w": 2,
+            "h": 2
+          },
+          "data": {
+            "value": "0项",
+            "change": "—",
+            "trend": "up",
+            "description": "待办中心实时查询: 暂无待办事项",
+            "source": "yonbip-ec-todocenter",
+            "queryResult": "待办总数: 0"
+          }
+        },
+        {
+          "id": "w-task",
+          "type": "metric",
+          "title": "任务统计",
+          "position": {
+            "x": 2,
+            "y": 0,
+            "w": 2,
+            "h": 2
+          },
+          "data": {
+            "value": "0项",
+            "change": "进行中0·已完成0·逾期0",
+            "trend": "up",
+            "description": "全部任务0项·今日到期0项·本周到期0项",
+            "source": "yonbip-ec-task",
+            "queryResult": "allCount=0, todayCount=0, weekCount=0"
+          }
+        },
+        {
+          "id": "w-perf",
+          "type": "table",
+          "title": "绩效数据（经营分析）",
+          "position": {
+            "x": 0,
+            "y": 2,
+            "w": 4,
+            "h": 4
+          },
+          "data": {
+            "rows": [
+              [
+                "逻辑表不存在",
+                "mt_ads_profitability",
+                "盈利分析模型未部署"
+              ],
+              [
+                "建议",
+                "联系管理员部署",
+                "经营分析模型后重试"
+              ]
+            ],
+            "description": "business-performance-analysis 技能查询经营分析模型返回: 逻辑表不存在",
+            "source": "business-performance-analysis",
+            "queryResult": "逻辑表不存在: mt_ads_profitability"
+          }
+        },
+        {
+          "id": "w-atten",
+          "type": "metric",
+          "title": "考勤统计",
+          "position": {
+            "x": 4,
+            "y": 0,
+            "w": 2,
+            "h": 2
+          },
+          "data": {
+            "value": "暂无数据",
+            "change": "—",
+            "trend": "up",
+            "description": "当前环境未部署独立考勤技能",
+            "source": "技能库暂无考勤专项技能"
+          }
+        },
+        {
+          "id": "w-profile",
+          "type": "table",
+          "title": "员工画像（通讯录）",
+          "position": {
+            "x": 4,
+            "y": 2,
+            "w": 4,
+            "h": 4
+          },
+          "data": {
+            "rows": [
+              [
+                "陈邓阳",
+                "大财务开发部",
+                "用友金融"
+              ],
+              [
+                "用友客户成功",
+                "其他",
+                "其他"
+              ],
+              [
+                "用友服务-YonSuite",
+                "其他",
+                "其他"
+              ]
+            ],
+            "description": "通讯录技能搜索\"用友\"返回3条人员记录",
+            "source": "yonbip-ec-contacts-user",
+            "queryResult": "共3人: 陈邓阳、用友客户成功、用友服务-YonSuite"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ws-1779677397539-8x5",
+      "name": "财务总监的驾驶舱",
+      "description": "由座舱代理自动创建的财务总监的驾驶舱",
+      "icon": "BarChart3",
+      "color": "#6366f1",
+      "status": "running",
+      "createdAt": "2026-05-25",
+      "updatedAt": "2026-05-25",
+      "agentIds": [
+        "sales-agent"
+      ],
+      "primaryAgentId": "sales-agent",
+      "widgets": [
+        {
+          "id": "w-1779677397538-1",
+          "type": "metric",
+          "title": "核心指标",
+          "position": {
+            "x": 0,
+            "y": 0,
+            "w": 3,
+            "h": 2
+          },
+          "data": {
+            "value": "—",
+            "change": "+0%",
+            "trend": "up"
+          }
+        },
+        {
+          "id": "w-1779677397538-2",
+          "type": "chart",
+          "title": "趋势分析",
+          "position": {
+            "x": 3,
+            "y": 0,
+            "w": 6,
+            "h": 4
+          },
+          "data": {
+            "labels": [
+              "1月",
+              "2月",
+              "3月",
+              "4月",
+              "5月",
+              "6月"
+            ],
+            "values": [
+              10,
+              15,
+              12,
+              20,
+              18,
+              25
+            ]
+          }
+        },
+        {
+          "id": "w-1779677397538-3",
+          "type": "table",
+          "title": "数据明细",
+          "position": {
+            "x": 0,
+            "y": 2,
+            "w": 3,
+            "h": 4
+          },
+          "data": {
+            "rows": [
+              [
+                "示例数据",
+                "—",
+                "—"
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "ws-1779691713964-t8z",
+      "name": "报告测试驾驶舱",
+      "description": "测试 report widget",
+      "icon": "FileText",
+      "color": "#8b5cf6",
+      "status": "running",
+      "createdAt": "2026-05-25",
+      "updatedAt": "2026-05-25",
+      "agentIds": [
+        "sales-agent"
+      ],
+      "primaryAgentId": "sales-agent",
+      "widgets": [
+        {
+          "id": "w-report-monthly",
+          "type": "report",
+          "title": "月度销售分析报告",
+          "position": {
+            "x": 0,
+            "y": 0,
+            "w": 6,
+            "h": 4
+          },
+          "data": {
+            "summary": "本月销售额达 ¥2,847万，同比增长23%。华东区表现最佳，贡献率达42%。大客户转化率提升至18.5%，创历史新高。",
+            "highlights": [
+              {
+                "label": "关键发现",
+                "value": "华东区业绩突破千万大关"
+              },
+              {
+                "label": "风险提示",
+                "value": "Q3回款周期平均延长5天"
+              },
+              {
+                "label": "机会点",
+                "value": "华北区新客户增长潜力大"
+              }
+            ],
+            "source": "sales-agent",
+            "detail": "一、整体业绩概述\n本月销售额为2,847万元，同比增长23%，环比增长8%。主要增长动力来自华东区的大客户签约。\n\n二、区域分析\n- 华东区：1,200万（+35%）\n- 华北区：680万（+12%）\n- 华南区：967万（+18%）\n\n三、客户分析\n大客户（>100万）签约数量从上月的3家增至5家，转化率从15.2%提升至18.5%。"
+          },
+          "detail": {
+            "type": "slide-out",
+            "width": "520px"
+          }
+        },
+        {
+          "id": "w-metric-sales",
+          "type": "metric",
+          "title": "本月销售额",
+          "position": {
+            "x": 6,
+            "y": 0,
+            "w": 3,
+            "h": 2
+          },
+          "data": {
+            "value": "¥2,847万",
+            "change": "+23%",
+            "trend": "up"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ws-1779710418116-qa3",
+      "name": "企业经营分析驾驶舱",
+      "description": "企业经营分析驾驶舱：覆盖营业收入、净利润、毛利率、费用分析、资产负债、收入构成、部门费用对比等核心财务指标，为管理层提供全面的经营洞察。",
+      "icon": "BarChart3",
+      "color": "#f59e0b",
+      "status": "running",
+      "createdAt": "2026-05-25",
+      "updatedAt": "2026-05-25",
+      "agentIds": [],
+      "primaryAgentId": "",
+      "agentMode": "single",
+      "agentBindings": [],
+      "widgets": [
+        {
+          "type": "metric",
+          "title": "费用率",
+          "data": {
+            "value": "8.2%",
+            "change": "-0.5%",
+            "trend": "down"
+          },
+          "position": {
+            "x": 9,
+            "y": 0,
+            "w": 3,
+            "h": 2
+          },
+          "id": "w-1779710528187"
+        },
+        {
+          "type": "metric",
+          "title": "毛利率",
+          "data": {
+            "value": "24.6%",
+            "change": "+1.8%",
+            "trend": "up"
+          },
+          "position": {
+            "x": 6,
+            "y": 0,
+            "w": 3,
+            "h": 2
+          },
+          "id": "w-1779710528194"
+        },
+        {
+          "type": "metric",
+          "title": "营业收入",
+          "data": {
+            "value": "12,860万元",
+            "change": "+18.5%",
+            "trend": "up"
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "w": 3,
+            "h": 2
+          },
+          "id": "w-1779710528196"
+        },
+        {
+          "type": "metric",
+          "title": "净利润",
+          "data": {
+            "value": "2,180万元",
+            "change": "+12.3%",
+            "trend": "up"
+          },
+          "position": {
+            "x": 3,
+            "y": 0,
+            "w": 3,
+            "h": 2
+          },
+          "id": "w-1779710528207"
+        },
+        {
+          "type": "chart/gauge",
+          "title": "资产负债率",
+          "data": {
+            "value": 42.8,
+            "max": 100,
+            "unit": "%"
+          },
+          "position": {
+            "x": 6,
+            "y": 5,
+            "w": 3,
+            "h": 3
+          },
+          "id": "w-1779710545103"
+        },
+        {
+          "type": "chart/line",
+          "title": "月度营业收入与净利润趋势",
+          "data": {
+            "labels": [
+              "1月",
+              "2月",
+              "3月",
+              "4月",
+              "5月",
+              "6月",
+              "7月",
+              "8月",
+              "9月",
+              "10月",
+              "11月",
+              "12月"
+            ],
+            "datasets": [
+              {
+                "label": "营业收入(万元)",
+                "data": [
+                  980,
+                  1050,
+                  1120,
+                  1080,
+                  1200,
+                  1350,
+                  1280,
+                  1400,
+                  1380,
+                  1450,
+                  1520,
+                  1650
+                ]
+              },
+              {
+                "label": "净利润(万元)",
+                "data": [
+                  165,
+                  178,
+                  190,
+                  182,
+                  205,
+                  230,
+                  218,
+                  238,
+                  235,
+                  248,
+                  260,
+                  280
+                ]
+              }
+            ]
+          },
+          "position": {
+            "x": 0,
+            "y": 2,
+            "w": 8,
+            "h": 3
+          },
+          "id": "w-1779710545110"
+        },
+        {
+          "type": "chart/bar",
+          "title": "各部门费用支出对比",
+          "data": {
+            "labels": [
+              "技术部",
+              "销售部",
+              "市场部",
+              "财务部",
+              "人事部",
+              "行政部"
+            ],
+            "values": [
+              420,
+              380,
+              210,
+              95,
+              120,
+              88
+            ]
+          },
+          "position": {
+            "x": 0,
+            "y": 5,
+            "w": 6,
+            "h": 3
+          },
+          "id": "w-1779710545111"
+        },
+        {
+          "type": "chart/pie",
+          "title": "收入构成分析",
+          "data": {
+            "labels": [
+              "产品销售",
+              "技术服务",
+              "咨询服务",
+              "运维服务"
+            ],
+            "values": [
+              58,
+              22,
+              12,
+              8
+            ]
+          },
+          "position": {
+            "x": 8,
+            "y": 2,
+            "w": 4,
+            "h": 3
+          },
+          "id": "w-1779710545112"
+        },
+        {
+          "type": "metric",
+          "title": "总资产",
+          "data": {
+            "value": "28,500万元",
+            "change": "+5.2%",
+            "trend": "up"
+          },
+          "position": {
+            "x": 9,
+            "y": 7,
+            "w": 3,
+            "h": 1
+          },
+          "id": "w-1779710545113"
+        },
+        {
+          "type": "metric",
+          "title": "资产负债率",
+          "data": {
+            "value": "42.8%",
+            "change": "-2.1%",
+            "trend": "down"
+          },
+          "position": {
+            "x": 9,
+            "y": 5,
+            "w": 3,
+            "h": 2
+          },
+          "id": "w-1779710545114"
+        }
+      ]
+    },
+    {
+      "id": "ws-1779712311852-qmw",
+      "name": "财务销售综合驾驶舱",
+      "description": "实时展示财务销售综合驾驶舱数据、业绩趋势和客户排行，由销售助手+营销智脑联合驱动",
+      "icon": "BarChart3",
+      "color": "#6366f1",
+      "status": "running",
+      "createdAt": "2026-05-25",
+      "updatedAt": "2026-05-25",
+      "agentIds": [
+        "sales-agent",
+        "marketing-agent"
+      ],
+      "primaryAgentId": "sales-agent",
+      "agentMode": "single",
+      "agentBindings": [
+        {
+          "agentId": "sales-agent",
+          "status": "pending"
+        },
+        {
+          "agentId": "marketing-agent",
+          "status": "pending"
+        }
+      ],
+      "widgets": [
+        {
+          "id": "w-1779712311851-1",
+          "type": "metric",
+          "title": "本月销售额",
+          "position": {
+            "x": 0,
+            "y": 0,
+            "w": 3,
+            "h": 2
+          },
+          "data": {
+            "value": "—",
+            "change": "+0%",
+            "trend": "up"
+          },
+          "dataSource": {
+            "type": "skill",
+            "skillId": "sales.getMonthlyRevenue",
+            "agentId": "sales-agent",
+            "input": {
+              "timeRange": "thisMonth"
+            },
+            "transform": "({ revenue, growth }) => ({ value: `¥${(revenue/1e4).toFixed(0)}万`, change: `${growth>0?\"+\":\"\"}${(growth*100).toFixed(0)}%`, trend: growth>0?\"up\":\"down\" })",
+            "fallbackToStatic": true
+          }
+        },
+        {
+          "id": "w-1779712311851-2",
+          "type": "chart",
+          "title": "业绩趋势",
+          "position": {
+            "x": 3,
+            "y": 0,
+            "w": 6,
+            "h": 4
+          },
+          "data": {
+            "labels": [
+              "1月",
+              "2月",
+              "3月",
+              "4月",
+              "5月",
+              "6月"
+            ],
+            "values": [
+              10,
+              15,
+              12,
+              20,
+              18,
+              25
+            ]
+          },
+          "dataSource": {
+            "type": "skill",
+            "skillId": "sales.getRevenueTrend",
+            "agentId": "sales-agent",
+            "input": {
+              "months": 6
+            },
+            "transform": "({ labels, values }) => ({ labels, values })",
+            "fallbackToStatic": true
+          }
+        },
+        {
+          "id": "w-1779712311851-3",
+          "type": "table",
+          "title": "Top 5 客户",
+          "position": {
+            "x": 0,
+            "y": 2,
+            "w": 3,
+            "h": 4
+          },
+          "data": {
+            "rows": [
+              [
+                "示例客户",
+                "—",
+                "—"
+              ]
+            ]
+          },
+          "dataSource": {
+            "type": "skill",
+            "skillId": "sales.getTopCustomers",
+            "agentId": "sales-agent",
+            "input": {
+              "limit": 5
+            },
+            "transform": "({ rows }) => ({ rows })",
+            "fallbackToStatic": true
+          }
+        },
+        {
+          "id": "w-1779712311851-4",
+          "type": "metric",
+          "title": "订单转化率",
+          "position": {
+            "x": 9,
+            "y": 0,
+            "w": 3,
+            "h": 2
+          },
+          "data": {
+            "value": "—",
+            "change": "+0%",
+            "trend": "up"
+          },
+          "dataSource": {
+            "type": "skill",
+            "skillId": "sales.getConversionRate",
+            "agentId": "sales-agent",
+            "input": {
+              "timeRange": "thisMonth"
+            },
+            "transform": "({ rate, change }) => ({ value: `${(rate*100).toFixed(1)}%`, change: `${change>0?\"+\":\"\"}${(change*100).toFixed(1)}%`, trend: change>0?\"up\":\"down\" })",
+            "fallbackToStatic": true
+          }
+        },
+        {
+          "id": "w-1779712311851-5",
+          "type": "kanban",
+          "title": "商机漏斗",
+          "position": {
+            "x": 9,
+            "y": 2,
+            "w": 3,
+            "h": 4
+          },
+          "data": {
+            "stages": [
+              "线索",
+              "接触",
+              "确认",
+              "谈判",
+              "成交"
+            ]
+          },
+          "dataSource": {
+            "type": "skill",
+            "skillId": "sales.getPipelineStages",
+            "agentId": "sales-agent",
+            "transform": "({ stages }) => ({ stages })",
+            "fallbackToStatic": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "ws-1779716698228-6t3",
+      "name": "企业内控分析驾驶舱",
+      "description": "企业内控分析驾驶舱全景分析：市场规模、投融资动态、技术演进、竞争格局与政策环境",
+      "icon": "Target",
+      "color": "#6366f1",
+      "status": "running",
+      "createdAt": "2026-05-25",
+      "updatedAt": "2026-05-25",
+      "agentIds": [],
+      "primaryAgentId": "",
+      "agentMode": "single",
+      "agentBindings": [],
+      "widgets": [
+        {
+          "id": "w-1779716698013-1",
+          "type": "metric",
+          "title": "市场规模",
+          "position": {
+            "x": 0,
+            "y": 0,
+            "w": 3,
+            "h": 2
+          },
+          "data": {
+            "value": "1,860亿",
+            "change": "+38.5%",
+            "trend": "up"
+          }
+        },
+        {
+          "id": "w-1779716698013-2",
+          "type": "metric",
+          "title": "年度融资额",
+          "position": {
+            "x": 3,
+            "y": 0,
+            "w": 3,
+            "h": 2
+          },
+          "data": {
+            "value": "420亿",
+            "change": "+65%",
+            "trend": "up"
+          }
+        },
+        {
+          "id": "w-1779716698013-3",
+          "type": "metric",
+          "title": "活跃企业数",
+          "position": {
+            "x": 6,
+            "y": 0,
+            "w": 3,
+            "h": 2
+          },
+          "data": {
+            "value": "320+",
+            "change": "+28%",
+            "trend": "up"
+          }
+        },
+        {
+          "id": "w-1779716698013-4",
+          "type": "metric",
+          "title": "专利申请量",
+          "position": {
+            "x": 9,
+            "y": 0,
+            "w": 3,
+            "h": 2
+          },
+          "data": {
+            "value": "12,800",
+            "change": "+42%",
+            "trend": "up"
+          }
+        },
+        {
+          "id": "w-1779716698013-5",
+          "type": "chart",
+          "title": "投融资趋势",
+          "position": {
+            "x": 0,
+            "y": 2,
+            "w": 6,
+            "h": 4
+          },
+          "data": {
+            "labels": [
+              "2021",
+              "2022",
+              "2023",
+              "2024",
+              "2025E"
+            ],
+            "values": [
+              120,
+              280,
+              520,
+              980,
+              1860
+            ]
+          }
+        },
+        {
+          "id": "w-1779716698013-6",
+          "type": "timeline",
+          "title": "技术演进路线",
+          "position": {
+            "x": 6,
+            "y": 2,
+            "w": 6,
+            "h": 4
+          },
+          "data": {
+            "steps": [
+              "2017 Transformer 架构诞生",
+              "2020 GPT-3 发布（1750亿参数）",
+              "2022 ChatGPT 引爆全球",
+              "2023 多模态大模型爆发",
+              "2024 Agent 与推理能力突破",
+              "2025 端侧大模型与产业落地"
+            ]
+          }
+        },
+        {
+          "id": "w-1779716698013-7",
+          "type": "table",
+          "title": "竞争格局",
+          "position": {
+            "x": 0,
+            "y": 6,
+            "w": 6,
+            "h": 4
+          },
+          "data": {
+            "rows": [
+              [
+                "OpenAI",
+                "GPT-4o / o1",
+                "美国",
+                "1000亿+"
+              ],
+              [
+                "Anthropic",
+                "Claude 3.5",
+                "美国",
+                "400亿"
+              ],
+              [
+                "Google",
+                "Gemini 2.0",
+                "美国",
+                "母公司支持"
+              ],
+              [
+                "Meta",
+                "Llama 3",
+                "美国",
+                "开源生态"
+              ],
+              [
+                "字节跳动",
+                "豆包 / 云雀",
+                "中国",
+                "100亿+"
+              ],
+              [
+                "阿里巴巴",
+                "通义千问",
+                "中国",
+                "80亿+"
+              ],
+              [
+                "百度",
+                "文心一言",
+                "中国",
+                "50亿+"
+              ]
+            ]
+          }
+        },
+        {
+          "id": "w-1779716698013-8",
+          "type": "list",
+          "title": "政策法规动态",
+          "position": {
+            "x": 6,
+            "y": 6,
+            "w": 6,
+            "h": 4
+          },
+          "data": {
+            "items": [
+              "欧盟《人工智能法案》正式生效，按风险分级监管",
+              "中国《生成式人工智能服务管理暂行办法》持续完善",
+              "美国商务部限制高端AI芯片对华出口",
+              "国内多省市出台大模型产业扶持政策",
+              "数据安全法与个人信息保护法合规要求趋严"
+            ]
+          }
+        },
+        {
+          "id": "w-1779716698013-9",
+          "type": "report",
+          "title": "行业深度报告",
+          "position": {
+            "x": 0,
+            "y": 10,
+            "w": 12,
+            "h": 4
+          },
+          "data": {
+            "summary": "大模型行业2024年市场规模达1,860亿元，同比增长38.5%。全球融资总额超过420亿美元，头部企业加速多模态与Agent能力布局。技术层面，推理效率提升与端侧部署成为新焦点。监管环境日趋完善，合规能力成为企业核心竞争力。",
+            "highlights": [
+              {
+                "label": "市场规模",
+                "value": "1,860亿元"
+              },
+              {
+                "label": "年增长率",
+                "value": "+38.5%"
+              },
+              {
+                "label": "头部企业",
+                "value": "OpenAI、Anthropic、字节"
+              },
+              {
+                "label": "关键趋势",
+                "value": "Agent、端侧、多模态"
+              }
+            ],
+            "source": "行业研究分析",
+            "detail": {
+              "content": "# 大模型行业深度分析报告\n\n## 一、市场规模与增长\n\n2024年中国大模型市场规模达到 **1,860亿元**，同比增长38.5%。全球市场同步高速增长，预计2025年全球市场规模将突破 **2,500亿美元**。\n\n增长驱动力：\n- 企业数字化转型加速，AI原生应用爆发\n- 算力成本持续下降，模型训练门槛降低\n- 开源生态繁荣（Llama、Qwen、DeepSeek等）\n\n## 二、投融资动态\n\n2024年全球大模型领域融资总额超过 **420亿美元**，较2023年增长65%。\n\n重点融资事件：\n- OpenAI：完成66亿美元融资，估值1,570亿美元\n- Anthropic：获得40亿美元追加投资\n- 中国头部企业：字节、阿里、百度合计投入超200亿元\n\n## 三、技术演进趋势\n\n1. **多模态融合**：文本、图像、音频、视频统一建模\n2. **Agent化**：从对话助手向自主任务执行演进\n3. **端侧部署**：轻量化模型在手机、IoT设备落地\n4. **推理优化**：MoE架构、投机解码、量化压缩\n\n## 四、竞争格局\n\n全球形成\"一超多强\"格局：\n- 美国：OpenAI（闭源领先）、Meta（开源生态）\n- 中国：字节（应用驱动）、阿里（云服务）、百度（先发优势）\n\n## 五、政策与监管\n\n- 欧盟AI法案：全球首部综合性AI监管法律\n- 中国：生成式AI管理办法+数据安全法双重约束\n- 美国：出口管制+行政令，限制高端芯片与模型技术外流\n\n## 六、展望\n\n2025年关键看点：\n- Agent 应用大规模商业化\n- 端侧大模型成为手机标配\n- 具身智能与机器人结合突破\n- 行业垂直模型深度落地"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "ws-1779718475496-rhc",
+      "name": "采购分析驾驶舱",
+      "description": "采购分析驾驶舱全景分析：市场规模、投融资动态、技术演进、竞争格局与政策环境",
+      "icon": "Target",
+      "color": "#6366f1",
+      "status": "running",
+      "createdAt": "2026-05-25",
+      "updatedAt": "2026-05-25",
+      "agentIds": [],
+      "primaryAgentId": "",
+      "agentMode": "single",
+      "agentBindings": [],
+      "widgets": [
+        {
+          "id": "w-1779718475236-1",
+          "type": "metric",
+          "title": "市场规模",
+          "position": {
+            "x": 0,
+            "y": 0,
+            "w": 3,
+            "h": 2
+          },
+          "data": {
+            "value": "1,860亿",
+            "change": "+38.5%",
+            "trend": "up"
+          }
+        },
+        {
+          "id": "w-1779718475236-2",
+          "type": "metric",
+          "title": "年度融资额",
+          "position": {
+            "x": 3,
+            "y": 0,
+            "w": 3,
+            "h": 2
+          },
+          "data": {
+            "value": "420亿",
+            "change": "+65%",
+            "trend": "up"
+          }
+        },
+        {
+          "id": "w-1779718475236-3",
+          "type": "metric",
+          "title": "活跃企业数",
+          "position": {
+            "x": 6,
+            "y": 0,
+            "w": 3,
+            "h": 2
+          },
+          "data": {
+            "value": "320+",
+            "change": "+28%",
+            "trend": "up"
+          }
+        },
+        {
+          "id": "w-1779718475236-4",
+          "type": "metric",
+          "title": "专利申请量",
+          "position": {
+            "x": 9,
+            "y": 0,
+            "w": 3,
+            "h": 2
+          },
+          "data": {
+            "value": "12,800",
+            "change": "+42%",
+            "trend": "up"
+          }
+        },
+        {
+          "id": "w-1779718475236-5",
+          "type": "chart",
+          "title": "投融资趋势",
+          "position": {
+            "x": 0,
+            "y": 2,
+            "w": 6,
+            "h": 4
+          },
+          "data": {
+            "labels": [
+              "2021",
+              "2022",
+              "2023",
+              "2024",
+              "2025E"
+            ],
+            "values": [
+              120,
+              280,
+              520,
+              980,
+              1860
+            ]
+          }
+        },
+        {
+          "id": "w-1779718475236-6",
+          "type": "timeline",
+          "title": "技术演进路线",
+          "position": {
+            "x": 6,
+            "y": 2,
+            "w": 6,
+            "h": 4
+          },
+          "data": {
+            "steps": [
+              "2017 Transformer 架构诞生",
+              "2020 GPT-3 发布（1750亿参数）",
+              "2022 ChatGPT 引爆全球",
+              "2023 多模态大模型爆发",
+              "2024 Agent 与推理能力突破",
+              "2025 端侧大模型与产业落地"
+            ]
+          }
+        },
+        {
+          "id": "w-1779718475236-7",
+          "type": "table",
+          "title": "竞争格局",
+          "position": {
+            "x": 0,
+            "y": 6,
+            "w": 6,
+            "h": 4
+          },
+          "data": {
+            "rows": [
+              [
+                "OpenAI",
+                "GPT-4o / o1",
+                "美国",
+                "1000亿+"
+              ],
+              [
+                "Anthropic",
+                "Claude 3.5",
+                "美国",
+                "400亿"
+              ],
+              [
+                "Google",
+                "Gemini 2.0",
+                "美国",
+                "母公司支持"
+              ],
+              [
+                "Meta",
+                "Llama 3",
+                "美国",
+                "开源生态"
+              ],
+              [
+                "字节跳动",
+                "豆包 / 云雀",
+                "中国",
+                "100亿+"
+              ],
+              [
+                "阿里巴巴",
+                "通义千问",
+                "中国",
+                "80亿+"
+              ],
+              [
+                "百度",
+                "文心一言",
+                "中国",
+                "50亿+"
+              ]
+            ]
+          }
+        },
+        {
+          "id": "w-1779718475236-8",
+          "type": "list",
+          "title": "政策法规动态",
+          "position": {
+            "x": 6,
+            "y": 6,
+            "w": 6,
+            "h": 4
+          },
+          "data": {
+            "items": [
+              "欧盟《人工智能法案》正式生效，按风险分级监管",
+              "中国《生成式人工智能服务管理暂行办法》持续完善",
+              "美国商务部限制高端AI芯片对华出口",
+              "国内多省市出台大模型产业扶持政策",
+              "数据安全法与个人信息保护法合规要求趋严"
+            ]
+          }
+        },
+        {
+          "id": "w-1779718475236-9",
+          "type": "report",
+          "title": "行业深度报告",
+          "position": {
+            "x": 0,
+            "y": 10,
+            "w": 12,
+            "h": 4
+          },
+          "data": {
+            "summary": "大模型行业2024年市场规模达1,860亿元，同比增长38.5%。全球融资总额超过420亿美元，头部企业加速多模态与Agent能力布局。技术层面，推理效率提升与端侧部署成为新焦点。监管环境日趋完善，合规能力成为企业核心竞争力。",
+            "highlights": [
+              {
+                "label": "市场规模",
+                "value": "1,860亿元"
+              },
+              {
+                "label": "年增长率",
+                "value": "+38.5%"
+              },
+              {
+                "label": "头部企业",
+                "value": "OpenAI、Anthropic、字节"
+              },
+              {
+                "label": "关键趋势",
+                "value": "Agent、端侧、多模态"
+              }
+            ],
+            "source": "行业研究分析",
+            "detail": {
+              "content": "# 大模型行业深度分析报告\n\n## 一、市场规模与增长\n\n2024年中国大模型市场规模达到 **1,860亿元**，同比增长38.5%。全球市场同步高速增长，预计2025年全球市场规模将突破 **2,500亿美元**。\n\n增长驱动力：\n- 企业数字化转型加速，AI原生应用爆发\n- 算力成本持续下降，模型训练门槛降低\n- 开源生态繁荣（Llama、Qwen、DeepSeek等）\n\n## 二、投融资动态\n\n2024年全球大模型领域融资总额超过 **420亿美元**，较2023年增长65%。\n\n重点融资事件：\n- OpenAI：完成66亿美元融资，估值1,570亿美元\n- Anthropic：获得40亿美元追加投资\n- 中国头部企业：字节、阿里、百度合计投入超200亿元\n\n## 三、技术演进趋势\n\n1. **多模态融合**：文本、图像、音频、视频统一建模\n2. **Agent化**：从对话助手向自主任务执行演进\n3. **端侧部署**：轻量化模型在手机、IoT设备落地\n4. **推理优化**：MoE架构、投机解码、量化压缩\n\n## 四、竞争格局\n\n全球形成\"一超多强\"格局：\n- 美国：OpenAI（闭源领先）、Meta（开源生态）\n- 中国：字节（应用驱动）、阿里（云服务）、百度（先发优势）\n\n## 五、政策与监管\n\n- 欧盟AI法案：全球首部综合性AI监管法律\n- 中国：生成式AI管理办法+数据安全法双重约束\n- 美国：出口管制+行政令，限制高端芯片与模型技术外流\n\n## 六、展望\n\n2025年关键看点：\n- Agent 应用大规模商业化\n- 端侧大模型成为手机标配\n- 具身智能与机器人结合突破\n- 行业垂直模型深度落地"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "ws-1779719056802-a1v",
+      "name": "北京7日天气分析驾驶舱",
+      "description": "提供北京未来7日的天气情况分析，包括温度变化、降水概率、空气质量等关键信息。（由 LLM 驱动）",
+      "icon": "Target",
+      "color": "#6366f1",
+      "status": "running",
+      "createdAt": "2026-05-25",
+      "updatedAt": "2026-05-25",
+      "agentIds": [],
+      "primaryAgentId": "",
+      "agentMode": "llm-only",
+      "agentBindings": [],
+      "widgets": [
+        {
+          "id": "w-gen-1779719056564-0",
+          "type": "metric",
+          "title": "今日最高温度",
+          "position": {
+            "x": 0,
+            "y": 0,
+            "w": 3,
+            "h": 2
+          },
+          "data": {
+            "value": "25℃",
+            "change": "+2%",
+            "trend": "up"
+          }
+        },
+        {
+          "id": "w-gen-1779719056564-1",
+          "type": "metric",
+          "title": "未来7日平均温度",
+          "position": {
+            "x": 3,
+            "y": 0,
+            "w": 3,
+            "h": 2
+          },
+          "data": {
+            "value": "22℃",
+            "change": "-1%",
+            "trend": "down"
+          }
+        },
+        {
+          "id": "w-gen-1779719056564-2",
+          "type": "chart",
+          "title": "7日温度趋势",
+          "position": {
+            "x": 6,
+            "y": 0,
+            "w": 6,
+            "h": 4
+          },
+          "data": {
+            "labels": [
+              "周一",
+              "周二",
+              "周三",
+              "周四",
+              "周五",
+              "周六",
+              "周日"
+            ],
+            "values": [
+              23,
+              24,
+              25,
+              26,
+              27,
+              25,
+              24
+            ]
+          }
+        },
+        {
+          "id": "w-gen-1779719056564-3",
+          "type": "chart",
+          "title": "降水概率",
+          "position": {
+            "x": 0,
+            "y": 4,
+            "w": 6,
+            "h": 4
+          },
+          "data": {
+            "labels": [
+              "周一",
+              "周二",
+              "周三",
+              "周四",
+              "周五",
+              "周六",
+              "周日"
+            ],
+            "values": [
+              10,
+              15,
+              20,
+              5,
+              0,
+              10,
+              8
+            ]
+          }
+        },
+        {
+          "id": "w-gen-1779719056564-4",
+          "type": "table",
+          "title": "空气质量指数（AQI）",
+          "position": {
+            "x": 6,
+            "y": 4,
+            "w": 6,
+            "h": 4
+          },
+          "data": {
+            "rows": [
+              [
+                "日期",
+                "AQI",
+                "状态"
+              ],
+              [
+                "周一",
+                "50",
+                "优"
+              ],
+              [
+                "周二",
+                "60",
+                "良"
+              ],
+              [
+                "周三",
+                "70",
+                "良"
+              ],
+              [
+                "周四",
+                "80",
+                "轻度污染"
+              ],
+              [
+                "周五",
+                "75",
+                "良"
+              ],
+              [
+                "周六",
+                "65",
+                "良"
+              ],
+              [
+                "周日",
+                "55",
+                "优"
+              ]
+            ]
+          }
+        },
+        {
+          "id": "w-gen-1779719056564-5",
+          "type": "report",
+          "title": "天气总结报告",
+          "position": {
+            "x": 0,
+            "y": 8,
+            "w": 12,
+            "h": 4
+          },
+          "data": {
+            "summary": "北京未来7日天气总体良好，气温适中，降水概率较低。",
+            "highlights": [
+              {
+                "label": "最高温度",
+                "value": "27℃"
+              },
+              {
+                "label": "最低温度",
+                "value": "23℃"
+              }
+            ],
+            "detail": {
+              "content": "# 北京未来7日天气详细报告\n## 气温变化\n- 周一至周日气温在23℃至27℃之间波动。\n## 降水情况\n- 降水概率最高的是周三，达到20%。\n## 空气质量\n- 空气质量总体良好，周四有轻度污染。",
+              "contentType": "markdown"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "ws-1779722212725-7ed",
+      "name": "上海七日天气分析驾驶舱",
+      "description": "提供上海未来七天的详细天气数据，包括温度、降水概率、风速等关键指标，帮助用户做出相应的出行决策。（由 LLM 驱动）",
+      "icon": "Target",
+      "color": "#6366f1",
+      "status": "running",
+      "createdAt": "2026-05-25",
+      "updatedAt": "2026-05-25",
+      "agentIds": [],
+      "primaryAgentId": "",
+      "agentMode": "llm-only",
+      "agentBindings": [],
+      "widgets": [
+        {
+          "id": "w-gen-1779722212430-0",
+          "type": "metric",
+          "title": "今日最高温度",
+          "position": {
+            "x": 0,
+            "y": 0,
+            "w": 3,
+            "h": 2
+          },
+          "data": {
+            "value": "23°C",
+            "change": "+2%",
+            "trend": "up"
+          }
+        },
+        {
+          "id": "w-gen-1779722212430-1",
+          "type": "chart",
+          "title": "七日温度趋势图",
+          "position": {
+            "x": 3,
+            "y": 0,
+            "w": 6,
+            "h": 4
+          },
+          "data": {
+            "labels": [
+              "周一",
+              "周二",
+              "周三",
+              "周四",
+              "周五",
+              "周六",
+              "周日"
+            ],
+            "values": [
+              21,
+              22,
+              23,
+              24,
+              25,
+              26,
+              27
+            ]
+          }
+        },
+        {
+          "id": "w-gen-1779722212430-2",
+          "type": "chart",
+          "title": "七日降水概率图",
+          "position": {
+            "x": 9,
+            "y": 0,
+            "w": 6,
+            "h": 4
+          },
+          "data": {
+            "labels": [
+              "周一",
+              "周二",
+              "周三",
+              "周四",
+              "周五",
+              "周六",
+              "周日"
+            ],
+            "values": [
+              10,
+              20,
+              30,
+              40,
+              50,
+              60,
+              70
+            ]
+          }
+        },
+        {
+          "id": "w-gen-1779722212430-3",
+          "type": "table",
+          "title": "每日天气预报",
+          "position": {
+            "x": 0,
+            "y": 4,
+            "w": 6,
+            "h": 4
+          },
+          "data": {
+            "rows": [
+              [
+                "日期",
+                "最高温度(°C)",
+                "最低温度(°C)",
+                "天气状况",
+                "降水概率(%)"
+              ],
+              [
+                "周一",
+                "21",
+                "15",
+                "晴",
+                "10"
+              ],
+              [
+                "周二",
+                "22",
+                "16",
+                "多云",
+                "20"
+              ],
+              [
+                "周三",
+                "23",
+                "17",
+                "阴天",
+                "30"
+              ],
+              [
+                "周四",
+                "24",
+                "18",
+                "小雨",
+                "40"
+              ],
+              [
+                "周五",
+                "25",
+                "19",
+                "中雨",
+                "50"
+              ],
+              [
+                "周六",
+                "26",
+                "20",
+                "大雨",
+                "60"
+              ],
+              [
+                "周日",
+                "27",
+                "21",
+                "晴",
+                "70"
+              ]
+            ]
+          }
+        },
+        {
+          "id": "w-gen-1779722212430-4",
+          "type": "report",
+          "title": "未来一周天气总结",
+          "position": {
+            "x": 6,
+            "y": 4,
+            "w": 9,
+            "h": 4
+          },
+          "data": {
+            "summary": "上海未来一周天气总体较好，温度逐渐升高，周五至周日有明显降水。",
+            "highlights": [
+              {
+                "label": "最高温度",
+                "value": "27°C"
+              },
+              {
+                "label": "最低温度",
+                "value": "15°C"
+              }
+            ],
+            "detail": {
+              "content": "# 上海未来一周天气预报\n## 周一\n- 最高温度：21°C\n- 最低温度：15°C\n- 天气状况：晴\n- 降水概率：10%\n\n## 周二\n- 最高温度：22°C\n- 最低温度：16°C\n- 天气状况：多云\n- 降水概率：20%\n\n..."
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

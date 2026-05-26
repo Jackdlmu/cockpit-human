@@ -1,0 +1,76 @@
+import type { CockpitTemplate } from './types';
+
+export const hrTemplate: CockpitTemplate = {
+  id: 'hr',
+  name: '入职管理台',
+  domain: '人力资源',
+  keywords: [
+    '人事', 'HR', '入职', '招聘', '考勤', '绩效', '员工', '人员',
+    '离职', '薪酬', '培训', '组织', '人才', '人力',
+    'human resource', 'recruit', 'onboard', 'attendance', 'performance',
+  ],
+  icon: 'UserPlus',
+  color: '#10b981',
+  agentIds: ['hr-agent', 'it-agent'],
+  primaryAgentId: 'hr-agent',
+  description: '{{name}}全流程跟踪，HR助手+IT运维助手联合协作',
+  widgets: [
+    {
+      id: 'w-metric-headcount',
+      type: 'metric',
+      title: '本月入职人数',
+      position: { x: 0, y: 0, w: 3, h: 2 },
+      data: { value: '8人', change: '+3', trend: 'up' },
+      dataSource: {
+        type: 'skill',
+        skillId: 'hr.getMonthlyOnboardCount',
+        agentId: 'hr-agent',
+        transform: '({ count, change }) => ({ value: String(count), change: `${change>0?"+":""}${change}`, trend: change>0?"up":"down" })',
+        fallbackToStatic: true,
+      },
+    },
+    {
+      id: 'w-timeline-progress',
+      type: 'timeline',
+      title: '入职进度',
+      position: { x: 3, y: 0, w: 9, h: 4 },
+      data: { steps: ['信息录入 ✓', 'IT开通 ✓', '经理确认 →', '工位分配', '培训安排', '权限开通'] },
+      dataSource: {
+        type: 'skill',
+        skillId: 'hr.getOnboardProgress',
+        agentId: 'hr-agent',
+        transform: '({ steps }) => ({ steps })',
+        fallbackToStatic: true,
+      },
+    },
+    {
+      id: 'w-table-todo',
+      type: 'table',
+      title: '待办入职',
+      position: { x: 0, y: 2, w: 6, h: 4 },
+      data: { rows: [['陈小明', '产品经理', '3月15日', '待IT开通'], ['刘小红', '前端工程师', '3月18日', '待经理确认'], ['王大力', '算法工程师', '3月20日', '待信息录入']] },
+      dataSource: {
+        type: 'skill',
+        skillId: 'hr.getPendingOnboards',
+        agentId: 'hr-agent',
+        input: { limit: 10 },
+        transform: '({ rows }) => ({ rows })',
+        fallbackToStatic: true,
+      },
+    },
+    {
+      id: 'w-metric-cycle',
+      type: 'metric',
+      title: '平均入职周期',
+      position: { x: 6, y: 2, w: 3, h: 2 },
+      data: { value: '5.2天', change: '-0.8天', trend: 'up' },
+      dataSource: {
+        type: 'skill',
+        skillId: 'hr.getAverageOnboardCycle',
+        agentId: 'hr-agent',
+        transform: '({ days, change }) => ({ value: `${days}天`, change: `${change>0?"+":""}${change}天`, trend: change>0?"up":"down" })',
+        fallbackToStatic: true,
+      },
+    },
+  ],
+};

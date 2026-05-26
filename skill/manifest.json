@@ -1,0 +1,39 @@
+{
+  "$schema": "https://openclaw.dev/schema/skill-manifest-v1.json",
+  "id": "yoncockpit.cockpit",
+  "name": "智能驾驶舱",
+  "version": "1.0.0",
+  "description": "多智能体聚合执行的动态呈现与管理驾驶舱。支持对接 YonClaw / OpenClaw 等智能体平台，以可视化方式监控智能体协作运行状态。",
+  "author": "YonCockpit Team",
+  "license": "MIT",
+  "entry": {
+    "type": "iframe",
+    "url": "http://localhost:3000",
+    "icon": "http://localhost:3000/icon.svg"
+  },
+  "backend": {
+    "type": "http",
+    "baseUrl": "http://localhost:3001",
+    "healthEndpoint": "/api/health",
+    "required": true
+  },
+  "permissions": [
+    "agent.read",
+    "agent.execute",
+    "workspace.read",
+    "workspace.execute"
+  ],
+  "config": {
+    "schema": "./config.schema.json",
+    "defaults": {
+      "adapterType": "mock",
+      "agentPlatformUrl": "",
+      "agentPlatformApiKey": ""
+    }
+  },
+  "features": {
+    "streaming": true,
+    "darkMode": true,
+    "responsive": true
+  }
+}

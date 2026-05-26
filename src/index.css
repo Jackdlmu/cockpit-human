@@ -1,0 +1,107 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* ── Light theme (default) ── */
+    --background: 0 0% 100%;
+    --foreground: 240 10% 10%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 10%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 10%;
+    --primary: 0 72% 51%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 240 5% 96%;
+    --secondary-foreground: 240 10% 10%;
+    --muted: 240 5% 96%;
+    --muted-foreground: 240 4% 46%;
+    --accent: 240 5% 96%;
+    --accent-foreground: 240 10% 10%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 240 6% 90%;
+    --input: 240 6% 90%;
+    --ring: 0 72% 51%;
+    --radius: 0.625rem;
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5% 26%;
+    --sidebar-primary: 0 72% 51%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 5% 96%;
+    --sidebar-accent-foreground: 240 10% 10%;
+    --sidebar-border: 240 6% 90%;
+    --sidebar-ring: 0 72% 51%;
+
+    /* ── App-level semantic tokens ── */
+    --app-bg: 0 0% 100%;
+    --app-surface: 240 5% 98%;
+    --app-surface-hover: 240 5% 95%;
+    --app-surface-elevated: 0 0% 100%;
+    --app-surface-subtle: 240 5% 96%;
+    --app-border: 240 6% 90%;
+    --app-border-subtle: 240 6% 94%;
+    --app-text: 240 10% 10%;
+    --app-text-secondary: 240 5% 30%;
+    --app-text-muted: 240 4% 42%;
+    --app-text-subtle: 240 4% 55%;
+    --app-overlay: 240 10% 10%;
+  }
+
+  .dark {
+    /* ── Dark theme (YonClaw) ── */
+    --background: 250 25% 5%;
+    --foreground: 0 0% 95%;
+    --card: 250 25% 7%;
+    --card-foreground: 0 0% 95%;
+    --popover: 250 25% 7%;
+    --popover-foreground: 0 0% 95%;
+    --primary: 0 72% 51%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 250 15% 12%;
+    --secondary-foreground: 0 0% 90%;
+    --muted: 250 15% 12%;
+    --muted-foreground: 250 5% 55%;
+    --accent: 250 15% 12%;
+    --accent-foreground: 0 0% 95%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 250 15% 15%;
+    --input: 250 15% 15%;
+    --ring: 0 72% 51%;
+    --radius: 0.625rem;
+    --sidebar-background: 250 20% 8%;
+    --sidebar-foreground: 0 0% 85%;
+    --sidebar-primary: 0 72% 51%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 250 15% 12%;
+    --sidebar-accent-foreground: 0 0% 95%;
+    --sidebar-border: 250 15% 12%;
+    --sidebar-ring: 0 72% 51%;
+
+    /* ── App-level semantic tokens (dark) ── */
+    --app-bg: 250 25% 7%;
+    --app-surface: 250 20% 10%;
+    --app-surface-hover: 250 20% 13%;
+    --app-surface-elevated: 250 25% 9%;
+    --app-surface-subtle: 250 20% 11%;
+    --app-border: 250 15% 18%;
+    --app-border-subtle: 250 15% 14%;
+    --app-text: 0 0% 95%;
+    --app-text-secondary: 0 0% 80%;
+    --app-text-muted: 250 5% 62%;
+    --app-text-subtle: 250 5% 52%;
+    --app-overlay: 250 25% 5%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-app-bg text-app-text antialiased;
+    /* Remove hardcoded dark colors — now driven by CSS variables */
+  }
+}
