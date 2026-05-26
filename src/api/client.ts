@@ -187,6 +187,17 @@ export function getTemplates() {
   return fetchJson<{ templates: any[] }>('/templates');
 }
 
+export function getTemplate(id: string) {
+  return fetchJson<{ template: any }>(`/templates/${id}`);
+}
+
+export function createCockpitFromTemplate(templateId: string, name?: string, initPrompt?: string) {
+  return fetchJson<{ workspace: any; initializing: boolean }>(`/templates/${templateId}/create-cockpit`, {
+    method: 'POST',
+    body: JSON.stringify({ name, initPrompt }),
+  });
+}
+
 export function createTemplate(data: any) {
   return adminFetch<{ template: any }>('/templates', { method: 'POST', body: JSON.stringify(data) });
 }

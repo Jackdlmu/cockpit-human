@@ -343,10 +343,22 @@ export class CockpitAgent {
       // 最终防线：如果名称是默认的"新驾驶舱"，从原始指令中重新提取
       if ((spec.name === '新驾驶舱' || !sanitizeCockpitName(spec.name)) && context.command) {
         const ruleEntities = extractEntities(context.command);
-        const forcedName = ruleEntities.cockpitType
+        let forcedName = ruleEntities.cockpitType
           ? `${ruleEntities.cockpitType}驾驶舱`
-          : (context.command.match(/["']([^"']+?)["']/)?.[1] || '新驾驶舱');
-        if (forcedName !== '新驾驶舱') {
+          : (context.command.match(/["']([^"']+?)["']/)?.[1] || '');
+
+        // 增强：尝试从"查询/展示/查看/分析/监控"等动词后面的内容提取主题
+        if (!forcedName || forcedName === '新驾驶舱' || forcedName.length < 3) {
+          const topicMatch = context.command.match(/(?:查询|展示|查看|分析|监控|统计|关于|针对|聚焦)(.+?)(?:的|数据|情况|驾驶舱|仪表盘|$)/i);
+          if (topicMatch) {
+            const topic = topicMatch[1].trim().replace(/^[的\s]+/, '').replace(/[\s,，]+$/, '');
+            if (topic && topic.length > 1) {
+              forcedName = `${topic}驾驶舱`;
+            }
+          }
+        }
+
+        if (forcedName && forcedName !== '新驾驶舱' && forcedName !== '驾驶舱') {
           spec.name = sanitizeCockpitName(forcedName);
         }
       }

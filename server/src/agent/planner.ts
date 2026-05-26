@@ -56,15 +56,44 @@ export function buildDefaultCockpitSpec(
     });
   }
 
-  // 最终兜底（理论上不会走到这里）
+  // 最终兜底：提供一组通用基础组件，确保驾驶舱不为空
   return {
     name,
     description: `由座舱代理自动创建的${name}`,
     icon: 'Layers',
     color: '#8b5cf6',
-    widgets: [],
-    agentIds: ['sales-agent'],
-    primaryAgentId: 'sales-agent',
+    widgets: [
+      {
+        id: 'w-metric-1',
+        type: 'metric',
+        title: '核心指标',
+        position: { x: 0, y: 0, w: 3, h: 2 },
+        data: { value: '—', change: '', trend: 'flat' },
+      },
+      {
+        id: 'w-chart-1',
+        type: 'chart',
+        title: '趋势分析',
+        position: { x: 3, y: 0, w: 6, h: 4 },
+        data: { labels: [], values: [] },
+      },
+      {
+        id: 'w-list-1',
+        type: 'list',
+        title: '关键事项',
+        position: { x: 9, y: 0, w: 3, h: 4 },
+        data: { items: [] },
+      },
+      {
+        id: 'w-status-1',
+        type: 'status',
+        title: '运行状态',
+        position: { x: 0, y: 2, w: 3, h: 2 },
+        data: { items: [] },
+      },
+    ],
+    agentIds: [],
+    primaryAgentId: '',
   };
 }
 
@@ -97,10 +126,12 @@ export function planByRule(intents: Intent[], context: ExecutionContext): TaskPl
       }
 
       case 'execute_command': {
+        // 当指定了 workspaceId 时，避免使用 cockpit-execute（外部平台可能不认识本地 workspace ID）
+        // 优先使用 agent-invoke，其内部会自动降级到 llm-chat
         tasks.push({
           id: taskId,
           description: `执行命令：${intent.raw}`,
-          capability: 'cockpit-execute',
+          capability: context.workspaceId ? 'agent-invoke' : 'cockpit-execute',
           params: { command: intent.raw, workspaceId: context.workspaceId },
         });
         break;

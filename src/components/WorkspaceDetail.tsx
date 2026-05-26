@@ -9,13 +9,15 @@ import {
   ArrowLeft, Play, Square, RefreshCw, Send, Sparkles,
   ChevronDown, ChevronUp, Trash2,
   ArrowRight, TrendingUp, TrendingDown, ArrowLeftIcon, Loader2, Check,
-  FileText, AlertCircle,
+  FileText, AlertCircle, ExternalLink,
+  DollarSign, Code2, Users, Truck,
 } from 'lucide-react';
 
 interface WorkspaceDetailProps {
   workspaceId: string;
   agents: Agent[];
   onBack: () => void;
+  onSelectWorkspace?: (id: string) => void;
 }
 
 interface ChatMessage {
@@ -30,7 +32,7 @@ interface ChatSession {
   version: number;
 }
 
-const wsIcons: Record<string, React.ElementType> = { BarChart3, UserPlus, CheckCircle, Monitor, Target };
+const wsIcons: Record<string, React.ElementType> = { BarChart3, UserPlus, CheckCircle, Monitor, Target, DollarSign, TrendingUp, Code2, Users, Truck };
 const CHAT_STORAGE_KEY = (id: string) => `ycc_chat_${id}`;
 const CHAT_STORAGE_VERSION = 1;
 
@@ -66,7 +68,7 @@ function saveChatSession(workspaceId: string, messages: ChatMessage[]) {
   }
 }
 
-export function WorkspaceDetail({ workspaceId, agents, onBack }: WorkspaceDetailProps) {
+export function WorkspaceDetail({ workspaceId, agents, onBack, onSelectWorkspace }: WorkspaceDetailProps) {
   const { workspace, loading } = useWorkspaceDetail(workspaceId);
   const [activeAgentId, setActiveAgentId] = useState<string | null>(null);
 
@@ -197,10 +199,31 @@ export function WorkspaceDetail({ workspaceId, agents, onBack }: WorkspaceDetail
     localStorage.removeItem(CHAT_STORAGE_KEY(workspaceId));
   }, [workspaceId]);
 
-  if (loading || !workspace) {
+  if (loading) {
     return (
       <div className="flex-1 flex items-center justify-center bg-app-bg">
         <Loader2 className="w-8 h-8 text-red-400 animate-spin" />
+      </div>
+    );
+  }
+
+  if (!workspace) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center bg-app-bg gap-4">
+        <div className="w-16 h-16 rounded-2xl bg-app-surface-subtle border border-app-border-subtle flex items-center justify-center">
+          <AlertCircle className="w-8 h-8 text-app-text-muted" />
+        </div>
+        <div className="text-center space-y-1">
+          <h3 className="text-sm font-medium text-app-text">驾驶舱不存在</h3>
+          <p className="text-xs text-app-text-subtle">该驾驶舱可能已被删除或 ID 无效</p>
+        </div>
+        <button
+          onClick={onBack}
+          className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs bg-app-surface-hover text-app-text-secondary hover:bg-app-surface-subtle transition-colors"
+        >
+          <ArrowLeft className="w-3.5 h-3.5" />
+          返回列表
+        </button>
       </div>
     );
   }
@@ -281,7 +304,7 @@ export function WorkspaceDetail({ workspaceId, agents, onBack }: WorkspaceDetail
 
       {/* Active Agent Detail Banner */}
       {activeAgentId && (
-        <div className="mx-6 mt-4 p-4 rounded-xl bg-app-surface border border-app-border-subtle animate-in slide-in-from-top-2">
+        <div className="mx-6 mt-4 p-4 rounded-xl bg-app-surface border border-app-border-subtle shadow-[0_1px_3px_rgba(0,0,0,0.18)] animate-in slide-in-from-top-2">
           {(() => {
             const agent = agents.find((a) => a.id === activeAgentId);
             if (!agent) return null;
@@ -326,7 +349,24 @@ export function WorkspaceDetail({ workspaceId, agents, onBack }: WorkspaceDetail
               key={widget.id}
               workspaceId={workspace.id}
               widget={widget}
-              onClick={() => setDetailWidget(widget)}
+              useDemoDataFallback={workspace.useDemoDataFallback}
+              onClick={() => {
+                if (widget.link) {
+                  const link = widget.link;
+                  if (link.type === 'workspace' && link.targetId && onSelectWorkspace) {
+                    onSelectWorkspace(link.targetId);
+                  } else if (link.type === 'url' && link.url) {
+                    window.open(link.url, '_blank');
+                  } else if (link.type === 'widget' && link.targetId) {
+                    // TODO: 跨 workspace 打开 widget detail，当前仅支持同 workspace
+                    setDetailWidget(widget);
+                  } else {
+                    setDetailWidget(widget);
+                  }
+                } else {
+                  setDetailWidget(widget);
+                }
+              }}
             />
           ))}
         </div>
@@ -428,7 +468,7 @@ export function WorkspaceDetail({ workspaceId, agents, onBack }: WorkspaceDetail
 
         {/* Chat Input Bar */}
         <div className="px-6 py-4">
-          <div className="flex items-center gap-3 bg-app-surface border border-app-border-subtle rounded-xl px-4 py-3 focus-within:border-app-border focus-within:bg-app-surface-hover transition-all">
+          <div className="flex items-center gap-3 bg-app-surface border border-app-border-subtle shadow-[0_1px_3px_rgba(0,0,0,0.15)] rounded-xl px-4 py-3 focus-within:border-app-border focus-within:bg-app-surface-hover transition-all">
             {/* Agent Selector */}
             <div className="relative shrink-0" ref={agentPickerRef}>
               <button
@@ -536,7 +576,7 @@ export function WorkspaceDetail({ workspaceId, agents, onBack }: WorkspaceDetail
 }
 
 /* ── Widget Renderer ── */
-function WidgetRenderer({ workspaceId, widget, onClick }: { workspaceId: string; widget: Widget; onClick?: () => void }) {
+function WidgetRenderer({ workspaceId, widget, useDemoDataFallback, onClick }: { workspaceId: string; widget: Widget; useDemoDataFallback?: boolean; onClick?: () => void }) {
   const { position } = widget;
   const gridStyle = {
     gridColumn: `span ${position.w}`,
@@ -544,18 +584,23 @@ function WidgetRenderer({ workspaceId, widget, onClick }: { workspaceId: string;
   };
 
   const hasDetail = !!widget.detail || !!(widget.data as any)?.detail || !!(widget.data as any)?.fullContent || widget.type === 'report';
+  const hasLink = !!widget.link;
+  const isClickable = hasDetail || hasLink;
 
   return (
     <div
       style={gridStyle}
-      className={`rounded-xl bg-app-surface border border-app-border-subtle hover:border-app-border transition-all overflow-hidden flex flex-col ${hasDetail ? 'cursor-pointer' : ''}`}
-      onClick={hasDetail ? onClick : undefined}
+      className={`rounded-xl bg-app-surface border border-app-border-subtle shadow-[0_1px_3px_rgba(0,0,0,0.18)] hover:border-app-border hover:shadow-[0_2px_6px_rgba(0,0,0,0.22)] transition-all overflow-hidden flex flex-col ${isClickable ? 'cursor-pointer' : ''}`}
+      onClick={isClickable ? onClick : undefined}
     >
       <div className="flex items-center justify-between px-4 py-3 border-b border-app-border-subtle">
         <h4 className="text-xs font-semibold text-app-text-muted">{widget.title}</h4>
-        {hasDetail && <ArrowRight className="w-3 h-3 text-app-text-subtle" />}
+        <div className="flex items-center gap-1.5">
+          {hasLink && <ExternalLink className="w-3 h-3 text-app-text-subtle" />}
+          {hasDetail && <ArrowRight className="w-3 h-3 text-app-text-subtle" />}
+        </div>
       </div>
-      <div className="flex-1 p-4"><WidgetContent workspaceId={workspaceId} widget={widget} /></div>
+      <div className="flex-1 p-4"><WidgetContent workspaceId={workspaceId} widget={widget} useDemoDataFallback={useDemoDataFallback} /></div>
     </div>
   );
 }
@@ -572,18 +617,19 @@ function isEmptyValue(val: unknown): boolean {
   return false;
 }
 
-function EmptyWidgetState({ title, source }: { title: string; source?: string }) {
+function EmptyWidgetState({ title, source, error }: { title: string; source?: string; error?: string | null }) {
   return (
     <div className="h-full flex flex-col items-center justify-center text-app-text-subtle gap-1">
-      <div className="text-xs">暂无数据</div>
+      <div className="text-xs">{error ? '数据获取失败' : '暂无数据'}</div>
       {source === 'static' && <div className="text-[10px] text-app-text-subtle">演示数据</div>}
+      {error && <div className="text-[10px] text-app-text-subtle opacity-60">{error}</div>}
       <div className="text-[10px] text-app-text-subtle opacity-60">{title}</div>
     </div>
   );
 }
 
-function WidgetContent({ workspaceId, widget }: { workspaceId: string; widget: Widget }) {
-  const { data: liveData, loading, error: _error } = useWidgetData(workspaceId, widget);
+function WidgetContent({ workspaceId, widget, useDemoDataFallback }: { workspaceId: string; widget: Widget; useDemoDataFallback?: boolean }) {
+  const { data: liveData, loading, error } = useWidgetData(workspaceId, widget, useDemoDataFallback);
 
   // 使用动态数据（如果存在），否则回退到 widget.data
   const displayData = liveData || widget.data || {};
@@ -601,7 +647,7 @@ function WidgetContent({ workspaceId, widget }: { workspaceId: string; widget: W
     case 'metric': {
       const d = (displayData || {}) as Record<string, string>;
       if (isEmptyValue(d.value)) {
-        return <EmptyWidgetState title={widget.title} source={dataSource} />;
+        return <EmptyWidgetState title={widget.title} source={dataSource} error={error} />;
       }
       const isPositive = d.trend === 'up';
       return (
@@ -622,7 +668,7 @@ function WidgetContent({ workspaceId, widget }: { workspaceId: string; widget: W
       const labels = ((d.labels || d.categories || d.names || d.xAxis || d.xaxis || d.dimensions || []) as string[]);
       const values = ((d.values || d.data || d.series || d.yValues || d.yaxis || d.numbers || []) as number[]);
       if (labels.length === 0 || values.length === 0) {
-        return <EmptyWidgetState title={widget.title} source={dataSource} />;
+        return <EmptyWidgetState title={widget.title} source={dataSource} error={error} />;
       }
       const max = Math.max(...values, 1);
       return (
@@ -644,7 +690,7 @@ function WidgetContent({ workspaceId, widget }: { workspaceId: string; widget: W
       // 兼容 LLM 可能用的别名：rows / data / records / entries
       const rows = ((d.rows || d.data || d.records || d.entries || []) as string[][]);
       if (rows.length === 0) {
-        return <EmptyWidgetState title={widget.title} source={dataSource} />;
+        return <EmptyWidgetState title={widget.title} source={dataSource} error={error} />;
       }
       return (
         <div className="space-y-2">
@@ -663,7 +709,7 @@ function WidgetContent({ workspaceId, widget }: { workspaceId: string; widget: W
       // 兼容 LLM 可能用的别名：stages / statuses / columns / phases
       const stages = ((d.stages || d.statuses || d.columns || d.phases || []) as string[]);
       if (stages.length === 0) {
-        return <EmptyWidgetState title={widget.title} source={dataSource} />;
+        return <EmptyWidgetState title={widget.title} source={dataSource} error={error} />;
       }
       return (
         <div className="space-y-2">
@@ -682,7 +728,7 @@ function WidgetContent({ workspaceId, widget }: { workspaceId: string; widget: W
       // 兼容 LLM 可能用的别名：steps / milestones / events / nodes
       const steps = ((d.steps || d.milestones || d.events || d.nodes || []) as string[]);
       if (steps.length === 0) {
-        return <EmptyWidgetState title={widget.title} source={dataSource} />;
+        return <EmptyWidgetState title={widget.title} source={dataSource} error={error} />;
       }
       return (
         <div className="space-y-0">
@@ -711,7 +757,7 @@ function WidgetContent({ workspaceId, widget }: { workspaceId: string; widget: W
       // 兼容 LLM 可能用的别名：items / tasks / entries / todos / list
       const items = ((d.items || d.tasks || d.entries || d.todos || d.list || []) as string[]);
       if (items.length === 0) {
-        return <EmptyWidgetState title={widget.title} source={dataSource} />;
+        return <EmptyWidgetState title={widget.title} source={dataSource} error={error} />;
       }
       return (
         <div className="space-y-2">
@@ -751,11 +797,86 @@ function WidgetContent({ workspaceId, widget }: { workspaceId: string; widget: W
         </div>
       );
     }
+    case 'progress': {
+      const d = (displayData || {}) as Record<string, unknown>;
+      const value = Number(d.value ?? 0);
+      const max = Number(d.max ?? 100);
+      const pct = max > 0 ? Math.min(100, Math.max(0, (value / max) * 100)) : 0;
+      const label = (d.label || `${value}/${max}`) as string;
+      const color = (d.color || 'indigo') as string;
+      const colorClass: Record<string, string> = {
+        indigo: 'bg-indigo-500',
+        emerald: 'bg-emerald-500',
+        amber: 'bg-amber-500',
+        red: 'bg-red-500',
+        blue: 'bg-blue-500',
+        purple: 'bg-purple-500',
+      };
+      const barColor = colorClass[color] || colorClass.indigo;
+      return (
+        <div className="h-full flex flex-col justify-center gap-3">
+          <div className="flex items-center justify-between">
+            <span className="text-2xl font-bold text-app-text tracking-tight">{label}</span>
+            <span className="text-[10px] text-app-text-subtle">{Math.round(pct)}%</span>
+          </div>
+          <div className="h-2 w-full bg-app-surface-subtle rounded-full overflow-hidden">
+            <div className={`h-full rounded-full ${barColor} transition-all`} style={{ width: `${pct}%` }} />
+          </div>
+          {Boolean(d.caption || d.description) && (
+            <span className="text-[10px] text-app-text-subtle">{String(d.caption || d.description || '')}</span>
+          )}
+        </div>
+      );
+    }
+    case 'status': {
+      const d = (displayData || {}) as Record<string, unknown>;
+      const items = (d.items || d.statuses || d.list || []) as Array<{
+        label?: string; name?: string; title?: string;
+        status?: string; state?: string; type?: string;
+        value?: string; val?: string; desc?: string;
+      }>;
+      if (items.length === 0) {
+        return <EmptyWidgetState title={widget.title} source={dataSource} error={error} />;
+      }
+      const statusDot: Record<string, string> = {
+        green: 'bg-emerald-500',
+        ok: 'bg-emerald-500',
+        normal: 'bg-emerald-500',
+        yellow: 'bg-amber-500',
+        warning: 'bg-amber-500',
+        orange: 'bg-amber-500',
+        red: 'bg-red-500',
+        danger: 'bg-red-500',
+        error: 'bg-red-500',
+        critical: 'bg-red-500',
+        gray: 'bg-app-text-subtle',
+        grey: 'bg-app-text-subtle',
+        unknown: 'bg-app-text-subtle',
+        offline: 'bg-app-text-subtle',
+      };
+      return (
+        <div className="space-y-2">
+          {items.map((item, i) => {
+            const st = (item.status || item.state || item.type || 'unknown') as string;
+            const dot = statusDot[st.toLowerCase()] || statusDot.unknown;
+            return (
+              <div key={i} className="flex items-center justify-between p-2 rounded-lg bg-app-surface-subtle">
+                <div className="flex items-center gap-2">
+                  <div className={`w-2 h-2 rounded-full ${dot}`} />
+                  <span className="text-xs text-app-text-muted">{item.label || item.name || item.title || ''}</span>
+                </div>
+                <span className="text-[10px] font-medium text-app-text-secondary">{item.value || item.val || item.desc || '—'}</span>
+              </div>
+            );
+          })}
+        </div>
+      );
+    }
     case 'universal': {
       const d = (displayData || {}) as Record<string, unknown>;
       const content = (d.content || d.text || d.markdown || d.body || '') as string;
       if (isEmptyValue(content)) {
-        return <EmptyWidgetState title={widget.title} source={dataSource} />;
+        return <EmptyWidgetState title={widget.title} source={dataSource} error={error} />;
       }
       // 简单 markdown 渲染：支持标题、列表、粗体
       const lines = content.split('\n');

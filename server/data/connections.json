@@ -21,7 +21,7 @@
       "enabled": true,
       "lastHealthCheck": null,
       "createdAt": "2026-05-24T16:00:35.480Z",
-      "updatedAt": "2026-05-25T23:00:15.441Z"
+      "updatedAt": "2026-05-26T05:01:51.222Z"
     },
     {
       "id": "conn-1779711692126-gobab",
@@ -33,7 +33,7 @@
         "timeout": 30000,
         "apiKey": "39a5fd1f-3645-4d9b-8df9-9afa03690921"
       },
-      "status": "disconnected",
+      "status": "connected",
       "capabilities": [
         "agent-list",
         "agent-invoke",
@@ -46,7 +46,7 @@
       "enabled": true,
       "lastHealthCheck": null,
       "createdAt": "2026-05-25T12:21:32.126Z",
-      "updatedAt": "2026-05-25T15:18:17.687Z"
+      "updatedAt": "2026-05-26T05:01:51.305Z"
     }
   ]
 }

@@ -31,7 +31,8 @@ export function createWidgetDataRouter(connectionManager: ConnectionManager) {
         req.params.id,
         widget,
         connectionManager,
-        req.body?.context
+        req.body?.context,
+        workspace.useDemoDataFallback
       );
 
       res.json({

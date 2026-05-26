@@ -47,7 +47,11 @@ router.post('/', async (req, res, next) => {
       timestamp: new Date().toISOString(),
     });
     res.status(201).json({ workspace: ws });
-  } catch (err) {
+  } catch (err: any) {
+    if (err.message?.includes('上限')) {
+      res.status(400).json({ error: err.message });
+      return;
+    }
     next(err);
   }
 });

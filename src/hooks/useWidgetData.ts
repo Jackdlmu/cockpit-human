@@ -13,7 +13,7 @@ interface WidgetDataState {
   source: string | null;
 }
 
-export function useWidgetData(workspaceId: string, widget: Widget) {
+export function useWidgetData(workspaceId: string, widget: Widget, useDemoDataFallback?: boolean) {
   const [state, setState] = useState<WidgetDataState>({
     data: (widget.data ?? null) as Record<string, unknown> | null,
     loading: false,
@@ -38,16 +38,19 @@ export function useWidgetData(workspaceId: string, widget: Widget) {
       });
     } catch (err: any) {
       console.warn(`[useWidgetData] Refresh failed for "${widget.title}":`, err.message);
-      // 失败时回退到静态数据（如果存在）
+      // 失败时根据 useDemoDataFallback 决定回退行为
+      const fallbackData = useDemoDataFallback !== false
+        ? (widget.data ?? null)
+        : (buildEmptyData(widget.type) as Record<string, unknown> | null);
       setState((s) => ({
         ...s,
         loading: false,
         error: err.message,
-        data: (widget.data ?? null) as Record<string, unknown> | null,
+        data: fallbackData,
         source: 'fallback',
       }));
     }
-  }, [workspaceId, widget.id, widget.dataSource, widget.data, widget.title]);
+  }, [workspaceId, widget.id, widget.dataSource, widget.data, widget.title, useDemoDataFallback]);
 
   // 初始加载 + 轮询设置
   useEffect(() => {
@@ -89,7 +92,7 @@ export function useWidgetData(workspaceId: string, widget: Widget) {
         intervalRef.current = null;
       }
     };
-  }, [workspaceId, widget.id, widget.dataSource?.type, widget.dataSource?.refreshInterval]);
+  }, [workspaceId, widget.id, widget.dataSource?.type, widget.dataSource?.refreshInterval, useDemoDataFallback]);
 
   return {
     data: state.data,
@@ -98,4 +101,26 @@ export function useWidgetData(workspaceId: string, widget: Widget) {
     source: state.source,
     refresh,
   };
+}
+
+/** 根据 widget 类型构建空数据结构 */
+function buildEmptyData(widgetType: string): Record<string, unknown> {
+  switch (widgetType) {
+    case 'metric':
+      return { value: '', change: '', trend: 'flat' };
+    case 'chart':
+      return { labels: [], values: [] };
+    case 'table':
+      return { rows: [], columns: [] };
+    case 'list':
+      return { items: [] };
+    case 'kanban':
+      return { stages: [] };
+    case 'timeline':
+      return { steps: [] };
+    case 'report':
+      return { summary: '', highlights: [] };
+    default:
+      return {};
+  }
 }

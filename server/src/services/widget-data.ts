@@ -48,7 +48,8 @@ export async function resolveWidgetData(
   workspaceId: string,
   widget: Widget,
   connectionManager: ConnectionManager,
-  context?: Record<string, unknown>
+  context?: Record<string, unknown>,
+  useDemoDataFallback?: boolean
 ): Promise<WidgetDataResult> {
   const start = Date.now();
   const dataSource = widget.dataSource;
@@ -63,18 +64,18 @@ export async function resolveWidgetData(
       case 'static':
         return resolveStatic(widget, start);
       case 'skill':
-        return await resolveSkill(dataSource, widget, connectionManager, start, context);
+        return await resolveSkill(dataSource, widget, connectionManager, start, context, useDemoDataFallback);
       case 'query':
-        return await resolveQuery(dataSource, connectionManager, start);
+        return await resolveQuery(dataSource, connectionManager, start, useDemoDataFallback);
       case 'event':
         return resolveEvent(widget, start);
       default:
         console.warn(`[WidgetData] Unknown dataSource.type: ${(dataSource as any).type}`);
-        return fallback(widget, start);
+        return fallback(widget, start, useDemoDataFallback);
     }
   } catch (err: any) {
     console.warn(`[WidgetData] Error resolving widget "${widget.title}":`, err.message);
-    return fallback(widget, start, err.message);
+    return fallback(widget, start, useDemoDataFallback, err.message);
   }
 }
 
@@ -89,7 +90,8 @@ async function resolveSkill(
   widget: Widget,
   cm: ConnectionManager,
   start: number,
-  context?: Record<string, unknown>
+  context?: Record<string, unknown>,
+  useDemoDataFallback?: boolean
 ): Promise<WidgetDataResult> {
   const router = getAgentRouter();
 
@@ -179,7 +181,8 @@ async function resolveSkill(
 async function resolveQuery(
   ds: WidgetDataSource,
   cm: ConnectionManager,
-  start: number
+  start: number,
+  useDemoDataFallback?: boolean
 ): Promise<WidgetDataResult> {
   if (!ds.query) {
     throw new Error('dataSource.query is required for type=query');
@@ -218,7 +221,7 @@ async function resolveQuery(
       context: ds.query.params ?? {},
     });
   } else {
-    throw new Error('Connector does not support query operations');
+    return fallback(widget, start, useDemoDataFallback, 'Connector does not support query operations');
   }
 
   const transformed = applyTransform(raw, ds.transform);
@@ -232,28 +235,63 @@ function resolveEvent(widget: Widget, start: number): WidgetDataResult {
 }
 
 /** 回退到静态数据 */
-function fallback(widget: Widget, start: number, reason?: string): WidgetDataResult {
+function fallback(
+  widget: Widget,
+  start: number,
+  useDemoDataFallback?: boolean,
+  reason?: string
+): WidgetDataResult {
   const ds = widget.dataSource;
-  const shouldFallback = ds ? (ds.fallbackToStatic !== false) : true;
 
-  if (shouldFallback) {
-    if (reason) {
-      console.log(`[WidgetData] Fallback to static data for "${widget.title}": ${reason}`);
-    }
-    // 注入静态数据标记，前端可据此判断数据来源
-    const staticData = widget.data ?? null;
-    if (staticData && typeof staticData === 'object' && !Array.isArray(staticData)) {
-      (staticData as Record<string, unknown>).__source = 'static';
-    }
-    return { data: staticData, source: 'fallback', latency: Date.now() - start };
+  // Widget 级别显式禁用 fallback
+  if (ds && ds.fallbackToStatic === false) {
+    return {
+      data: { __error: reason || 'Data source failed', __widgetTitle: widget.title },
+      source: 'fallback',
+      latency: Date.now() - start,
+    };
   }
 
-  // 不允许 fallback → 返回错误标记
-  return {
-    data: { __error: reason || 'Data source failed', __widgetTitle: widget.title },
-    source: 'fallback',
-    latency: Date.now() - start,
-  };
+  // Workspace 级别禁用 demo 数据 fallback → 返回空数据结构
+  if (useDemoDataFallback === false) {
+    return {
+      data: buildEmptyData(widget.type),
+      source: 'fallback',
+      latency: Date.now() - start,
+    };
+  }
+
+  // 回退到 demo 数据（默认行为，兼容旧数据）
+  if (reason) {
+    console.log(`[WidgetData] Fallback to static data for "${widget.title}": ${reason}`);
+  }
+  const staticData = widget.data ?? null;
+  if (staticData && typeof staticData === 'object' && !Array.isArray(staticData)) {
+    (staticData as Record<string, unknown>).__source = 'static';
+  }
+  return { data: staticData, source: 'fallback', latency: Date.now() - start };
+}
+
+/** 根据 widget 类型构建空数据结构 */
+function buildEmptyData(widgetType: string): Record<string, unknown> {
+  switch (widgetType) {
+    case 'metric':
+      return { value: '', change: '', trend: 'flat' };
+    case 'chart':
+      return { labels: [], values: [] };
+    case 'table':
+      return { rows: [], columns: [] };
+    case 'list':
+      return { items: [] };
+    case 'kanban':
+      return { stages: [] };
+    case 'timeline':
+      return { steps: [] };
+    case 'report':
+      return { summary: '', highlights: [] };
+    default:
+      return {};
+  }
 }
 
 // ── LLM Proxy 辅助 ──

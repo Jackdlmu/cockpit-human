@@ -35,17 +35,17 @@
     --sidebar-ring: 0 72% 51%;
 
     /* ── App-level semantic tokens ── */
-    --app-bg: 0 0% 100%;
-    --app-surface: 240 5% 98%;
-    --app-surface-hover: 240 5% 95%;
+    --app-bg: 0 0% 97%;
+    --app-surface: 0 0% 100%;
+    --app-surface-hover: 240 5% 96%;
     --app-surface-elevated: 0 0% 100%;
-    --app-surface-subtle: 240 5% 96%;
-    --app-border: 240 6% 90%;
-    --app-border-subtle: 240 6% 94%;
+    --app-surface-subtle: 240 5% 98%;
+    --app-border: 240 6% 86%;
+    --app-border-subtle: 240 6% 90%;
     --app-text: 240 10% 10%;
-    --app-text-secondary: 240 5% 30%;
-    --app-text-muted: 240 4% 42%;
-    --app-text-subtle: 240 4% 55%;
+    --app-text-secondary: 240 5% 26%;
+    --app-text-muted: 240 4% 40%;
+    --app-text-subtle: 240 4% 48%;
     --app-overlay: 240 10% 10%;
   }
 
@@ -81,17 +81,17 @@
     --sidebar-ring: 0 72% 51%;
 
     /* ── App-level semantic tokens (dark) ── */
-    --app-bg: 250 25% 7%;
-    --app-surface: 250 20% 10%;
-    --app-surface-hover: 250 20% 13%;
-    --app-surface-elevated: 250 25% 9%;
-    --app-surface-subtle: 250 20% 11%;
-    --app-border: 250 15% 18%;
-    --app-border-subtle: 250 15% 14%;
+    --app-bg: 250 25% 5%;
+    --app-surface: 250 20% 13%;
+    --app-surface-hover: 250 20% 17%;
+    --app-surface-elevated: 250 25% 12%;
+    --app-surface-subtle: 250 20% 15%;
+    --app-border: 250 15% 24%;
+    --app-border-subtle: 250 15% 20%;
     --app-text: 0 0% 95%;
-    --app-text-secondary: 0 0% 80%;
-    --app-text-muted: 250 5% 62%;
-    --app-text-subtle: 250 5% 52%;
+    --app-text-secondary: 0 0% 88%;
+    --app-text-muted: 250 5% 70%;
+    --app-text-subtle: 250 5% 62%;
     --app-overlay: 250 25% 5%;
   }
 }
@@ -103,5 +103,16 @@
   body {
     @apply bg-app-bg text-app-text antialiased;
     /* Remove hardcoded dark colors — now driven by CSS variables */
+  }
+}
+
+@layer utilities {
+  /* 隐藏滚动条但保持滚动功能 */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
   }
 }

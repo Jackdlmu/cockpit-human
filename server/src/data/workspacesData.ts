@@ -17,6 +17,8 @@ export interface WorkspaceData {
   /** 运行时智能体绑定状态（非持久化或可选持久化） */
   agentBindings?: AgentBinding[];
   widgets: any[];
+  /** 数据获取失败时是否回退到 demo 示例数据 */
+  useDemoDataFallback?: boolean;
 }
 
 export const workspacesData: WorkspaceData[] = [

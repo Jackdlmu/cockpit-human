@@ -3,9 +3,33 @@
 
 import type { CockpitTemplate, TemplateContext } from './types';
 import * as templateStore from '../../services/template-store';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 // ── 内置模板存储 ──
 const templates = new Map<string, CockpitTemplate>();
+
+// ── 加载系统模板（从 JSON 文件，只读）─
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const BUILTIN_FILE = path.resolve(__dirname, '../../../data/builtin-templates.json');
+
+export function loadBuiltinTemplates(): void {
+  try {
+    if (!fs.existsSync(BUILTIN_FILE)) {
+      console.warn('[TemplateRegistry] builtin-templates.json not found, skipping');
+      return;
+    }
+    const raw = fs.readFileSync(BUILTIN_FILE, 'utf-8');
+    const list: CockpitTemplate[] = JSON.parse(raw);
+    for (const t of list) {
+      templates.set(t.id, { ...t, _builtin: true } as CockpitTemplate);
+    }
+    console.log(`[TemplateRegistry] Loaded ${list.length} builtin templates`);
+  } catch (err: any) {
+    console.error('[TemplateRegistry] Failed to load builtin templates:', err.message);
+  }
+}
 
 // ── 加载/重载自定义模板（覆盖同名内置模板）─
 export function loadCustomTemplates(): void {
@@ -17,7 +41,7 @@ export function loadCustomTemplates(): void {
   }
   const custom = templateStore.listCustomTemplates();
   for (const t of custom) {
-    templates.set(t.id, t as CockpitTemplate);
+    templates.set(t.id, { ...t, _custom: true } as CockpitTemplate);
     console.log(`[TemplateRegistry] Loaded custom template: ${t.id}`);
   }
 }
@@ -36,6 +60,22 @@ export function getTemplate(id: string): CockpitTemplate | undefined {
 
 export function listTemplates(): CockpitTemplate[] {
   return Array.from(templates.values());
+}
+
+function buildEmptyWidgetData(type: string): Record<string, unknown> {
+  switch (type) {
+    case 'metric': return { value: '—', change: '', trend: 'flat' };
+    case 'chart': return { labels: [], values: [] };
+    case 'table': return { rows: [], columns: [] };
+    case 'list': return { items: [] };
+    case 'kanban': return { stages: [] };
+    case 'timeline': return { steps: [] };
+    case 'report': return { summary: '', highlights: [] };
+    case 'progress': return { value: 0, max: 100, label: '' };
+    case 'status': return { items: [] };
+    case 'universal': return {};
+    default: return {};
+  }
 }
 
 // ── 领域解析：从用户指令中匹配最合适的模板 ──
@@ -79,6 +119,7 @@ export function personalizeTemplate(
   agentIds: string[];
   primaryAgentId: string;
   widgets: any[];
+  useDemoDataFallback: boolean;
 } {
   const ts = Date.now();
   let counter = 0;
@@ -90,10 +131,12 @@ export function personalizeTemplate(
     .replace(/\{\{domain\}\}/g, template.domain);
 
   // 深拷贝 widgets 并重新生成 ID
+  // 当 useDemoDataFallback 为 false 时，清空 widget data 以避免显示示例数据
+  const useFallback = template.useDemoDataFallback ?? false;
   const widgets = template.widgets.map((w) => ({
     ...w,
     id: nextId(),
-    data: { ...w.data },
+    data: useFallback ? { ...w.data } : buildEmptyWidgetData(w.type),
   }));
 
   return {
@@ -104,6 +147,7 @@ export function personalizeTemplate(
     agentIds: [...template.agentIds],
     primaryAgentId: template.primaryAgentId,
     widgets,
+    useDemoDataFallback: template.useDemoDataFallback ?? false,
   };
 }
 

@@ -4,12 +4,22 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   ArrowLeft, Plus, Trash2, KeyRound, Loader2, X, ChevronDown, ChevronUp,
-  Edit3, FileJson, LayoutGrid, Bot, Tag, Type,
+  Edit3, FileJson, LayoutGrid, Bot, Tag, Type, Copy, Rocket, Database, AlertTriangle,
 } from 'lucide-react';
-import { getTemplates, createTemplate, updateTemplate, deleteTemplate } from '@/api/client';
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogFooter,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from '@/components/ui/alert-dialog';
+import { getTemplates, createTemplate, updateTemplate, deleteTemplate, createCockpitFromTemplate } from '@/api/client';
 import { toast } from 'sonner';
 
-const WIDGET_TYPES = ['metric', 'chart', 'table', 'kanban', 'timeline', 'list', 'report'];
+const WIDGET_TYPES = ['metric', 'chart', 'table', 'kanban', 'timeline', 'list', 'report', 'universal', 'progress', 'status'];
 const ICON_OPTIONS = ['BarChart3', 'PieChart', 'LineChart', 'Table2', 'Kanban', 'Clock', 'List', 'FileText', 'TrendingUp', 'Users', 'DollarSign', 'CheckCircle', 'AlertTriangle', 'Target', 'Layers', 'Monitor', 'Sparkles'];
 
 interface TemplateManagerProps {
@@ -23,6 +33,13 @@ export function TemplateManager({ onBack }: TemplateManagerProps) {
   const [loading, setLoading] = useState(false);
   const [editing, setEditing] = useState<any | null>(null);
   const [isCreating, setIsCreating] = useState(false);
+  const [createTarget, setCreateTarget] = useState<any | null>(null);
+  const [createName, setCreateName] = useState('');
+  const [creatingCockpit, setCreatingCockpit] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+  const [deleteTargetName, setDeleteTargetName] = useState('');
+  const [deleteTargetBuiltin, setDeleteTargetBuiltin] = useState(false);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -67,14 +84,24 @@ export function TemplateManager({ onBack }: TemplateManagerProps) {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('确定删除该模板？')) return;
+  const handleDeleteClick = (t: any) => {
+    setDeleteTargetId(t.id);
+    setDeleteTargetName(t.name);
+    setDeleteTargetBuiltin(t.isBuiltin);
+    setDeleteConfirmOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteTargetId) return;
     try {
-      await deleteTemplate(id);
-      setTemplates((prev) => prev.filter((t) => t.id !== id));
+      await deleteTemplate(deleteTargetId);
+      setTemplates((prev) => prev.filter((t) => t.id !== deleteTargetId));
       toast.success('模板已删除');
     } catch (err: any) {
       toast.error('删除失败', { description: err.message });
+    } finally {
+      setDeleteConfirmOpen(false);
+      setDeleteTargetId(null);
     }
   };
 
@@ -88,10 +115,44 @@ export function TemplateManager({ onBack }: TemplateManagerProps) {
     }
   };
 
+  const handleCopyAsCustom = (template: any) => {
+    const copy = {
+      ...JSON.parse(JSON.stringify(template)),
+      id: `custom-${Date.now().toString(36)}`,
+      name: `${template.name}（副本）`,
+      isBuiltin: false,
+    };
+    delete copy._builtin;
+    delete copy._custom;
+    delete copy.createdAt;
+    delete copy.updatedAt;
+    setEditing(copy);
+  };
+
+  const handleCreateCockpit = async () => {
+    if (!createTarget) return;
+    setCreatingCockpit(true);
+    console.log('[TemplateManager] Creating from template:', createTarget.id, createName.trim() || undefined);
+    try {
+      const res = await createCockpitFromTemplate(createTarget.id, createName.trim() || undefined);
+      console.log('[TemplateManager] Create success:', res);
+      toast.success(
+        res.initializing ? '驾驶舱创建成功，正在初始化数据...' : '驾驶舱创建成功',
+        { description: `ID: ${res.workspace.id}` }
+      );
+      setCreateTarget(null);
+      setCreateName('');
+    } catch (err: any) {
+      toast.error('创建失败', { description: err.message });
+    } finally {
+      setCreatingCockpit(false);
+    }
+  };
+
   if (!adminKey) {
     return (
       <div className="h-screen w-screen flex items-center justify-center bg-app-bg">
-        <div className="w-full max-w-sm p-6 rounded-xl bg-app-surface border border-app-border-subtle">
+        <div className="w-full max-w-sm p-6 rounded-xl bg-app-surface border border-app-border-subtle shadow-[0_1px_3px_rgba(0,0,0,0.18)]">
           <h2 className="text-lg font-semibold text-app-text mb-1">模板管理</h2>
           <p className="text-xs text-app-text-subtle mb-4">请输入管理员密钥</p>
           <div className="flex gap-2">
@@ -151,8 +212,8 @@ export function TemplateManager({ onBack }: TemplateManagerProps) {
           </div>
         ) : templates.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-app-text-subtle">
-            <p className="text-sm">暂无自定义模板</p>
-            <p className="text-xs mt-1">点击「新建模板」创建第一个模板</p>
+            <p className="text-sm">暂无模板</p>
+            <p className="text-xs mt-1">系统模板将自动加载</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 max-w-6xl">
@@ -161,8 +222,10 @@ export function TemplateManager({ onBack }: TemplateManagerProps) {
                 key={t.id}
                 template={t}
                 onEdit={() => setEditing(t)}
-                onDelete={() => handleDelete(t.id)}
+                onDelete={() => handleDeleteClick(t)}
                 onRename={(name) => handleRename(t.id, name)}
+                onCopy={() => handleCopyAsCustom(t)}
+                onCreateCockpit={() => { setCreateTarget(t); setCreateName(t.name); }}
               />
             ))}
           </div>
@@ -177,6 +240,89 @@ export function TemplateManager({ onBack }: TemplateManagerProps) {
           onClose={() => { setIsCreating(false); setEditing(null); }}
         />
       )}
+
+      {/* Create Cockpit from Template Dialog */}
+      {createTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-app-overlay/80 backdrop-blur-sm p-4">
+          <div className="w-full max-w-sm p-5 rounded-xl bg-app-surface border border-app-border-subtle shadow-xl">
+            <h3 className="text-sm font-semibold text-app-text mb-1">从模板创建驾驶舱</h3>
+            <p className="text-xs text-app-text-subtle mb-4">
+              基于「{createTarget.name}」创建一个新的驾驶舱
+            </p>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-[11px] text-app-text-subtle mb-1">驾驶舱名称</label>
+                <input
+                  value={createName}
+                  onChange={(e) => setCreateName(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleCreateCockpit()}
+                  className="w-full px-3 py-2 text-sm rounded-lg bg-app-surface-subtle border border-app-border-subtle text-app-text focus:outline-none focus:border-red-400/50"
+                  placeholder={createTarget.name}
+                  autoFocus
+                />
+              </div>
+              {createTarget.initPrompt && (
+                <div className="text-[11px] text-app-text-subtle bg-app-surface-subtle rounded-lg p-2.5 border border-app-border-subtle">
+                  <span className="text-app-text-muted">初始化：</span>创建后将自动执行预设初始化任务
+                </div>
+              )}
+            </div>
+            <div className="flex justify-end gap-2 mt-4">
+              <button
+                onClick={() => { setCreateTarget(null); setCreateName(''); }}
+                className="px-3 py-1.5 rounded-lg text-xs text-app-text-muted hover:bg-app-surface-subtle transition-colors"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleCreateCockpit}
+                disabled={creatingCockpit}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs bg-red-500 text-white hover:bg-red-600 transition-colors disabled:opacity-50"
+              >
+                {creatingCockpit && <Loader2 className="w-3 h-3 animate-spin" />}
+                <Rocket className="w-3 h-3" />
+                创建驾驶舱
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirm Dialog */}
+      <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <AlertDialogContent className="bg-app-surface border-app-border-subtle text-app-text">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-app-text">
+              <AlertTriangle className="w-4 h-4 text-red-400" />
+              确认删除模板
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-app-text-subtle">
+              {deleteTargetBuiltin ? (
+                <>
+                  即将删除系统模板「<span className="text-app-text font-medium">{deleteTargetName}</span>」。
+                  <br />
+                  该模板将从模板库中移除，但已创建的驾驶舱不受影响。
+                </>
+              ) : (
+                <>
+                  确定删除模板「<span className="text-app-text font-medium">{deleteTargetName}</span>」吗？
+                  <br />
+                  此操作不可恢复。
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="bg-app-surface-subtle text-app-text border-app-border-subtle hover:bg-app-surface-hover">取消</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDelete}
+              className="bg-red-500 text-white hover:bg-red-600"
+            >
+              确认删除
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
@@ -187,14 +333,19 @@ function TemplateCard({
   onEdit,
   onDelete,
   onRename,
+  onCopy,
+  onCreateCockpit,
 }: {
   template: any;
   onEdit: () => void;
   onDelete: () => void;
   onRename: (name: string) => void;
+  onCopy: () => void;
+  onCreateCockpit: () => void;
 }) {
   const [isEditingName, setIsEditingName] = useState(false);
   const [nameInput, setNameInput] = useState(template.name);
+  const isBuiltin = template.isBuiltin;
 
   const commitRename = () => {
     if (nameInput.trim() && nameInput !== template.name) {
@@ -204,7 +355,7 @@ function TemplateCard({
   };
 
   return (
-    <div className="rounded-xl bg-app-surface border border-app-border-subtle p-4 hover:border-app-border transition-colors">
+    <div className="rounded-xl bg-app-surface border border-app-border-subtle shadow-[0_1px_3px_rgba(0,0,0,0.18)] p-4 hover:border-app-border hover:shadow-[0_2px_6px_rgba(0,0,0,0.22)] transition-colors">
       <div className="flex items-start justify-between mb-3">
         <div className="flex-1 min-w-0">
           {isEditingName ? (
@@ -228,11 +379,20 @@ function TemplateCard({
                 {template.name}
               </h3>
               <Edit3 className="w-3 h-3 text-app-text-subtle opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer" onClick={() => setIsEditingName(true)} />
+              {isBuiltin && (
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-app-surface-subtle text-app-text-muted border border-app-border-subtle">系统</span>
+              )}
             </div>
           )}
           <p className="text-xs text-app-text-subtle mt-0.5">ID: {template.id} · 领域: {template.domain}</p>
         </div>
         <div className="flex gap-1 ml-2">
+          <button onClick={onCreateCockpit} className="p-1.5 rounded-lg hover:bg-emerald-500/10 text-app-text-subtle hover:text-emerald-400 transition-colors" title="创建驾驶舱">
+            <Rocket className="w-3.5 h-3.5" />
+          </button>
+          <button onClick={onCopy} className="p-1.5 rounded-lg hover:bg-app-surface-subtle text-app-text-subtle hover:text-app-text-muted transition-colors" title="复制为自定义模板">
+            <Copy className="w-3.5 h-3.5" />
+          </button>
           <button onClick={onEdit} className="p-1.5 rounded-lg hover:bg-app-surface-subtle text-app-text-subtle hover:text-app-text-muted transition-colors" title="编辑">
             <Edit3 className="w-3.5 h-3.5" />
           </button>
@@ -246,14 +406,17 @@ function TemplateCard({
         <span className="px-2 py-0.5 rounded bg-app-surface-subtle text-app-text-muted">{template.keywords?.length || 0} 个关键词</span>
         <span className="w-3 h-3 rounded-full inline-block" style={{ backgroundColor: template.color }} title={template.color} />
         <span className="text-app-text-subtle text-[10px]">{template.icon}</span>
+        {template.initPrompt && (
+          <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 text-[10px] border border-emerald-500/20">自动初始化</span>
+        )}
       </div>
     </div>
   );
 }
 
 /* ── TemplateEditor ── */
-function TemplateEditor({ template, onSave, onClose }: { template: any | null; onSave: (d: any) => void; onClose: () => void }) {
-  const isEdit = !!template;
+function TemplateEditor({ template, onSave, onClose, readOnly }: { template: any | null; onSave: (d: any) => void; onClose: () => void; readOnly?: boolean }) {
+  const isEdit = !!template && !readOnly;
   const [data, setData] = useState(() => initFormData(template));
   const [showJson, setShowJson] = useState(false);
   const [jsonError, setJsonError] = useState('');
@@ -387,6 +550,42 @@ function TemplateEditor({ template, onSave, onClose }: { template: any | null; o
             </div>
           </section>
 
+          {/* ── 初始化 Prompt ── */}
+          <section>
+            <h4 className="text-xs font-medium text-app-text-muted uppercase tracking-wider mb-3 flex items-center gap-1.5">
+              <Bot className="w-3.5 h-3.5" /> 初始化 Prompt
+            </h4>
+            <textarea
+              value={data.initPrompt || ''}
+              onChange={(e) => updateField('initPrompt', e.target.value)}
+              className="w-full h-24 px-3 py-2 text-sm rounded-lg bg-app-surface-subtle border border-app-border-subtle text-app-text placeholder:text-app-text-subtle focus:outline-none focus:border-red-400/50 resize-none"
+              placeholder="创建驾驶舱后自动执行的初始化指令，用于获取数据、调整组件等。对最终用户隐藏。"
+              spellCheck={false}
+            />
+            <p className="mt-1 text-[10px] text-app-text-subtle">
+              创建驾驶舱后将自动执行此 Prompt，用于初始化数据和组件配置。执行结果对用户不可见。
+            </p>
+          </section>
+
+          {/* ── 数据回退设置 ── */}
+          <section>
+            <h4 className="text-xs font-medium text-app-text-muted uppercase tracking-wider mb-3 flex items-center gap-1.5">
+              <Database className="w-3.5 h-3.5" /> 数据回退设置
+            </h4>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={!!data.useDemoDataFallback}
+                onChange={(e) => updateField('useDemoDataFallback', e.target.checked)}
+                className="w-4 h-4 rounded border-app-border-subtle bg-app-surface-subtle text-red-400 focus:ring-red-400/20"
+              />
+              <span className="text-sm text-app-text">数据获取失败时显示演示数据</span>
+            </label>
+            <p className="mt-1 text-[10px] text-app-text-subtle">
+              勾选后，当数据源无法获取真实数据时，组件将显示模板中的演示数据。不勾选则显示空状态。
+            </p>
+          </section>
+
           {/* ── 关键词 ── */}
           <section>
             <h4 className="text-xs font-medium text-app-text-muted uppercase tracking-wider mb-3 flex items-center gap-1.5">
@@ -470,7 +669,11 @@ function TemplateEditor({ template, onSave, onClose }: { template: any | null; o
         {/* Footer */}
         <div className="flex justify-end gap-2 px-5 py-3.5 border-t border-app-border-subtle">
           <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm text-app-text-muted hover:bg-app-surface-subtle transition-colors">取消</button>
-          <button onClick={handleSave} className="px-4 py-2 rounded-lg text-sm bg-red-500 text-white hover:bg-red-600 transition-colors">保存</button>
+          {!readOnly && (
+            <button onClick={handleSave} className="px-4 py-2 rounded-lg text-sm bg-red-500 text-white hover:bg-red-600 transition-colors">
+              {isEdit ? '保存' : '创建'}
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -656,6 +859,30 @@ function WidgetEditorItem({ widget, index, onChange, onRemove }: { widget: any; 
               className="w-full h-20 p-2 text-[10px] font-mono rounded bg-app-surface border border-app-border-subtle text-app-text resize-none focus:outline-none focus:border-red-400/50"
               spellCheck={false}
             />
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="block text-[10px] text-app-text-subtle mb-1">详情配置 (JSON)</label>
+              <textarea
+                value={JSON.stringify(widget.detail || {}, null, 2)}
+                onChange={(e) => {
+                  try { onChange({ detail: JSON.parse(e.target.value) }); } catch { /* ignore */ }
+                }}
+                className="w-full h-16 p-2 text-[10px] font-mono rounded bg-app-surface border border-app-border-subtle text-app-text resize-none focus:outline-none focus:border-red-400/50"
+                spellCheck={false}
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] text-app-text-subtle mb-1">关联/穿透 (JSON)</label>
+              <textarea
+                value={JSON.stringify(widget.link || {}, null, 2)}
+                onChange={(e) => {
+                  try { onChange({ link: JSON.parse(e.target.value) }); } catch { /* ignore */ }
+                }}
+                className="w-full h-16 p-2 text-[10px] font-mono rounded bg-app-surface border border-app-border-subtle text-app-text resize-none focus:outline-none focus:border-red-400/50"
+                spellCheck={false}
+              />
+            </div>
           </div>
         </div>
       )}

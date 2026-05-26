@@ -1,6 +1,6 @@
 import type { Workspace } from '@/types';
 import { useState, useCallback } from 'react';
-import { Layers, BarChart3, UserPlus, CheckCircle, Monitor, Target, Plus, Clock, Settings, Trash2 } from 'lucide-react';
+import { Layers, BarChart3, UserPlus, CheckCircle, Monitor, Target, Plus, Clock, Settings, Trash2, DollarSign, TrendingUp, Code2, Users, Truck } from 'lucide-react';
 import {
   Sheet,
   SheetContent,
@@ -19,7 +19,8 @@ import {
 import SettingsPanel from './SettingsPanel';
 import CreateCockpitDialog from './CreateCockpitDialog';
 import CreationProgressToast from './CreationProgressToast';
-import { cockpitAgentChatStream } from '@/api/client';
+import { cockpitAgentChatStream, getTemplates, createCockpitFromTemplate } from '@/api/client';
+import { toast } from 'sonner';
 
 interface WorkspaceViewProps {
   workspaces: Workspace[];
@@ -29,6 +30,7 @@ interface WorkspaceViewProps {
 
 const wsIcons: Record<string, React.ElementType> = {
   BarChart3, UserPlus, CheckCircle, Monitor, Target,
+  DollarSign, TrendingUp, Code2, Users, Truck,
 };
 
 const statusConfig = {
@@ -40,6 +42,9 @@ const statusConfig = {
 export function WorkspaceView({ workspaces, onSelectWorkspace, onDeleteWorkspace }: WorkspaceViewProps) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
+
+  // 模板列表（用于新建弹窗快速选择）
+  const [templates, setTemplates] = useState<any[]>([]);
 
   // 进度浮层状态
   const [progressVisible, setProgressVisible] = useState(false);
@@ -136,6 +141,22 @@ export function WorkspaceView({ workspaces, onSelectWorkspace, onDeleteWorkspace
     }
   }, [deleteTarget, onDeleteWorkspace]);
 
+  const handleCreateFromTemplate = useCallback(async (templateId: string, name: string, initPrompt: string) => {
+    setExecuting(true);
+    setDialogOpen(false);
+    try {
+      const res = await createCockpitFromTemplate(templateId, name, initPrompt);
+      toast.success(
+        res.initializing ? '驾驶舱创建成功，正在初始化数据...' : '驾驶舱创建成功',
+        { description: `ID: ${res.workspace.id}` }
+      );
+      window.location.reload();
+    } catch (err: any) {
+      toast.error('创建失败', { description: err.message });
+      setExecuting(false);
+    }
+  }, []);
+
   return (
     <div className="flex-1 flex flex-col min-w-0 bg-app-bg overflow-y-auto">
       {/* Header */}
@@ -166,7 +187,18 @@ export function WorkspaceView({ workspaces, onSelectWorkspace, onDeleteWorkspace
             </SheetContent>
           </Sheet>
           <button
-            onClick={() => setDialogOpen(true)}
+            onClick={() => {
+              if (workspaces.length >= 30) {
+                toast.error('驾驶舱数量已达上限（30个）', { description: '请先删除部分驾驶舱后再创建' });
+                return;
+              }
+              setDialogOpen(true);
+              getTemplates().then((data) => {
+                setTemplates(data.templates);
+              }).catch(() => {
+                console.error('加载模板失败');
+              });
+            }}
             className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-red-500 to-orange-500 text-white text-sm font-medium hover:from-red-400 hover:to-orange-400 transition-all"
           >
             <Plus className="w-4 h-4" />
@@ -185,7 +217,7 @@ export function WorkspaceView({ workspaces, onSelectWorkspace, onDeleteWorkspace
               <div
                 key={ws.id}
                 onClick={() => onSelectWorkspace(ws.id)}
-                className="group relative p-5 rounded-xl bg-app-surface border border-app-border-subtle hover:bg-app-surface-hover hover:border-app-border transition-all text-left cursor-pointer"
+                className="group relative p-5 rounded-xl bg-app-surface border border-app-border-subtle shadow-[0_1px_3px_rgba(0,0,0,0.18)] hover:bg-app-surface-hover hover:border-app-border hover:shadow-[0_2px_6px_rgba(0,0,0,0.22)] transition-all text-left cursor-pointer"
               >
                 {/* Status indicator + delete */}
                 <div className="absolute top-4 right-4 flex items-center gap-1.5">
@@ -232,7 +264,7 @@ export function WorkspaceView({ workspaces, onSelectWorkspace, onDeleteWorkspace
                 {/* Widget preview */}
                 <div className="mt-4 pt-4 border-t border-app-border-subtle grid grid-cols-3 gap-2">
                   {ws.widgets.slice(0, 3).map((w) => (
-                    <div key={w.id} className="p-2 rounded-lg bg-app-surface-subtle border border-app-border-subtle">
+                    <div key={w.id} className="p-2 rounded-lg bg-app-surface-subtle border border-app-border-subtle shadow-[0_1px_2px_rgba(0,0,0,0.10)]">
                       <div className="text-[10px] text-app-text-subtle mb-1">{w.title}</div>
                       {w.type === 'metric' && (
                         <div className="text-xs font-bold text-app-text-muted">{((w.data as Record<string, string>)?.value) || '—'}</div>
@@ -251,6 +283,8 @@ export function WorkspaceView({ workspaces, onSelectWorkspace, onDeleteWorkspace
         open={dialogOpen}
         onClose={handleCloseDialog}
         onExecute={handleExecute}
+        onCreateFromTemplate={handleCreateFromTemplate}
+        templates={templates.map((t) => ({ id: t.id, name: t.name, icon: t.icon, color: t.color, initPrompt: t.initPrompt }))}
         executing={executing}
       />
 

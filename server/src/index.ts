@@ -6,7 +6,7 @@ import { connectionManager } from './connection/manager';
 import { initCockpitAgent } from './agent/cockpit-agent';
 import { initMetaAgent } from './services/meta-agent';
 import { initAgentRouter } from './services/agent-router';
-import { loadCustomTemplates } from './agent/templates/registry';
+import { loadBuiltinTemplates, loadCustomTemplates } from './agent/templates/registry';
 import agentsRouter from './routes/agents';
 import workspacesRouter from './routes/workspaces';
 import connectionsRouter from './routes/connections';
@@ -23,7 +23,8 @@ const PORT = process.env.PORT || 3001;
 const adapter = createAdapter();
 
 // Initialize connection manager & cockpit agent
-// 加载自定义模板（覆盖内置模板）
+// 加载系统模板（builtin-templates.json）和自定义模板（templates.json）
+loadBuiltinTemplates();
 loadCustomTemplates();
 
 connectionManager.initialize().then(() => {
@@ -56,7 +57,7 @@ app.use(cors({
     callback(new Error(`CORS policy: ${origin} not allowed`), false);
   },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'X-Admin-Key'],
   credentials: true,
 }));
 app.use(express.json());

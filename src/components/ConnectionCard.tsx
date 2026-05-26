@@ -57,7 +57,7 @@ export default function ConnectionCard({ connection, onEdit, onDelete, onConnect
   };
 
   return (
-    <div className="rounded-xl bg-app-surface border border-app-border-subtle p-4 hover:border-app-border transition-colors">
+    <div className="rounded-xl bg-app-surface border border-app-border-subtle shadow-[0_1px_3px_rgba(0,0,0,0.18)] p-4 hover:border-app-border hover:shadow-[0_2px_6px_rgba(0,0,0,0.22)] transition-colors">
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-3">
           <span className="text-xl">{typeIcons[connection.type] || '🔗'}</span>

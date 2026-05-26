@@ -70,11 +70,17 @@ export interface CreateWorkspaceSpec {
   primaryAgentId?: string;
   agentMode?: import('./workspacesData').AgentMode;
   widgets?: any[];
+  useDemoDataFallback?: boolean;
 }
+
+const MAX_WORKSPACES = 30;
 
 export async function createWorkspace(spec: CreateWorkspaceSpec): Promise<WorkspaceData> {
   try {
     const store = ensureStore();
+    if (store.workspaces.length >= MAX_WORKSPACES) {
+      throw new Error(`驾驶舱数量已达上限（${MAX_WORKSPACES}个），请先删除部分驾驶舱后再创建`);
+    }
     const now = new Date().toISOString().slice(0, 10);
     const ws: WorkspaceData = {
       id: `ws-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
@@ -90,6 +96,7 @@ export async function createWorkspace(spec: CreateWorkspaceSpec): Promise<Worksp
       agentMode: spec.agentMode || 'single',
       agentBindings: spec.agentIds?.map((id) => ({ agentId: id, status: 'pending' as const })),
       widgets: spec.widgets || [],
+      useDemoDataFallback: spec.useDemoDataFallback ?? false,
     };
     store.workspaces.push(ws);
     writeStore(store);

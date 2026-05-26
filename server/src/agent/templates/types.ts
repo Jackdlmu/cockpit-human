@@ -3,12 +3,13 @@
 
 export interface WidgetTemplate {
   id: string;
-  type: 'metric' | 'chart' | 'table' | 'kanban' | 'timeline' | 'list' | 'report' | 'universal';
+  type: 'metric' | 'chart' | 'table' | 'kanban' | 'timeline' | 'list' | 'report' | 'universal' | 'progress' | 'status';
   title: string;
   position: { x: number; y: number; w: number; h: number };
   data: Record<string, unknown>;
   dataSource?: Record<string, unknown>;
   detail?: Record<string, unknown>;
+  link?: Record<string, unknown>;
 }
 
 export interface CockpitTemplate {
@@ -32,6 +33,10 @@ export interface CockpitTemplate {
   widgets: WidgetTemplate[];
   /** 描述模板，支持 {{name}} 占位符 */
   description: string;
+  /** 初始化 Prompt：创建驾驶舱后自动执行，用于初始化数据和组件 */
+  initPrompt?: string;
+  /** 数据获取失败时是否回退到 demo 示例数据，默认 false */
+  useDemoDataFallback?: boolean;
 }
 
 /** 个性化参数：从用户指令中提取的变量 */

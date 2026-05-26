@@ -1,825 +1,6 @@
 {
   "workspaces": [
     {
-      "id": "ws-sales-dashboard",
-      "name": "销售业绩驾驶舱",
-      "color": "#6366f1",
-      "icon": "BarChart3",
-      "status": "running",
-      "description": "实时展示华东区销售数据、业绩趋势和客户排行，由销售助手+营销智脑联合驱动",
-      "createdAt": "2025-11-01",
-      "updatedAt": "2026-05-25",
-      "agentIds": [
-        "sales-agent",
-        "marketing-agent"
-      ],
-      "primaryAgentId": "sales-agent",
-      "widgets": [
-        {
-          "id": "w1",
-          "type": "metric",
-          "title": "本月销售额",
-          "position": {
-            "x": 0,
-            "y": 0,
-            "w": 3,
-            "h": 2
-          },
-          "data": {
-            "value": "¥2,847万",
-            "change": "+23%",
-            "trend": "up"
-          }
-        },
-        {
-          "id": "w2",
-          "type": "chart",
-          "title": "业绩趋势",
-          "position": {
-            "x": 3,
-            "y": 0,
-            "w": 6,
-            "h": 4
-          },
-          "data": {
-            "labels": [
-              "7月",
-              "8月",
-              "9月",
-              "10月",
-              "11月"
-            ],
-            "values": [
-              820,
-              956,
-              1071,
-              1250,
-              980
-            ]
-          }
-        },
-        {
-          "id": "w3",
-          "type": "table",
-          "title": "Top 5 客户",
-          "position": {
-            "x": 0,
-            "y": 2,
-            "w": 3,
-            "h": 4
-          },
-          "data": {
-            "rows": [
-              [
-                "华为",
-                "¥580万"
-              ],
-              [
-                "阿里",
-                "¥420万"
-              ],
-              [
-                "腾讯",
-                "¥365万"
-              ],
-              [
-                "比亚迪",
-                "¥310万"
-              ],
-              [
-                "小米",
-                "¥285万"
-              ]
-            ]
-          }
-        },
-        {
-          "id": "w4",
-          "type": "metric",
-          "title": "订单转化率",
-          "position": {
-            "x": 9,
-            "y": 0,
-            "w": 3,
-            "h": 2
-          },
-          "data": {
-            "value": "68.5%",
-            "change": "+5.2%",
-            "trend": "up"
-          }
-        },
-        {
-          "id": "w5",
-          "type": "kanban",
-          "title": "商机漏斗",
-          "position": {
-            "x": 9,
-            "y": 2,
-            "w": 3,
-            "h": 4
-          },
-          "data": {
-            "stages": [
-              "线索 3200",
-              "接触 1850",
-              "确认 1200",
-              "谈判 780"
-            ]
-          }
-        },
-        {
-          "id": "w-1779710748241-0",
-          "type": "metric",
-          "title": "本月回款",
-          "position": {
-            "x": 0,
-            "y": 6,
-            "w": 3,
-            "h": 2
-          },
-          "data": {}
-        },
-        {
-          "id": "w-1779710748241-1",
-          "type": "chart",
-          "title": "区域对比",
-          "position": {
-            "x": 3,
-            "y": 6,
-            "w": 6,
-            "h": 4
-          },
-          "data": {}
-        },
-        {
-          "id": "w-1779710748241-2",
-          "type": "table",
-          "title": "客户明细",
-          "position": {
-            "x": 9,
-            "y": 6,
-            "w": 3,
-            "h": 4
-          },
-          "data": {}
-        },
-        {
-          "type": "metric",
-          "title": "毛利额",
-          "data": {
-            "value": "¥420万"
-          },
-          "id": "w-1779710760900-0",
-          "position": {
-            "x": 3,
-            "y": 4,
-            "w": 3,
-            "h": 2
-          }
-        },
-        {
-          "type": "metric",
-          "title": "客单价",
-          "data": {
-            "value": "¥18万"
-          },
-          "id": "w-1779710760900-1",
-          "position": {
-            "x": 3,
-            "y": 4,
-            "w": 3,
-            "h": 2
-          }
-        },
-        {
-          "id": "w-1779710833944-0",
-          "type": "chart",
-          "title": "月度营收趋势",
-          "position": {
-            "x": 6,
-            "y": 0,
-            "w": 6,
-            "h": 4
-          },
-          "data": {}
-        },
-        {
-          "id": "w-1779710833944-1",
-          "type": "chart",
-          "title": "各区域销售额对比",
-          "position": {
-            "x": 0,
-            "y": 10,
-            "w": 6,
-            "h": 4
-          },
-          "data": {}
-        },
-        {
-          "id": "w-1779710833944-2",
-          "type": "table",
-          "title": "Top10客户排名",
-          "position": {
-            "x": 6,
-            "y": 10,
-            "w": 6,
-            "h": 4
-          },
-          "data": {}
-        }
-      ]
-    },
-    {
-      "id": "ws-hr-onboarding",
-      "name": "入职管理台",
-      "color": "#10b981",
-      "icon": "UserPlus",
-      "status": "running",
-      "description": "新员工入职全流程跟踪，HR助手+IT运维助手联合协作",
-      "createdAt": "2025-10-15",
-      "updatedAt": "2025-11-21",
-      "agentIds": [
-        "hr-agent",
-        "it-agent"
-      ],
-      "primaryAgentId": "hr-agent",
-      "widgets": [
-        {
-          "id": "w1",
-          "type": "metric",
-          "title": "本月入职人数",
-          "position": {
-            "x": 0,
-            "y": 0,
-            "w": 3,
-            "h": 2
-          },
-          "data": {
-            "value": "12人",
-            "change": "+3",
-            "trend": "up"
-          }
-        },
-        {
-          "id": "w2",
-          "type": "timeline",
-          "title": "入职进度",
-          "position": {
-            "x": 3,
-            "y": 0,
-            "w": 9,
-            "h": 4
-          },
-          "data": {
-            "steps": [
-              "信息录入✓",
-              "IT开通✓",
-              "经理确认→",
-              "工位分配",
-              "培训安排",
-              "权限开通"
-            ]
-          }
-        },
-        {
-          "id": "w3",
-          "type": "table",
-          "title": "待办入职",
-          "position": {
-            "x": 0,
-            "y": 2,
-            "w": 6,
-            "h": 4
-          },
-          "data": {
-            "rows": [
-              [
-                "王小明",
-                "技术部",
-                "12/01",
-                "待确认"
-              ],
-              [
-                "李红",
-                "市场部",
-                "12/03",
-                "信息录入"
-              ],
-              [
-                "张伟",
-                "销售部",
-                "12/05",
-                "IT开通"
-              ]
-            ]
-          }
-        },
-        {
-          "id": "w4",
-          "type": "metric",
-          "title": "平均入职周期",
-          "position": {
-            "x": 6,
-            "y": 2,
-            "w": 3,
-            "h": 2
-          },
-          "data": {
-            "value": "3.2天",
-            "change": "-0.5",
-            "trend": "up"
-          }
-        }
-      ]
-    },
-    {
-      "id": "ws-finance-approval",
-      "name": "财务审批中心",
-      "color": "#f59e0b",
-      "icon": "CheckCircle",
-      "status": "running",
-      "description": "集中处理各类财务审批，财务管家+法务合规官联合审核",
-      "createdAt": "2025-09-20",
-      "updatedAt": "2025-11-22",
-      "agentIds": [
-        "finance-agent",
-        "legal-agent"
-      ],
-      "primaryAgentId": "finance-agent",
-      "widgets": [
-        {
-          "id": "w1",
-          "type": "metric",
-          "title": "待审批",
-          "position": {
-            "x": 0,
-            "y": 0,
-            "w": 3,
-            "h": 2
-          },
-          "data": {
-            "value": "8笔",
-            "change": "-2",
-            "trend": "up"
-          }
-        },
-        {
-          "id": "w2",
-          "type": "metric",
-          "title": "今日已审",
-          "position": {
-            "x": 3,
-            "y": 0,
-            "w": 3,
-            "h": 2
-          },
-          "data": {
-            "value": "15笔",
-            "change": "+5",
-            "trend": "up"
-          }
-        },
-        {
-          "id": "w3",
-          "type": "table",
-          "title": "待审批列表",
-          "position": {
-            "x": 0,
-            "y": 2,
-            "w": 6,
-            "h": 4
-          },
-          "data": {
-            "rows": [
-              [
-                "张明",
-                "差旅费",
-                "¥4,580",
-                "紧急"
-              ],
-              [
-                "李娜",
-                "采购申请",
-                "¥12,000",
-                ""
-              ],
-              [
-                "王强",
-                "加班补贴",
-                "¥2,400",
-                ""
-              ]
-            ]
-          }
-        },
-        {
-          "id": "w4",
-          "type": "chart",
-          "title": "审批趋势",
-          "position": {
-            "x": 6,
-            "y": 0,
-            "w": 6,
-            "h": 6
-          },
-          "data": {
-            "labels": [
-              "周一",
-              "周二",
-              "周三",
-              "周四",
-              "周五"
-            ],
-            "values": [
-              8,
-              12,
-              15,
-              10,
-              18
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "id": "ws-it-monitor",
-      "name": "系统监控大屏",
-      "color": "#ef4444",
-      "icon": "Monitor",
-      "status": "error",
-      "description": "实时监控系统运行状态，IT运维助手+客服小助手联合保障",
-      "createdAt": "2025-08-01",
-      "updatedAt": "2025-11-22",
-      "agentIds": [
-        "it-agent",
-        "customer-service-agent"
-      ],
-      "primaryAgentId": "it-agent",
-      "widgets": [
-        {
-          "id": "w1",
-          "type": "metric",
-          "title": "系统可用性",
-          "position": {
-            "x": 0,
-            "y": 0,
-            "w": 3,
-            "h": 2
-          },
-          "data": {
-            "value": "99.2%",
-            "change": "-0.3%",
-            "trend": "down"
-          }
-        },
-        {
-          "id": "w2",
-          "type": "metric",
-          "title": "活跃告警",
-          "position": {
-            "x": 3,
-            "y": 0,
-            "w": 3,
-            "h": 2
-          },
-          "data": {
-            "value": "3个",
-            "change": "+1",
-            "trend": "down"
-          }
-        },
-        {
-          "id": "w3",
-          "type": "list",
-          "title": "告警列表",
-          "position": {
-            "x": 0,
-            "y": 2,
-            "w": 6,
-            "h": 4
-          },
-          "data": {
-            "items": [
-              "【严重】订单服务响应超时 > 5s",
-              "【警告】数据库连接池使用率 85%",
-              "【警告】CDN节点延迟增加"
-            ]
-          }
-        },
-        {
-          "id": "w4",
-          "type": "chart",
-          "title": "CPU/内存趋势",
-          "position": {
-            "x": 6,
-            "y": 0,
-            "w": 6,
-            "h": 6
-          },
-          "data": {
-            "labels": [
-              "00:00",
-              "04:00",
-              "08:00",
-              "12:00",
-              "16:00",
-              "20:00"
-            ],
-            "values": [
-              45,
-              38,
-              62,
-              78,
-              85,
-              72
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "id": "ws-1779668972075-z5f",
-      "name": "绩效分析驾驶舱",
-      "description": "以人力技能和协同技能驱动的综合绩效驾驶舱，覆盖待办事项、任务执行、绩效数据、考勤统计、员工画像五大核心模块",
-      "icon": "BarChart3",
-      "color": "#10b981",
-      "status": "running",
-      "createdAt": "2026-05-25",
-      "updatedAt": "2026-05-25",
-      "agentIds": [
-        "hr-agent",
-        "workbench-agent"
-      ],
-      "primaryAgentId": "hr-agent",
-      "widgets": [
-        {
-          "id": "w-todo",
-          "type": "metric",
-          "title": "待办事项",
-          "position": {
-            "x": 0,
-            "y": 0,
-            "w": 2,
-            "h": 2
-          },
-          "data": {
-            "value": "0项",
-            "change": "—",
-            "trend": "up",
-            "description": "待办中心实时查询: 暂无待办事项",
-            "source": "yonbip-ec-todocenter",
-            "queryResult": "待办总数: 0"
-          }
-        },
-        {
-          "id": "w-task",
-          "type": "metric",
-          "title": "任务统计",
-          "position": {
-            "x": 2,
-            "y": 0,
-            "w": 2,
-            "h": 2
-          },
-          "data": {
-            "value": "0项",
-            "change": "进行中0·已完成0·逾期0",
-            "trend": "up",
-            "description": "全部任务0项·今日到期0项·本周到期0项",
-            "source": "yonbip-ec-task",
-            "queryResult": "allCount=0, todayCount=0, weekCount=0"
-          }
-        },
-        {
-          "id": "w-perf",
-          "type": "table",
-          "title": "绩效数据（经营分析）",
-          "position": {
-            "x": 0,
-            "y": 2,
-            "w": 4,
-            "h": 4
-          },
-          "data": {
-            "rows": [
-              [
-                "逻辑表不存在",
-                "mt_ads_profitability",
-                "盈利分析模型未部署"
-              ],
-              [
-                "建议",
-                "联系管理员部署",
-                "经营分析模型后重试"
-              ]
-            ],
-            "description": "business-performance-analysis 技能查询经营分析模型返回: 逻辑表不存在",
-            "source": "business-performance-analysis",
-            "queryResult": "逻辑表不存在: mt_ads_profitability"
-          }
-        },
-        {
-          "id": "w-atten",
-          "type": "metric",
-          "title": "考勤统计",
-          "position": {
-            "x": 4,
-            "y": 0,
-            "w": 2,
-            "h": 2
-          },
-          "data": {
-            "value": "暂无数据",
-            "change": "—",
-            "trend": "up",
-            "description": "当前环境未部署独立考勤技能",
-            "source": "技能库暂无考勤专项技能"
-          }
-        },
-        {
-          "id": "w-profile",
-          "type": "table",
-          "title": "员工画像（通讯录）",
-          "position": {
-            "x": 4,
-            "y": 2,
-            "w": 4,
-            "h": 4
-          },
-          "data": {
-            "rows": [
-              [
-                "陈邓阳",
-                "大财务开发部",
-                "用友金融"
-              ],
-              [
-                "用友客户成功",
-                "其他",
-                "其他"
-              ],
-              [
-                "用友服务-YonSuite",
-                "其他",
-                "其他"
-              ]
-            ],
-            "description": "通讯录技能搜索\"用友\"返回3条人员记录",
-            "source": "yonbip-ec-contacts-user",
-            "queryResult": "共3人: 陈邓阳、用友客户成功、用友服务-YonSuite"
-          }
-        }
-      ]
-    },
-    {
-      "id": "ws-1779677397539-8x5",
-      "name": "财务总监的驾驶舱",
-      "description": "由座舱代理自动创建的财务总监的驾驶舱",
-      "icon": "BarChart3",
-      "color": "#6366f1",
-      "status": "running",
-      "createdAt": "2026-05-25",
-      "updatedAt": "2026-05-25",
-      "agentIds": [
-        "sales-agent"
-      ],
-      "primaryAgentId": "sales-agent",
-      "widgets": [
-        {
-          "id": "w-1779677397538-1",
-          "type": "metric",
-          "title": "核心指标",
-          "position": {
-            "x": 0,
-            "y": 0,
-            "w": 3,
-            "h": 2
-          },
-          "data": {
-            "value": "—",
-            "change": "+0%",
-            "trend": "up"
-          }
-        },
-        {
-          "id": "w-1779677397538-2",
-          "type": "chart",
-          "title": "趋势分析",
-          "position": {
-            "x": 3,
-            "y": 0,
-            "w": 6,
-            "h": 4
-          },
-          "data": {
-            "labels": [
-              "1月",
-              "2月",
-              "3月",
-              "4月",
-              "5月",
-              "6月"
-            ],
-            "values": [
-              10,
-              15,
-              12,
-              20,
-              18,
-              25
-            ]
-          }
-        },
-        {
-          "id": "w-1779677397538-3",
-          "type": "table",
-          "title": "数据明细",
-          "position": {
-            "x": 0,
-            "y": 2,
-            "w": 3,
-            "h": 4
-          },
-          "data": {
-            "rows": [
-              [
-                "示例数据",
-                "—",
-                "—"
-              ]
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "id": "ws-1779691713964-t8z",
-      "name": "报告测试驾驶舱",
-      "description": "测试 report widget",
-      "icon": "FileText",
-      "color": "#8b5cf6",
-      "status": "running",
-      "createdAt": "2026-05-25",
-      "updatedAt": "2026-05-25",
-      "agentIds": [
-        "sales-agent"
-      ],
-      "primaryAgentId": "sales-agent",
-      "widgets": [
-        {
-          "id": "w-report-monthly",
-          "type": "report",
-          "title": "月度销售分析报告",
-          "position": {
-            "x": 0,
-            "y": 0,
-            "w": 6,
-            "h": 4
-          },
-          "data": {
-            "summary": "本月销售额达 ¥2,847万，同比增长23%。华东区表现最佳，贡献率达42%。大客户转化率提升至18.5%，创历史新高。",
-            "highlights": [
-              {
-                "label": "关键发现",
-                "value": "华东区业绩突破千万大关"
-              },
-              {
-                "label": "风险提示",
-                "value": "Q3回款周期平均延长5天"
-              },
-              {
-                "label": "机会点",
-                "value": "华北区新客户增长潜力大"
-              }
-            ],
-            "source": "sales-agent",
-            "detail": "一、整体业绩概述\n本月销售额为2,847万元，同比增长23%，环比增长8%。主要增长动力来自华东区的大客户签约。\n\n二、区域分析\n- 华东区：1,200万（+35%）\n- 华北区：680万（+12%）\n- 华南区：967万（+18%）\n\n三、客户分析\n大客户（>100万）签约数量从上月的3家增至5家，转化率从15.2%提升至18.5%。"
-          },
-          "detail": {
-            "type": "slide-out",
-            "width": "520px"
-          }
-        },
-        {
-          "id": "w-metric-sales",
-          "type": "metric",
-          "title": "本月销售额",
-          "position": {
-            "x": 6,
-            "y": 0,
-            "w": 3,
-            "h": 2
-          },
-          "data": {
-            "value": "¥2,847万",
-            "change": "+23%",
-            "trend": "up"
-          }
-        }
-      ]
-    },
-    {
       "id": "ws-1779710418116-qa3",
       "name": "企业经营分析驾驶舱",
       "description": "企业经营分析驾驶舱：覆盖营业收入、净利润、毛利率、费用分析、资产负债、收入构成、部门费用对比等核心财务指标，为管理层提供全面的经营洞察。",
@@ -1723,23 +904,35 @@
       ]
     },
     {
-      "id": "ws-1779719056802-a1v",
-      "name": "北京7日天气分析驾驶舱",
-      "description": "提供北京未来7日的天气情况分析，包括温度变化、降水概率、空气质量等关键信息。（由 LLM 驱动）",
-      "icon": "Target",
+      "id": "ws-1779761168236-kpg",
+      "name": "销售业绩驾驶舱",
+      "description": "实时展示销售业绩驾驶舱数据、业绩趋势和客户排行，由销售助手+营销智脑联合驱动",
+      "icon": "BarChart3",
       "color": "#6366f1",
       "status": "running",
-      "createdAt": "2026-05-25",
-      "updatedAt": "2026-05-25",
-      "agentIds": [],
-      "primaryAgentId": "",
-      "agentMode": "llm-only",
-      "agentBindings": [],
+      "createdAt": "2026-05-26",
+      "updatedAt": "2026-05-26",
+      "agentIds": [
+        "sales-agent",
+        "marketing-agent"
+      ],
+      "primaryAgentId": "sales-agent",
+      "agentMode": "single",
+      "agentBindings": [
+        {
+          "agentId": "sales-agent",
+          "status": "pending"
+        },
+        {
+          "agentId": "marketing-agent",
+          "status": "pending"
+        }
+      ],
       "widgets": [
         {
-          "id": "w-gen-1779719056564-0",
+          "id": "w-1779761168234-1",
           "type": "metric",
-          "title": "今日最高温度",
+          "title": "本月销售额",
           "position": {
             "x": 0,
             "y": 0,
@@ -1747,192 +940,195 @@
             "h": 2
           },
           "data": {
-            "value": "25℃",
-            "change": "+2%",
+            "value": "¥1,250万",
+            "change": "+18.5%",
             "trend": "up"
+          },
+          "dataSource": {
+            "type": "skill",
+            "skillId": "sales.getMonthlyRevenue",
+            "agentId": "sales-agent",
+            "input": {
+              "timeRange": "thisMonth"
+            },
+            "transform": "({ revenue, growth }) => ({ value: `¥${(revenue/1e4).toFixed(0)}万`, change: `${growth>0?\"+\":\"\"}${(growth*100).toFixed(0)}%`, trend: growth>0?\"up\":\"down\" })",
+            "fallbackToStatic": true
           }
         },
         {
-          "id": "w-gen-1779719056564-1",
-          "type": "metric",
-          "title": "未来7日平均温度",
+          "id": "w-1779761168234-2",
+          "type": "chart",
+          "title": "业绩趋势",
           "position": {
             "x": 3,
             "y": 0,
-            "w": 3,
-            "h": 2
-          },
-          "data": {
-            "value": "22℃",
-            "change": "-1%",
-            "trend": "down"
-          }
-        },
-        {
-          "id": "w-gen-1779719056564-2",
-          "type": "chart",
-          "title": "7日温度趋势",
-          "position": {
-            "x": 6,
-            "y": 0,
             "w": 6,
             "h": 4
           },
           "data": {
             "labels": [
-              "周一",
-              "周二",
-              "周三",
-              "周四",
-              "周五",
-              "周六",
-              "周日"
+              "1月",
+              "2月",
+              "3月",
+              "4月",
+              "5月",
+              "6月"
             ],
             "values": [
-              23,
-              24,
-              25,
-              26,
-              27,
-              25,
-              24
+              820,
+              950,
+              880,
+              1120,
+              1080,
+              1250
             ]
+          },
+          "dataSource": {
+            "type": "skill",
+            "skillId": "sales.getRevenueTrend",
+            "agentId": "sales-agent",
+            "input": {
+              "months": 6
+            },
+            "transform": "({ labels, values }) => ({ labels, values })",
+            "fallbackToStatic": true
           }
         },
         {
-          "id": "w-gen-1779719056564-3",
-          "type": "chart",
-          "title": "降水概率",
+          "id": "w-1779761168234-3",
+          "type": "table",
+          "title": "Top 5 客户",
           "position": {
             "x": 0,
-            "y": 4,
-            "w": 6,
-            "h": 4
-          },
-          "data": {
-            "labels": [
-              "周一",
-              "周二",
-              "周三",
-              "周四",
-              "周五",
-              "周六",
-              "周日"
-            ],
-            "values": [
-              10,
-              15,
-              20,
-              5,
-              0,
-              10,
-              8
-            ]
-          }
-        },
-        {
-          "id": "w-gen-1779719056564-4",
-          "type": "table",
-          "title": "空气质量指数（AQI）",
-          "position": {
-            "x": 6,
-            "y": 4,
-            "w": 6,
+            "y": 2,
+            "w": 3,
             "h": 4
           },
           "data": {
             "rows": [
               [
-                "日期",
-                "AQI",
-                "状态"
+                "华为云",
+                "¥320万",
+                "续签"
               ],
               [
-                "周一",
-                "50",
-                "优"
+                "阿里云",
+                "¥280万",
+                "新增"
               ],
               [
-                "周二",
-                "60",
-                "良"
+                "腾讯云",
+                "¥210万",
+                "扩容"
               ],
               [
-                "周三",
-                "70",
-                "良"
+                "字节跳动",
+                "¥180万",
+                "新增"
               ],
               [
-                "周四",
-                "80",
-                "轻度污染"
-              ],
-              [
-                "周五",
-                "75",
-                "良"
-              ],
-              [
-                "周六",
-                "65",
-                "良"
-              ],
-              [
-                "周日",
-                "55",
-                "优"
+                "美团",
+                "¥150万",
+                "续签"
               ]
             ]
+          },
+          "dataSource": {
+            "type": "skill",
+            "skillId": "sales.getTopCustomers",
+            "agentId": "sales-agent",
+            "input": {
+              "limit": 5
+            },
+            "transform": "({ rows }) => ({ rows })",
+            "fallbackToStatic": true
           }
         },
         {
-          "id": "w-gen-1779719056564-5",
-          "type": "report",
-          "title": "天气总结报告",
+          "id": "w-1779761168234-4",
+          "type": "metric",
+          "title": "订单转化率",
           "position": {
-            "x": 0,
-            "y": 8,
-            "w": 12,
+            "x": 9,
+            "y": 0,
+            "w": 3,
+            "h": 2
+          },
+          "data": {
+            "value": "24.8%",
+            "change": "+3.2%",
+            "trend": "up"
+          },
+          "dataSource": {
+            "type": "skill",
+            "skillId": "sales.getConversionRate",
+            "agentId": "sales-agent",
+            "input": {
+              "timeRange": "thisMonth"
+            },
+            "transform": "({ rate, change }) => ({ value: `${(rate*100).toFixed(1)}%`, change: `${change>0?\"+\":\"\"}${(change*100).toFixed(1)}%`, trend: change>0?\"up\":\"down\" })",
+            "fallbackToStatic": true
+          }
+        },
+        {
+          "id": "w-1779761168234-5",
+          "type": "kanban",
+          "title": "销售漏斗",
+          "position": {
+            "x": 9,
+            "y": 2,
+            "w": 3,
             "h": 4
           },
           "data": {
-            "summary": "北京未来7日天气总体良好，气温适中，降水概率较低。",
-            "highlights": [
-              {
-                "label": "最高温度",
-                "value": "27℃"
-              },
-              {
-                "label": "最低温度",
-                "value": "23℃"
-              }
-            ],
-            "detail": {
-              "content": "# 北京未来7日天气详细报告\n## 气温变化\n- 周一至周日气温在23℃至27℃之间波动。\n## 降水情况\n- 降水概率最高的是周三，达到20%。\n## 空气质量\n- 空气质量总体良好，周四有轻度污染。",
-              "contentType": "markdown"
-            }
+            "stages": [
+              "线索",
+              "接触",
+              "确认",
+              "谈判",
+              "成交"
+            ]
+          },
+          "dataSource": {
+            "type": "skill",
+            "skillId": "sales.getPipelineStages",
+            "agentId": "sales-agent",
+            "transform": "({ stages }) => ({ stages })",
+            "fallbackToStatic": true
           }
         }
       ]
     },
     {
-      "id": "ws-1779722212725-7ed",
-      "name": "上海七日天气分析驾驶舱",
-      "description": "提供上海未来七天的详细天气数据，包括温度、降水概率、风速等关键指标，帮助用户做出相应的出行决策。（由 LLM 驱动）",
-      "icon": "Target",
+      "id": "ws-1779761203787-v4o",
+      "name": "销售业绩驾驶舱",
+      "description": "实时展示销售业绩驾驶舱数据、业绩趋势和客户排行，由销售助手+营销智脑联合驱动",
+      "icon": "BarChart3",
       "color": "#6366f1",
       "status": "running",
-      "createdAt": "2026-05-25",
-      "updatedAt": "2026-05-25",
-      "agentIds": [],
-      "primaryAgentId": "",
-      "agentMode": "llm-only",
-      "agentBindings": [],
+      "createdAt": "2026-05-26",
+      "updatedAt": "2026-05-26",
+      "agentIds": [
+        "sales-agent",
+        "marketing-agent"
+      ],
+      "primaryAgentId": "sales-agent",
+      "agentMode": "single",
+      "agentBindings": [
+        {
+          "agentId": "sales-agent",
+          "status": "pending"
+        },
+        {
+          "agentId": "marketing-agent",
+          "status": "pending"
+        }
+      ],
       "widgets": [
         {
-          "id": "w-gen-1779722212430-0",
+          "id": "w-1779761203786-1",
           "type": "metric",
-          "title": "今日最高温度",
+          "title": "本月销售额",
           "position": {
             "x": 0,
             "y": 0,
@@ -1940,15 +1136,25 @@
             "h": 2
           },
           "data": {
-            "value": "23°C",
-            "change": "+2%",
+            "value": "¥1,250万",
+            "change": "+18.5%",
             "trend": "up"
+          },
+          "dataSource": {
+            "type": "skill",
+            "skillId": "sales.getMonthlyRevenue",
+            "agentId": "sales-agent",
+            "input": {
+              "timeRange": "thisMonth"
+            },
+            "transform": "({ revenue, growth }) => ({ value: `¥${(revenue/1e4).toFixed(0)}万`, change: `${growth>0?\"+\":\"\"}${(growth*100).toFixed(0)}%`, trend: growth>0?\"up\":\"down\" })",
+            "fallbackToStatic": true
           }
         },
         {
-          "id": "w-gen-1779722212430-1",
+          "id": "w-1779761203786-2",
           "type": "chart",
-          "title": "七日温度趋势图",
+          "title": "业绩趋势",
           "position": {
             "x": 3,
             "y": 0,
@@ -1957,60 +1163,637 @@
           },
           "data": {
             "labels": [
-              "周一",
-              "周二",
-              "周三",
-              "周四",
-              "周五",
-              "周六",
-              "周日"
+              "1月",
+              "2月",
+              "3月",
+              "4月",
+              "5月",
+              "6月"
             ],
             "values": [
-              21,
-              22,
-              23,
-              24,
-              25,
-              26,
-              27
+              820,
+              950,
+              880,
+              1120,
+              1080,
+              1250
             ]
+          },
+          "dataSource": {
+            "type": "skill",
+            "skillId": "sales.getRevenueTrend",
+            "agentId": "sales-agent",
+            "input": {
+              "months": 6
+            },
+            "transform": "({ labels, values }) => ({ labels, values })",
+            "fallbackToStatic": true
           }
         },
         {
-          "id": "w-gen-1779722212430-2",
-          "type": "chart",
-          "title": "七日降水概率图",
+          "id": "w-1779761203786-3",
+          "type": "table",
+          "title": "Top 5 客户",
+          "position": {
+            "x": 0,
+            "y": 2,
+            "w": 3,
+            "h": 4
+          },
+          "data": {
+            "rows": [
+              [
+                "华为云",
+                "¥320万",
+                "续签"
+              ],
+              [
+                "阿里云",
+                "¥280万",
+                "新增"
+              ],
+              [
+                "腾讯云",
+                "¥210万",
+                "扩容"
+              ],
+              [
+                "字节跳动",
+                "¥180万",
+                "新增"
+              ],
+              [
+                "美团",
+                "¥150万",
+                "续签"
+              ]
+            ]
+          },
+          "dataSource": {
+            "type": "skill",
+            "skillId": "sales.getTopCustomers",
+            "agentId": "sales-agent",
+            "input": {
+              "limit": 5
+            },
+            "transform": "({ rows }) => ({ rows })",
+            "fallbackToStatic": true
+          }
+        },
+        {
+          "id": "w-1779761203786-4",
+          "type": "metric",
+          "title": "订单转化率",
           "position": {
             "x": 9,
+            "y": 0,
+            "w": 3,
+            "h": 2
+          },
+          "data": {
+            "value": "24.8%",
+            "change": "+3.2%",
+            "trend": "up"
+          },
+          "dataSource": {
+            "type": "skill",
+            "skillId": "sales.getConversionRate",
+            "agentId": "sales-agent",
+            "input": {
+              "timeRange": "thisMonth"
+            },
+            "transform": "({ rate, change }) => ({ value: `${(rate*100).toFixed(1)}%`, change: `${change>0?\"+\":\"\"}${(change*100).toFixed(1)}%`, trend: change>0?\"up\":\"down\" })",
+            "fallbackToStatic": true
+          }
+        },
+        {
+          "id": "w-1779761203786-5",
+          "type": "kanban",
+          "title": "销售漏斗",
+          "position": {
+            "x": 9,
+            "y": 2,
+            "w": 3,
+            "h": 4
+          },
+          "data": {
+            "stages": [
+              "线索",
+              "接触",
+              "确认",
+              "谈判",
+              "成交"
+            ]
+          },
+          "dataSource": {
+            "type": "skill",
+            "skillId": "sales.getPipelineStages",
+            "agentId": "sales-agent",
+            "transform": "({ stages }) => ({ stages })",
+            "fallbackToStatic": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "ws-1779761338613-v4p",
+      "name": "销售业绩驾驶舱",
+      "description": "实时展示销售业绩驾驶舱数据、业绩趋势和客户排行，由销售助手+营销智脑联合驱动",
+      "icon": "BarChart3",
+      "color": "#6366f1",
+      "status": "running",
+      "createdAt": "2026-05-26",
+      "updatedAt": "2026-05-26",
+      "agentIds": [
+        "sales-agent",
+        "marketing-agent"
+      ],
+      "primaryAgentId": "sales-agent",
+      "agentMode": "single",
+      "agentBindings": [
+        {
+          "agentId": "sales-agent",
+          "status": "pending"
+        },
+        {
+          "agentId": "marketing-agent",
+          "status": "pending"
+        }
+      ],
+      "widgets": [
+        {
+          "id": "w-1779761338613-1",
+          "type": "metric",
+          "title": "本月销售额",
+          "position": {
+            "x": 0,
+            "y": 0,
+            "w": 3,
+            "h": 2
+          },
+          "data": {
+            "value": "¥1,250万",
+            "change": "+18.5%",
+            "trend": "up"
+          },
+          "dataSource": {
+            "type": "skill",
+            "skillId": "sales.getMonthlyRevenue",
+            "agentId": "sales-agent",
+            "input": {
+              "timeRange": "thisMonth"
+            },
+            "transform": "({ revenue, growth }) => ({ value: `¥${(revenue/1e4).toFixed(0)}万`, change: `${growth>0?\"+\":\"\"}${(growth*100).toFixed(0)}%`, trend: growth>0?\"up\":\"down\" })",
+            "fallbackToStatic": true
+          }
+        },
+        {
+          "id": "w-1779761338613-2",
+          "type": "chart",
+          "title": "业绩趋势",
+          "position": {
+            "x": 3,
             "y": 0,
             "w": 6,
             "h": 4
           },
           "data": {
             "labels": [
-              "周一",
-              "周二",
-              "周三",
-              "周四",
-              "周五",
-              "周六",
-              "周日"
+              "1月",
+              "2月",
+              "3月",
+              "4月",
+              "5月",
+              "6月"
             ],
             "values": [
-              10,
-              20,
-              30,
-              40,
-              50,
-              60,
-              70
+              820,
+              950,
+              880,
+              1120,
+              1080,
+              1250
+            ]
+          },
+          "dataSource": {
+            "type": "skill",
+            "skillId": "sales.getRevenueTrend",
+            "agentId": "sales-agent",
+            "input": {
+              "months": 6
+            },
+            "transform": "({ labels, values }) => ({ labels, values })",
+            "fallbackToStatic": true
+          }
+        },
+        {
+          "id": "w-1779761338613-3",
+          "type": "table",
+          "title": "Top 5 客户",
+          "position": {
+            "x": 0,
+            "y": 2,
+            "w": 3,
+            "h": 4
+          },
+          "data": {
+            "rows": [
+              [
+                "华为云",
+                "¥320万",
+                "续签"
+              ],
+              [
+                "阿里云",
+                "¥280万",
+                "新增"
+              ],
+              [
+                "腾讯云",
+                "¥210万",
+                "扩容"
+              ],
+              [
+                "字节跳动",
+                "¥180万",
+                "新增"
+              ],
+              [
+                "美团",
+                "¥150万",
+                "续签"
+              ]
+            ]
+          },
+          "dataSource": {
+            "type": "skill",
+            "skillId": "sales.getTopCustomers",
+            "agentId": "sales-agent",
+            "input": {
+              "limit": 5
+            },
+            "transform": "({ rows }) => ({ rows })",
+            "fallbackToStatic": true
+          }
+        },
+        {
+          "id": "w-1779761338613-4",
+          "type": "metric",
+          "title": "订单转化率",
+          "position": {
+            "x": 9,
+            "y": 0,
+            "w": 3,
+            "h": 2
+          },
+          "data": {
+            "value": "24.8%",
+            "change": "+3.2%",
+            "trend": "up"
+          },
+          "dataSource": {
+            "type": "skill",
+            "skillId": "sales.getConversionRate",
+            "agentId": "sales-agent",
+            "input": {
+              "timeRange": "thisMonth"
+            },
+            "transform": "({ rate, change }) => ({ value: `${(rate*100).toFixed(1)}%`, change: `${change>0?\"+\":\"\"}${(change*100).toFixed(1)}%`, trend: change>0?\"up\":\"down\" })",
+            "fallbackToStatic": true
+          }
+        },
+        {
+          "id": "w-1779761338613-5",
+          "type": "kanban",
+          "title": "销售漏斗",
+          "position": {
+            "x": 9,
+            "y": 2,
+            "w": 3,
+            "h": 4
+          },
+          "data": {
+            "stages": [
+              "线索",
+              "接触",
+              "确认",
+              "谈判",
+              "成交"
+            ]
+          },
+          "dataSource": {
+            "type": "skill",
+            "skillId": "sales.getPipelineStages",
+            "agentId": "sales-agent",
+            "transform": "({ stages }) => ({ stages })",
+            "fallbackToStatic": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "ws-1779761472949-6ov",
+      "name": "入职管理台",
+      "description": "入职管理台全流程跟踪，HR助手+IT运维助手联合协作",
+      "icon": "UserPlus",
+      "color": "#10b981",
+      "status": "running",
+      "createdAt": "2026-05-26",
+      "updatedAt": "2026-05-26",
+      "agentIds": [
+        "hr-agent",
+        "it-agent"
+      ],
+      "primaryAgentId": "hr-agent",
+      "agentMode": "single",
+      "agentBindings": [
+        {
+          "agentId": "hr-agent",
+          "status": "pending"
+        },
+        {
+          "agentId": "it-agent",
+          "status": "pending"
+        }
+      ],
+      "widgets": [
+        {
+          "id": "w-1779761472949-1",
+          "type": "metric",
+          "title": "本月入职人数",
+          "position": {
+            "x": 0,
+            "y": 0,
+            "w": 3,
+            "h": 2
+          },
+          "data": {
+            "value": "8人",
+            "change": "+3",
+            "trend": "up"
+          },
+          "dataSource": {
+            "type": "skill",
+            "skillId": "hr.getMonthlyOnboardCount",
+            "agentId": "hr-agent",
+            "transform": "({ count, change }) => ({ value: String(count), change: `${change>0?\"+\":\"\"}${change}`, trend: change>0?\"up\":\"down\" })",
+            "fallbackToStatic": true
+          }
+        },
+        {
+          "id": "w-1779761472949-2",
+          "type": "timeline",
+          "title": "入职进度",
+          "position": {
+            "x": 3,
+            "y": 0,
+            "w": 9,
+            "h": 4
+          },
+          "data": {
+            "steps": [
+              "信息录入 ✓",
+              "IT开通 ✓",
+              "经理确认 →",
+              "工位分配",
+              "培训安排",
+              "权限开通"
+            ]
+          },
+          "dataSource": {
+            "type": "skill",
+            "skillId": "hr.getOnboardProgress",
+            "agentId": "hr-agent",
+            "transform": "({ steps }) => ({ steps })",
+            "fallbackToStatic": true
+          }
+        },
+        {
+          "id": "w-1779761472949-3",
+          "type": "table",
+          "title": "待办入职",
+          "position": {
+            "x": 0,
+            "y": 2,
+            "w": 6,
+            "h": 4
+          },
+          "data": {
+            "rows": [
+              [
+                "陈小明",
+                "产品经理",
+                "3月15日",
+                "待IT开通"
+              ],
+              [
+                "刘小红",
+                "前端工程师",
+                "3月18日",
+                "待经理确认"
+              ],
+              [
+                "王大力",
+                "算法工程师",
+                "3月20日",
+                "待信息录入"
+              ]
+            ]
+          },
+          "dataSource": {
+            "type": "skill",
+            "skillId": "hr.getPendingOnboards",
+            "agentId": "hr-agent",
+            "input": {
+              "limit": 10
+            },
+            "transform": "({ rows }) => ({ rows })",
+            "fallbackToStatic": true
+          }
+        },
+        {
+          "id": "w-1779761472949-4",
+          "type": "metric",
+          "title": "平均入职周期",
+          "position": {
+            "x": 6,
+            "y": 2,
+            "w": 3,
+            "h": 2
+          },
+          "data": {
+            "value": "5.2天",
+            "change": "-0.8天",
+            "trend": "up"
+          },
+          "dataSource": {
+            "type": "skill",
+            "skillId": "hr.getAverageOnboardCycle",
+            "agentId": "hr-agent",
+            "transform": "({ days, change }) => ({ value: `${days}天`, change: `${change>0?\"+\":\"\"}${change}天`, trend: change>0?\"up\":\"down\" })",
+            "fallbackToStatic": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "ws-1779763393002-zx6",
+      "name": "CEO战略总览测试",
+      "description": "CEO战略总览测试 — 企业战略健康度一站式总览，覆盖经营、财务、客户、运营、人力、风险六大维度",
+      "icon": "Target",
+      "color": "#1e3a5f",
+      "status": "running",
+      "createdAt": "2026-05-26",
+      "updatedAt": "2026-05-26",
+      "agentIds": [
+        "ceo-agent"
+      ],
+      "primaryAgentId": "ceo-agent",
+      "agentMode": "single",
+      "agentBindings": [
+        {
+          "agentId": "ceo-agent",
+          "status": "pending"
+        }
+      ],
+      "widgets": [
+        {
+          "id": "w-1779763393002-1",
+          "type": "metric",
+          "title": "营收达成率",
+          "position": {
+            "x": 0,
+            "y": 0,
+            "w": 3,
+            "h": 2
+          },
+          "data": {
+            "value": "¥8,420万",
+            "change": "+12.3% 同比",
+            "trend": "up"
+          }
+        },
+        {
+          "id": "w-1779763393002-2",
+          "type": "metric",
+          "title": "净利润率",
+          "position": {
+            "x": 3,
+            "y": 0,
+            "w": 3,
+            "h": 2
+          },
+          "data": {
+            "value": "18.5%",
+            "change": "+1.2pp 同比",
+            "trend": "up"
+          }
+        },
+        {
+          "id": "w-1779763393002-3",
+          "type": "metric",
+          "title": "经营现金流",
+          "position": {
+            "x": 6,
+            "y": 0,
+            "w": 3,
+            "h": 2
+          },
+          "data": {
+            "value": "¥1,260万",
+            "change": "+8.7% 环比",
+            "trend": "up"
+          }
+        },
+        {
+          "id": "w-1779763393002-4",
+          "type": "metric",
+          "title": "客户留存率",
+          "position": {
+            "x": 9,
+            "y": 0,
+            "w": 3,
+            "h": 2
+          },
+          "data": {
+            "value": "94.2%",
+            "change": "-0.8pp 环比",
+            "trend": "down"
+          }
+        },
+        {
+          "id": "w-1779763393002-5",
+          "type": "progress",
+          "title": "年度战略目标进度",
+          "position": {
+            "x": 0,
+            "y": 2,
+            "w": 4,
+            "h": 2
+          },
+          "data": {
+            "value": 68,
+            "max": 100,
+            "label": "68%",
+            "color": "indigo",
+            "caption": "12项关键举措中8项按计划推进"
+          }
+        },
+        {
+          "id": "w-1779763393002-6",
+          "type": "status",
+          "title": "组织健康度",
+          "position": {
+            "x": 4,
+            "y": 2,
+            "w": 4,
+            "h": 2
+          },
+          "data": {
+            "items": [
+              {
+                "label": "财务健康",
+                "status": "green",
+                "value": "良好"
+              },
+              {
+                "label": "运营效率",
+                "status": "green",
+                "value": "正常"
+              },
+              {
+                "label": "人才稳定",
+                "status": "yellow",
+                "value": "关注"
+              },
+              {
+                "label": "合规风险",
+                "status": "green",
+                "value": "正常"
+              }
             ]
           }
         },
         {
-          "id": "w-gen-1779722212430-3",
-          "type": "table",
-          "title": "每日天气预报",
+          "id": "w-1779763393002-7",
+          "type": "metric",
+          "title": "人均产出",
+          "position": {
+            "x": 8,
+            "y": 2,
+            "w": 4,
+            "h": 2
+          },
+          "data": {
+            "value": "¥52.6万",
+            "change": "+5.3% 同比",
+            "trend": "up"
+          }
+        },
+        {
+          "id": "w-1779763393002-8",
+          "type": "chart",
+          "title": "核心指标趋势（近6个月）",
           "position": {
             "x": 0,
             "y": 4,
@@ -2018,94 +1801,2884 @@
             "h": 4
           },
           "data": {
+            "labels": [
+              "1月",
+              "2月",
+              "3月",
+              "4月",
+              "5月",
+              "6月"
+            ],
+            "values": [
+              7200,
+              7450,
+              7800,
+              8100,
+              8200,
+              8420
+            ]
+          }
+        },
+        {
+          "id": "w-1779763393002-9",
+          "type": "kanban",
+          "title": "风险预警面板",
+          "position": {
+            "x": 6,
+            "y": 4,
+            "w": 6,
+            "h": 4
+          },
+          "data": {
+            "stages": [
+              "🔴 现金流安全垫低于30天",
+              "🟡 关键人才流失率接近阈值",
+              "🟡 某核心客户续约延迟",
+              "🟢 所有合规检查通过",
+              "🟢 供应链交付正常"
+            ]
+          }
+        },
+        {
+          "id": "w-1779763393002-10",
+          "type": "list",
+          "title": "职能驾驶舱导航",
+          "position": {
+            "x": 0,
+            "y": 8,
+            "w": 6,
+            "h": 4
+          },
+          "data": {
+            "items": [
+              "📊 CFO财务决策驾驶舱 — 深入盈利与现金流分析",
+              "⚙️ COO运营效率驾驶舱 — 生产与交付实时监控",
+              "📈 CMO营销营收驾驶舱 — 增长引擎与管道健康",
+              "💻 CTO研发效能驾驶舱 — DORA指标与代码质量",
+              "👥 HRD人力资本驾驶舱 — 人才九宫格与流失预警",
+              "🚚 供应链协同驾驶舱 — 库存与供应商全景"
+            ]
+          },
+          "link": {
+            "type": "workspace",
+            "targetTemplate": "financial-decision",
+            "title": "下钻到财务驾驶舱"
+          }
+        },
+        {
+          "id": "w-1779763393002-11",
+          "type": "timeline",
+          "title": "战略里程碑",
+          "position": {
+            "x": 6,
+            "y": 8,
+            "w": 6,
+            "h": 4
+          },
+          "data": {
+            "steps": [
+              "✓ Q1 完成组织架构调整",
+              "✓ Q1 上线新CRM系统",
+              "→ Q2 拓展华东市场（进行中）",
+              "Q3 完成B轮融资",
+              "Q4 启动海外业务试点"
+            ]
+          }
+        }
+      ],
+      "useDemoDataFallback": false
+    },
+    {
+      "id": "ws-1779763614479-uuv",
+      "name": "strategic-overview-test",
+      "description": "strategic-overview-test — 企业战略健康度一站式总览，覆盖经营、财务、客户、运营、人力、风险六大维度",
+      "icon": "Target",
+      "color": "#1e3a5f",
+      "status": "running",
+      "createdAt": "2026-05-26",
+      "updatedAt": "2026-05-26",
+      "agentIds": [
+        "ceo-agent"
+      ],
+      "primaryAgentId": "ceo-agent",
+      "agentMode": "single",
+      "agentBindings": [
+        {
+          "agentId": "ceo-agent",
+          "status": "pending"
+        }
+      ],
+      "widgets": [
+        {
+          "id": "w-1779763614479-1",
+          "type": "metric",
+          "title": "营收达成率",
+          "position": {
+            "x": 0,
+            "y": 0,
+            "w": 3,
+            "h": 2
+          },
+          "data": {
+            "value": "¥8,420万",
+            "change": "+12.3% 同比",
+            "trend": "up"
+          }
+        },
+        {
+          "id": "w-1779763614479-2",
+          "type": "metric",
+          "title": "净利润率",
+          "position": {
+            "x": 3,
+            "y": 0,
+            "w": 3,
+            "h": 2
+          },
+          "data": {
+            "value": "18.5%",
+            "change": "+1.2pp 同比",
+            "trend": "up"
+          }
+        },
+        {
+          "id": "w-1779763614479-3",
+          "type": "metric",
+          "title": "经营现金流",
+          "position": {
+            "x": 6,
+            "y": 0,
+            "w": 3,
+            "h": 2
+          },
+          "data": {
+            "value": "¥1,260万",
+            "change": "+8.7% 环比",
+            "trend": "up"
+          }
+        },
+        {
+          "id": "w-1779763614479-4",
+          "type": "metric",
+          "title": "客户留存率",
+          "position": {
+            "x": 9,
+            "y": 0,
+            "w": 3,
+            "h": 2
+          },
+          "data": {
+            "value": "94.2%",
+            "change": "-0.8pp 环比",
+            "trend": "down"
+          }
+        },
+        {
+          "id": "w-1779763614479-5",
+          "type": "progress",
+          "title": "年度战略目标进度",
+          "position": {
+            "x": 0,
+            "y": 2,
+            "w": 4,
+            "h": 2
+          },
+          "data": {
+            "value": 68,
+            "max": 100,
+            "label": "68%",
+            "color": "indigo",
+            "caption": "12项关键举措中8项按计划推进"
+          }
+        },
+        {
+          "id": "w-1779763614479-6",
+          "type": "status",
+          "title": "组织健康度",
+          "position": {
+            "x": 4,
+            "y": 2,
+            "w": 4,
+            "h": 2
+          },
+          "data": {
+            "items": [
+              {
+                "label": "财务健康",
+                "status": "green",
+                "value": "良好"
+              },
+              {
+                "label": "运营效率",
+                "status": "green",
+                "value": "正常"
+              },
+              {
+                "label": "人才稳定",
+                "status": "yellow",
+                "value": "关注"
+              },
+              {
+                "label": "合规风险",
+                "status": "green",
+                "value": "正常"
+              }
+            ]
+          }
+        },
+        {
+          "id": "w-1779763614479-7",
+          "type": "metric",
+          "title": "人均产出",
+          "position": {
+            "x": 8,
+            "y": 2,
+            "w": 4,
+            "h": 2
+          },
+          "data": {
+            "value": "¥52.6万",
+            "change": "+5.3% 同比",
+            "trend": "up"
+          }
+        },
+        {
+          "id": "w-1779763614479-8",
+          "type": "chart",
+          "title": "核心指标趋势（近6个月）",
+          "position": {
+            "x": 0,
+            "y": 4,
+            "w": 6,
+            "h": 4
+          },
+          "data": {
+            "labels": [
+              "1月",
+              "2月",
+              "3月",
+              "4月",
+              "5月",
+              "6月"
+            ],
+            "values": [
+              7200,
+              7450,
+              7800,
+              8100,
+              8200,
+              8420
+            ]
+          }
+        },
+        {
+          "id": "w-1779763614479-9",
+          "type": "kanban",
+          "title": "风险预警面板",
+          "position": {
+            "x": 6,
+            "y": 4,
+            "w": 6,
+            "h": 4
+          },
+          "data": {
+            "stages": [
+              "🔴 现金流安全垫低于30天",
+              "🟡 关键人才流失率接近阈值",
+              "🟡 某核心客户续约延迟",
+              "🟢 所有合规检查通过",
+              "🟢 供应链交付正常"
+            ]
+          }
+        },
+        {
+          "id": "w-1779763614479-10",
+          "type": "list",
+          "title": "职能驾驶舱导航",
+          "position": {
+            "x": 0,
+            "y": 8,
+            "w": 6,
+            "h": 4
+          },
+          "data": {
+            "items": [
+              "📊 CFO财务决策驾驶舱 — 深入盈利与现金流分析",
+              "⚙️ COO运营效率驾驶舱 — 生产与交付实时监控",
+              "📈 CMO营销营收驾驶舱 — 增长引擎与管道健康",
+              "💻 CTO研发效能驾驶舱 — DORA指标与代码质量",
+              "👥 HRD人力资本驾驶舱 — 人才九宫格与流失预警",
+              "🚚 供应链协同驾驶舱 — 库存与供应商全景"
+            ]
+          },
+          "link": {
+            "type": "workspace",
+            "targetTemplate": "financial-decision",
+            "title": "下钻到财务驾驶舱"
+          }
+        },
+        {
+          "id": "w-1779763614479-11",
+          "type": "timeline",
+          "title": "战略里程碑",
+          "position": {
+            "x": 6,
+            "y": 8,
+            "w": 6,
+            "h": 4
+          },
+          "data": {
+            "steps": [
+              "✓ Q1 完成组织架构调整",
+              "✓ Q1 上线新CRM系统",
+              "→ Q2 拓展华东市场（进行中）",
+              "Q3 完成B轮融资",
+              "Q4 启动海外业务试点"
+            ]
+          }
+        }
+      ],
+      "useDemoDataFallback": false
+    },
+    {
+      "id": "ws-1779763614500-r50",
+      "name": "financial-decision-test",
+      "description": "financial-decision-test — 企业财务雷达，覆盖盈利分析、现金流管理、预算管控、资产负债、成本费用与风险预警",
+      "icon": "DollarSign",
+      "color": "#0f5c3e",
+      "status": "running",
+      "createdAt": "2026-05-26",
+      "updatedAt": "2026-05-26",
+      "agentIds": [
+        "finance-agent"
+      ],
+      "primaryAgentId": "finance-agent",
+      "agentMode": "single",
+      "agentBindings": [
+        {
+          "agentId": "finance-agent",
+          "status": "pending"
+        }
+      ],
+      "widgets": [
+        {
+          "id": "w-1779763614500-1",
+          "type": "metric",
+          "title": "营业收入",
+          "position": {
+            "x": 0,
+            "y": 0,
+            "w": 3,
+            "h": 2
+          },
+          "data": {
+            "value": "¥8,420万",
+            "change": "预算达成 105%",
+            "trend": "up"
+          }
+        },
+        {
+          "id": "w-1779763614500-2",
+          "type": "metric",
+          "title": "毛利率",
+          "position": {
+            "x": 3,
+            "y": 0,
+            "w": 3,
+            "h": 2
+          },
+          "data": {
+            "value": "42.8%",
+            "change": "+1.5pp 同比",
+            "trend": "up"
+          }
+        },
+        {
+          "id": "w-1779763614500-3",
+          "type": "metric",
+          "title": "经营现金流净额",
+          "position": {
+            "x": 6,
+            "y": 0,
+            "w": 3,
+            "h": 2
+          },
+          "data": {
+            "value": "¥1,260万",
+            "change": "安全垫 45天",
+            "trend": "up"
+          }
+        },
+        {
+          "id": "w-1779763614500-4",
+          "type": "metric",
+          "title": "资产负债率",
+          "position": {
+            "x": 9,
+            "y": 0,
+            "w": 3,
+            "h": 2
+          },
+          "data": {
+            "value": "38.2%",
+            "change": "行业均值 45%",
+            "trend": "up"
+          }
+        },
+        {
+          "id": "w-1779763614500-5",
+          "type": "chart",
+          "title": "盈利结构（按事业部）",
+          "position": {
+            "x": 0,
+            "y": 2,
+            "w": 6,
+            "h": 4
+          },
+          "data": {
+            "labels": [
+              "消费电子",
+              "企业软件",
+              "云服务",
+              "咨询服务"
+            ],
+            "values": [
+              3200,
+              2100,
+              1850,
+              1270
+            ]
+          }
+        },
+        {
+          "id": "w-1779763614500-6",
+          "type": "progress",
+          "title": "预算执行率",
+          "position": {
+            "x": 6,
+            "y": 2,
+            "w": 6,
+            "h": 2
+          },
+          "data": {
+            "value": 82,
+            "max": 100,
+            "label": "82%",
+            "color": "emerald",
+            "caption": "收入预算达成 105% | 成本预算执行 98%"
+          }
+        },
+        {
+          "id": "w-1779763614500-7",
+          "type": "universal",
+          "title": "现金流瀑布",
+          "position": {
+            "x": 6,
+            "y": 4,
+            "w": 6,
+            "h": 4
+          },
+          "data": {
+            "content": "## 本月现金流结构\n\n**流入**\n- 销售收入：¥9,800万\n- 投资收益：¥320万\n- 其他收入：¥180万\n\n**流出**\n- 采购支出：¥5,200万\n- 人工费用：¥2,100万\n- 运营费用：¥1,140万\n- 税费：¥600万\n\n**净额：¥1,260万**"
+          }
+        },
+        {
+          "id": "w-1779763614500-8",
+          "type": "table",
+          "title": "应收应付明细",
+          "position": {
+            "x": 0,
+            "y": 6,
+            "w": 6,
+            "h": 4
+          },
+          "data": {
             "rows": [
               [
-                "日期",
-                "最高温度(°C)",
-                "最低温度(°C)",
-                "天气状况",
-                "降水概率(%)"
+                "应收账款周转",
+                "42天",
+                "↓ 3天"
               ],
               [
-                "周一",
-                "21",
-                "15",
-                "晴",
-                "10"
+                "应付账款周转",
+                "38天",
+                "→ 持平"
               ],
               [
-                "周二",
-                "22",
-                "16",
-                "多云",
-                "20"
+                "坏账率",
+                "0.8%",
+                "↓ 0.2pp"
               ],
               [
-                "周三",
-                "23",
-                "17",
-                "阴天",
-                "30"
+                "逾期客户数",
+                "5家",
+                "↑ 2家"
               ],
               [
-                "周四",
-                "24",
-                "18",
-                "小雨",
-                "40"
-              ],
-              [
-                "周五",
-                "25",
-                "19",
-                "中雨",
-                "50"
-              ],
-              [
-                "周六",
-                "26",
-                "20",
-                "大雨",
-                "60"
-              ],
-              [
-                "周日",
-                "27",
-                "21",
-                "晴",
-                "70"
+                "回款预测(下月)",
+                "¥7,200万",
+                "—"
               ]
             ]
           }
         },
         {
-          "id": "w-gen-1779722212430-4",
-          "type": "report",
-          "title": "未来一周天气总结",
+          "id": "w-1779763614500-9",
+          "type": "chart",
+          "title": "费用结构",
           "position": {
             "x": 6,
-            "y": 4,
-            "w": 9,
+            "y": 8,
+            "w": 6,
             "h": 4
           },
           "data": {
-            "summary": "上海未来一周天气总体较好，温度逐渐升高，周五至周日有明显降水。",
-            "highlights": [
+            "labels": [
+              "销售费用",
+              "管理费用",
+              "研发费用",
+              "财务费用"
+            ],
+            "values": [
+              18,
+              12,
+              15,
+              3
+            ]
+          }
+        },
+        {
+          "id": "w-1779763614500-10",
+          "type": "status",
+          "title": "财务健康雷达",
+          "position": {
+            "x": 0,
+            "y": 10,
+            "w": 6,
+            "h": 2
+          },
+          "data": {
+            "items": [
               {
-                "label": "最高温度",
-                "value": "27°C"
+                "label": "偿债能力",
+                "status": "green",
+                "value": "流动比率 2.1"
               },
               {
-                "label": "最低温度",
-                "value": "15°C"
+                "label": "盈利能力",
+                "status": "green",
+                "value": "ROE 15.3%"
+              },
+              {
+                "label": "运营效率",
+                "status": "green",
+                "value": "资产周转 1.2"
+              },
+              {
+                "label": "成长能力",
+                "status": "yellow",
+                "value": "营收增速 12%"
+              },
+              {
+                "label": "现金流",
+                "status": "green",
+                "value": "经营现金流 +"
               }
-            ],
-            "detail": {
-              "content": "# 上海未来一周天气预报\n## 周一\n- 最高温度：21°C\n- 最低温度：15°C\n- 天气状况：晴\n- 降水概率：10%\n\n## 周二\n- 最高温度：22°C\n- 最低温度：16°C\n- 天气状况：多云\n- 降水概率：20%\n\n..."
-            }
+            ]
           }
         }
-      ]
+      ],
+      "useDemoDataFallback": false
+    },
+    {
+      "id": "ws-1779763614527-mcb",
+      "name": "operational-efficiency-test",
+      "description": "operational-efficiency-test — 生产运营全流程效率监控，覆盖OEE、质量、交付、能耗与设备状态",
+      "icon": "Monitor",
+      "color": "#7c3aed",
+      "status": "running",
+      "createdAt": "2026-05-26",
+      "updatedAt": "2026-05-26",
+      "agentIds": [
+        "ops-agent"
+      ],
+      "primaryAgentId": "ops-agent",
+      "agentMode": "single",
+      "agentBindings": [
+        {
+          "agentId": "ops-agent",
+          "status": "pending"
+        }
+      ],
+      "widgets": [
+        {
+          "id": "w-1779763614527-1",
+          "type": "metric",
+          "title": "OEE综合效率",
+          "position": {
+            "x": 0,
+            "y": 0,
+            "w": 3,
+            "h": 2
+          },
+          "data": {
+            "value": "72.4%",
+            "change": "+3.2pp 环比",
+            "trend": "up"
+          }
+        },
+        {
+          "id": "w-1779763614527-2",
+          "type": "metric",
+          "title": "订单准时交付率",
+          "position": {
+            "x": 3,
+            "y": 0,
+            "w": 3,
+            "h": 2
+          },
+          "data": {
+            "value": "93.6%",
+            "change": "+1.8pp 环比",
+            "trend": "up"
+          }
+        },
+        {
+          "id": "w-1779763614527-3",
+          "type": "metric",
+          "title": "一次合格率",
+          "position": {
+            "x": 6,
+            "y": 0,
+            "w": 3,
+            "h": 2
+          },
+          "data": {
+            "value": "98.2%",
+            "change": "+0.3pp 环比",
+            "trend": "up"
+          }
+        },
+        {
+          "id": "w-1779763614527-4",
+          "type": "metric",
+          "title": "产能利用率",
+          "position": {
+            "x": 9,
+            "y": 0,
+            "w": 3,
+            "h": 2
+          },
+          "data": {
+            "value": "85.7%",
+            "change": "+4.1pp 环比",
+            "trend": "up"
+          }
+        },
+        {
+          "id": "w-1779763614527-5",
+          "type": "chart",
+          "title": "OEE三要素分解",
+          "position": {
+            "x": 0,
+            "y": 2,
+            "w": 6,
+            "h": 3
+          },
+          "data": {
+            "labels": [
+              "稼动率",
+              "性能效率",
+              "良率"
+            ],
+            "values": [
+              88,
+              92,
+              98
+            ]
+          }
+        },
+        {
+          "id": "w-1779763614527-6",
+          "type": "status",
+          "title": "产线实时状态",
+          "position": {
+            "x": 6,
+            "y": 2,
+            "w": 6,
+            "h": 3
+          },
+          "data": {
+            "items": [
+              {
+                "label": "A产线-主板组装",
+                "status": "green",
+                "value": "运行中 92%"
+              },
+              {
+                "label": "B产线-电池封装",
+                "status": "green",
+                "value": "运行中 88%"
+              },
+              {
+                "label": "C产线-外壳注塑",
+                "status": "yellow",
+                "value": "待机 换模中"
+              },
+              {
+                "label": "D产线-总装测试",
+                "status": "red",
+                "value": "故障 维修中"
+              },
+              {
+                "label": "E产线-包装入库",
+                "status": "green",
+                "value": "运行中 95%"
+              }
+            ]
+          }
+        },
+        {
+          "id": "w-1779763614527-7",
+          "type": "chart",
+          "title": "质量趋势（近30天）",
+          "position": {
+            "x": 0,
+            "y": 5,
+            "w": 6,
+            "h": 3
+          },
+          "data": {
+            "labels": [
+              "W1",
+              "W2",
+              "W3",
+              "W4"
+            ],
+            "values": [
+              97.5,
+              97.8,
+              98,
+              98.2
+            ]
+          }
+        },
+        {
+          "id": "w-1779763614527-8",
+          "type": "table",
+          "title": "交付延迟分析",
+          "position": {
+            "x": 6,
+            "y": 5,
+            "w": 6,
+            "h": 3
+          },
+          "data": {
+            "rows": [
+              [
+                "客户A-订单#20240601",
+                "延迟2天",
+                "缺料"
+              ],
+              [
+                "客户B-订单#20240605",
+                "延迟1天",
+                "质检返工"
+              ],
+              [
+                "客户C-订单#20240608",
+                "准时",
+                "—"
+              ],
+              [
+                "客户D-订单#20240612",
+                "延迟3天",
+                "设备故障"
+              ]
+            ]
+          }
+        },
+        {
+          "id": "w-1779763614527-9",
+          "type": "metric",
+          "title": "单位产品能耗",
+          "position": {
+            "x": 0,
+            "y": 8,
+            "w": 3,
+            "h": 2
+          },
+          "data": {
+            "value": "12.4kWh",
+            "change": "-5.2% 同比",
+            "trend": "up"
+          }
+        },
+        {
+          "id": "w-1779763614527-10",
+          "type": "list",
+          "title": "设备故障预警",
+          "position": {
+            "x": 3,
+            "y": 8,
+            "w": 3,
+            "h": 2
+          },
+          "data": {
+            "items": [
+              "D产线测试机#3温度异常",
+              "C产线模具磨损预警",
+              "空压机压力波动"
+            ]
+          }
+        },
+        {
+          "id": "w-1779763614527-11",
+          "type": "chart",
+          "title": "班次产量对比",
+          "position": {
+            "x": 6,
+            "y": 8,
+            "w": 6,
+            "h": 3
+          },
+          "data": {
+            "labels": [
+              "早班",
+              "中班",
+              "晚班"
+            ],
+            "values": [
+              420,
+              380,
+              350
+            ]
+          }
+        }
+      ],
+      "useDemoDataFallback": false
+    },
+    {
+      "id": "ws-1779763614554-vcp",
+      "name": "marketing-revenue-test",
+      "description": "marketing-revenue-test — 增长引擎仪表盘，覆盖收入业绩、销售漏斗、获客效率、客户成功与营销ROI",
+      "icon": "TrendingUp",
+      "color": "#ea580c",
+      "status": "running",
+      "createdAt": "2026-05-26",
+      "updatedAt": "2026-05-26",
+      "agentIds": [
+        "marketing-agent"
+      ],
+      "primaryAgentId": "marketing-agent",
+      "agentMode": "single",
+      "agentBindings": [
+        {
+          "agentId": "marketing-agent",
+          "status": "pending"
+        }
+      ],
+      "widgets": [
+        {
+          "id": "w-1779763614554-1",
+          "type": "metric",
+          "title": "MRR月经常性收入",
+          "position": {
+            "x": 0,
+            "y": 0,
+            "w": 3,
+            "h": 2
+          },
+          "data": {
+            "value": "¥320万",
+            "change": "+8.5% 环比",
+            "trend": "up"
+          }
+        },
+        {
+          "id": "w-1779763614554-2",
+          "type": "metric",
+          "title": "ARR年经常性收入",
+          "position": {
+            "x": 3,
+            "y": 0,
+            "w": 3,
+            "h": 2
+          },
+          "data": {
+            "value": "¥3,840万",
+            "change": "+35% 同比",
+            "trend": "up"
+          }
+        },
+        {
+          "id": "w-1779763614554-3",
+          "type": "metric",
+          "title": "NRR净留存率",
+          "position": {
+            "x": 6,
+            "y": 0,
+            "w": 3,
+            "h": 2
+          },
+          "data": {
+            "value": "112%",
+            "change": "+4pp 同比",
+            "trend": "up"
+          }
+        },
+        {
+          "id": "w-1779763614554-4",
+          "type": "metric",
+          "title": "CAC获客成本",
+          "position": {
+            "x": 9,
+            "y": 0,
+            "w": 3,
+            "h": 2
+          },
+          "data": {
+            "value": "¥8,200",
+            "change": "-12% 同比",
+            "trend": "up"
+          }
+        },
+        {
+          "id": "w-1779763614554-5",
+          "type": "chart",
+          "title": "ARR趋势（近6个月）",
+          "position": {
+            "x": 0,
+            "y": 2,
+            "w": 6,
+            "h": 3
+          },
+          "data": {
+            "labels": [
+              "1月",
+              "2月",
+              "3月",
+              "4月",
+              "5月",
+              "6月"
+            ],
+            "values": [
+              3200,
+              3320,
+              3450,
+              3580,
+              3720,
+              3840
+            ]
+          }
+        },
+        {
+          "id": "w-1779763614554-6",
+          "type": "kanban",
+          "title": "销售漏斗",
+          "position": {
+            "x": 6,
+            "y": 2,
+            "w": 6,
+            "h": 3
+          },
+          "data": {
+            "stages": [
+              "访客 120,000",
+              "MQL 4,200 (3.5%)",
+              "SQL 1,050 (25%)",
+              "成交 315 (30%)",
+              "续约 280 (89%)"
+            ]
+          }
+        },
+        {
+          "id": "w-1779763614554-7",
+          "type": "table",
+          "title": "管道覆盖",
+          "position": {
+            "x": 0,
+            "y": 5,
+            "w": 6,
+            "h": 3
+          },
+          "data": {
+            "rows": [
+              [
+                "潜在客户",
+                "¥1,200万",
+                "40%"
+              ],
+              [
+                "需求确认",
+                "¥860万",
+                "28%"
+              ],
+              [
+                "方案评估",
+                "¥520万",
+                "17%"
+              ],
+              [
+                "商务谈判",
+                "¥280万",
+                "9%"
+              ],
+              [
+                "即将成交",
+                "¥180万",
+                "6%"
+              ]
+            ]
+          }
+        },
+        {
+          "id": "w-1779763614554-8",
+          "type": "chart",
+          "title": "销售团队业绩排名",
+          "position": {
+            "x": 6,
+            "y": 5,
+            "w": 6,
+            "h": 3
+          },
+          "data": {
+            "labels": [
+              "华东一队",
+              "华北二队",
+              "华南三队",
+              "西南四队"
+            ],
+            "values": [
+              420,
+              380,
+              310,
+              260
+            ]
+          }
+        },
+        {
+          "id": "w-1779763614554-9",
+          "type": "status",
+          "title": "客户健康度",
+          "position": {
+            "x": 0,
+            "y": 8,
+            "w": 3,
+            "h": 2
+          },
+          "data": {
+            "items": [
+              {
+                "label": "健康",
+                "status": "green",
+                "value": "68%"
+              },
+              {
+                "label": "关注",
+                "status": "yellow",
+                "value": "22%"
+              },
+              {
+                "label": "风险",
+                "status": "red",
+                "value": "10%"
+              }
+            ]
+          }
+        },
+        {
+          "id": "w-1779763614554-10",
+          "type": "metric",
+          "title": "LTV/CAC比率",
+          "position": {
+            "x": 3,
+            "y": 8,
+            "w": 3,
+            "h": 2
+          },
+          "data": {
+            "value": "4.2x",
+            "change": "回收期 9.8个月",
+            "trend": "up"
+          }
+        },
+        {
+          "id": "w-1779763614554-11",
+          "type": "progress",
+          "title": "赢单率",
+          "position": {
+            "x": 6,
+            "y": 8,
+            "w": 3,
+            "h": 2
+          },
+          "data": {
+            "value": 30,
+            "max": 100,
+            "label": "30%",
+            "color": "indigo",
+            "caption": "行业均值 25%"
+          }
+        },
+        {
+          "id": "w-1779763614554-12",
+          "type": "metric",
+          "title": "Rule of 40",
+          "position": {
+            "x": 9,
+            "y": 8,
+            "w": 3,
+            "h": 2
+          },
+          "data": {
+            "value": "47%",
+            "change": "增长率35% + 利润率12%",
+            "trend": "up"
+          }
+        }
+      ],
+      "useDemoDataFallback": false
+    },
+    {
+      "id": "ws-1779763614582-hbh",
+      "name": "rd-effectiveness-test",
+      "description": "rd-effectiveness-test — 技术创新引擎仪表盘，基于DORA框架衡量研发交付效率、质量、能力与成本",
+      "icon": "Code2",
+      "color": "#0891b2",
+      "status": "running",
+      "createdAt": "2026-05-26",
+      "updatedAt": "2026-05-26",
+      "agentIds": [
+        "tech-agent"
+      ],
+      "primaryAgentId": "tech-agent",
+      "agentMode": "single",
+      "agentBindings": [
+        {
+          "agentId": "tech-agent",
+          "status": "pending"
+        }
+      ],
+      "widgets": [
+        {
+          "id": "w-1779763614582-1",
+          "type": "metric",
+          "title": "部署频率",
+          "position": {
+            "x": 0,
+            "y": 0,
+            "w": 3,
+            "h": 2
+          },
+          "data": {
+            "value": "12次/周",
+            "change": "+3次 环比",
+            "trend": "up"
+          }
+        },
+        {
+          "id": "w-1779763614582-2",
+          "type": "metric",
+          "title": "变更前置时间",
+          "position": {
+            "x": 3,
+            "y": 0,
+            "w": 3,
+            "h": 2
+          },
+          "data": {
+            "value": "4.2小时",
+            "change": "-1.5小时 环比",
+            "trend": "up"
+          }
+        },
+        {
+          "id": "w-1779763614582-3",
+          "type": "metric",
+          "title": "变更失败率",
+          "position": {
+            "x": 6,
+            "y": 0,
+            "w": 3,
+            "h": 2
+          },
+          "data": {
+            "value": "8.5%",
+            "change": "-2.1pp 环比",
+            "trend": "up"
+          }
+        },
+        {
+          "id": "w-1779763614582-4",
+          "type": "metric",
+          "title": "服务恢复时间",
+          "position": {
+            "x": 9,
+            "y": 0,
+            "w": 3,
+            "h": 2
+          },
+          "data": {
+            "value": "36分钟",
+            "change": "-18分钟 环比",
+            "trend": "up"
+          }
+        },
+        {
+          "id": "w-1779763614582-5",
+          "type": "status",
+          "title": "DORA等级评估",
+          "position": {
+            "x": 0,
+            "y": 2,
+            "w": 4,
+            "h": 2
+          },
+          "data": {
+            "items": [
+              {
+                "label": "部署频率",
+                "status": "green",
+                "value": "高效能 >1次/天"
+              },
+              {
+                "label": "前置时间",
+                "status": "green",
+                "value": "高效能 <1天"
+              },
+              {
+                "label": "失败率",
+                "status": "yellow",
+                "value": "中等 8.5%"
+              },
+              {
+                "label": "恢复时间",
+                "status": "green",
+                "value": "高效能 <1小时"
+              }
+            ]
+          }
+        },
+        {
+          "id": "w-1779763614582-6",
+          "type": "chart",
+          "title": "部署趋势（近4周）",
+          "position": {
+            "x": 4,
+            "y": 2,
+            "w": 4,
+            "h": 3
+          },
+          "data": {
+            "labels": [
+              "W1",
+              "W2",
+              "W3",
+              "W4"
+            ],
+            "values": [
+              8,
+              10,
+              11,
+              12
+            ]
+          }
+        },
+        {
+          "id": "w-1779763614582-7",
+          "type": "chart",
+          "title": "缺陷趋势",
+          "position": {
+            "x": 8,
+            "y": 2,
+            "w": 4,
+            "h": 3
+          },
+          "data": {
+            "labels": [
+              "W1",
+              "W2",
+              "W3",
+              "W4"
+            ],
+            "values": [
+              45,
+              38,
+              32,
+              28
+            ]
+          }
+        },
+        {
+          "id": "w-1779763614582-8",
+          "type": "table",
+          "title": "代码质量评分",
+          "position": {
+            "x": 0,
+            "y": 4,
+            "w": 6,
+            "h": 3
+          },
+          "data": {
+            "rows": [
+              [
+                "核心服务",
+                "A",
+                "覆盖率 85%",
+                "债务 12h"
+              ],
+              [
+                "支付网关",
+                "A",
+                "覆盖率 78%",
+                "债务 8h"
+              ],
+              [
+                "用户中心",
+                "B+",
+                "覆盖率 65%",
+                "债务 24h"
+              ],
+              [
+                "数据分析",
+                "B",
+                "覆盖率 52%",
+                "债务 36h"
+              ],
+              [
+                "消息推送",
+                "A-",
+                "覆盖率 72%",
+                "债务 15h"
+              ]
+            ]
+          }
+        },
+        {
+          "id": "w-1779763614582-9",
+          "type": "metric",
+          "title": "系统可用性(SLA)",
+          "position": {
+            "x": 6,
+            "y": 5,
+            "w": 3,
+            "h": 2
+          },
+          "data": {
+            "value": "99.95%",
+            "change": "本月宕机 12分钟",
+            "trend": "up"
+          }
+        },
+        {
+          "id": "w-1779763614582-10",
+          "type": "progress",
+          "title": "自动化测试覆盖率",
+          "position": {
+            "x": 9,
+            "y": 5,
+            "w": 3,
+            "h": 2
+          },
+          "data": {
+            "value": 72,
+            "max": 100,
+            "label": "72%",
+            "color": "emerald",
+            "caption": "目标 80%"
+          }
+        },
+        {
+          "id": "w-1779763614582-11",
+          "type": "metric",
+          "title": "本月P0/P1故障",
+          "position": {
+            "x": 6,
+            "y": 7,
+            "w": 3,
+            "h": 2
+          },
+          "data": {
+            "value": "2起",
+            "change": "-3起 环比",
+            "trend": "up"
+          }
+        },
+        {
+          "id": "w-1779763614582-12",
+          "type": "list",
+          "title": "技术债务清单",
+          "position": {
+            "x": 9,
+            "y": 7,
+            "w": 3,
+            "h": 2
+          },
+          "data": {
+            "items": [
+              "用户中心：遗留认证模块待重构",
+              "数据分析：查询性能优化（慢查询>3s）",
+              "支付网关：依赖版本升级（安全漏洞）"
+            ]
+          }
+        }
+      ],
+      "useDemoDataFallback": false
+    },
+    {
+      "id": "ws-1779763614610-rb3",
+      "name": "human-capital-test",
+      "description": "human-capital-test — 组织健康度仪表盘，覆盖人才获取、保留、成本、效能、发展与组织健康",
+      "icon": "Users",
+      "color": "#be185d",
+      "status": "running",
+      "createdAt": "2026-05-26",
+      "updatedAt": "2026-05-26",
+      "agentIds": [
+        "hr-agent"
+      ],
+      "primaryAgentId": "hr-agent",
+      "agentMode": "single",
+      "agentBindings": [
+        {
+          "agentId": "hr-agent",
+          "status": "pending"
+        }
+      ],
+      "widgets": [
+        {
+          "id": "w-1779763614610-1",
+          "type": "metric",
+          "title": "关键人才流失率",
+          "position": {
+            "x": 0,
+            "y": 0,
+            "w": 3,
+            "h": 2
+          },
+          "data": {
+            "value": "5.2%",
+            "change": "-1.3pp 同比",
+            "trend": "up"
+          }
+        },
+        {
+          "id": "w-1779763614610-2",
+          "type": "metric",
+          "title": "人均产出",
+          "position": {
+            "x": 3,
+            "y": 0,
+            "w": 3,
+            "h": 2
+          },
+          "data": {
+            "value": "¥52.6万",
+            "change": "+5.3% 同比",
+            "trend": "up"
+          }
+        },
+        {
+          "id": "w-1779763614610-3",
+          "type": "metric",
+          "title": "招聘达成率",
+          "position": {
+            "x": 6,
+            "y": 0,
+            "w": 3,
+            "h": 2
+          },
+          "data": {
+            "value": "78%",
+            "change": "Q2目标 85%",
+            "trend": "down"
+          }
+        },
+        {
+          "id": "w-1779763614610-4",
+          "type": "metric",
+          "title": "人力成本占比",
+          "position": {
+            "x": 9,
+            "y": 0,
+            "w": 3,
+            "h": 2
+          },
+          "data": {
+            "value": "28.4%",
+            "change": "+0.5pp 同比",
+            "trend": "down"
+          }
+        },
+        {
+          "id": "w-1779763614610-5",
+          "type": "table",
+          "title": "人才九宫格",
+          "position": {
+            "x": 0,
+            "y": 2,
+            "w": 6,
+            "h": 4
+          },
+          "data": {
+            "rows": [
+              [
+                "",
+                "高绩效",
+                "中绩效",
+                "低绩效"
+              ],
+              [
+                "高潜力",
+                "★ 李明(技术总监)",
+                "张华(产品经理)",
+                "王芳(运营)"
+              ],
+              [
+                "中潜力",
+                "陈强(架构师)",
+                "—",
+                "—"
+              ],
+              [
+                "低潜力",
+                "赵敏(销售)",
+                "—",
+                "—"
+              ]
+            ]
+          }
+        },
+        {
+          "id": "w-1779763614610-6",
+          "type": "kanban",
+          "title": "招聘漏斗",
+          "position": {
+            "x": 6,
+            "y": 2,
+            "w": 6,
+            "h": 3
+          },
+          "data": {
+            "stages": [
+              "简历 1,200",
+              "初筛 360 (30%)",
+              "面试 108 (30%)",
+              "Offer 32 (30%)",
+              "入职 25 (78%)"
+            ]
+          }
+        },
+        {
+          "id": "w-1779763614610-7",
+          "type": "chart",
+          "title": "人员流转趋势",
+          "position": {
+            "x": 6,
+            "y": 5,
+            "w": 6,
+            "h": 3
+          },
+          "data": {
+            "labels": [
+              "1月",
+              "2月",
+              "3月",
+              "4月",
+              "5月",
+              "6月"
+            ],
+            "values": [
+              12,
+              8,
+              15,
+              10,
+              7,
+              9
+            ]
+          }
+        },
+        {
+          "id": "w-1779763614610-8",
+          "type": "list",
+          "title": "流失预警（高风险）",
+          "position": {
+            "x": 0,
+            "y": 6,
+            "w": 6,
+            "h": 3
+          },
+          "data": {
+            "items": [
+              "🔴 王伟(高级架构师) — 风险分 87 | 3个月未晋升 | 薪酬低于市场20%",
+              "🟡 刘洋(产品经理) — 风险分 72 | 入职18个月 | 近期加班率↑",
+              "🟡 孙丽(UI设计师) — 风险分 68 | 绩效B | 团队变动"
+            ]
+          }
+        },
+        {
+          "id": "w-1779763614610-9",
+          "type": "progress",
+          "title": "培训覆盖率",
+          "position": {
+            "x": 0,
+            "y": 9,
+            "w": 3,
+            "h": 2
+          },
+          "data": {
+            "value": 65,
+            "max": 100,
+            "label": "65%",
+            "color": "amber",
+            "caption": "目标 90%"
+          }
+        },
+        {
+          "id": "w-1779763614610-10",
+          "type": "metric",
+          "title": "员工敬业度指数",
+          "position": {
+            "x": 3,
+            "y": 9,
+            "w": 3,
+            "h": 2
+          },
+          "data": {
+            "value": "4.2/5",
+            "change": "+0.3 同比",
+            "trend": "up"
+          }
+        },
+        {
+          "id": "w-1779763614610-11",
+          "type": "metric",
+          "title": "人力资本回报率(HCROI)",
+          "position": {
+            "x": 6,
+            "y": 9,
+            "w": 3,
+            "h": 2
+          },
+          "data": {
+            "value": "2.8x",
+            "change": "+0.2 同比",
+            "trend": "up"
+          }
+        },
+        {
+          "id": "w-1779763614610-12",
+          "type": "progress",
+          "title": "继任覆盖率",
+          "position": {
+            "x": 9,
+            "y": 9,
+            "w": 3,
+            "h": 2
+          },
+          "data": {
+            "value": 45,
+            "max": 100,
+            "label": "45%",
+            "color": "indigo",
+            "caption": "关键岗位 20/45 已储备"
+          }
+        }
+      ],
+      "useDemoDataFallback": false
+    },
+    {
+      "id": "ws-1779763614637-22v",
+      "name": "supply-chain-test",
+      "description": "supply-chain-test — 供应链作战地图，覆盖采购、供应商、库存、物流与需求协同全链路",
+      "icon": "Truck",
+      "color": "#4338ca",
+      "status": "running",
+      "createdAt": "2026-05-26",
+      "updatedAt": "2026-05-26",
+      "agentIds": [
+        "supply-agent"
+      ],
+      "primaryAgentId": "supply-agent",
+      "agentMode": "single",
+      "agentBindings": [
+        {
+          "agentId": "supply-agent",
+          "status": "pending"
+        }
+      ],
+      "widgets": [
+        {
+          "id": "w-1779763614637-1",
+          "type": "metric",
+          "title": "库存周转天数",
+          "position": {
+            "x": 0,
+            "y": 0,
+            "w": 3,
+            "h": 2
+          },
+          "data": {
+            "value": "28天",
+            "change": "-3天 环比",
+            "trend": "up"
+          }
+        },
+        {
+          "id": "w-1779763614637-2",
+          "type": "metric",
+          "title": "供应商准时交付率",
+          "position": {
+            "x": 3,
+            "y": 0,
+            "w": 3,
+            "h": 2
+          },
+          "data": {
+            "value": "94.5%",
+            "change": "+2.1pp 环比",
+            "trend": "up"
+          }
+        },
+        {
+          "id": "w-1779763614637-3",
+          "type": "metric",
+          "title": "订单OTD",
+          "position": {
+            "x": 6,
+            "y": 0,
+            "w": 3,
+            "h": 2
+          },
+          "data": {
+            "value": "96.2%",
+            "change": "+1.5pp 环比",
+            "trend": "up"
+          }
+        },
+        {
+          "id": "w-1779763614637-4",
+          "type": "metric",
+          "title": "缺货率",
+          "position": {
+            "x": 9,
+            "y": 0,
+            "w": 3,
+            "h": 2
+          },
+          "data": {
+            "value": "1.2%",
+            "change": "-0.5pp 环比",
+            "trend": "up"
+          }
+        },
+        {
+          "id": "w-1779763614637-5",
+          "type": "chart",
+          "title": "库存分布（按仓库）",
+          "position": {
+            "x": 0,
+            "y": 2,
+            "w": 6,
+            "h": 3
+          },
+          "data": {
+            "labels": [
+              "华东仓",
+              "华北仓",
+              "华南仓",
+              "西南仓",
+              "海外仓"
+            ],
+            "values": [
+              4200,
+              3100,
+              2800,
+              1500,
+              800
+            ]
+          }
+        },
+        {
+          "id": "w-1779763614637-6",
+          "type": "table",
+          "title": "供应商绩效评分卡",
+          "position": {
+            "x": 6,
+            "y": 2,
+            "w": 6,
+            "h": 3
+          },
+          "data": {
+            "rows": [
+              [
+                "供应商A-芯片",
+                "A",
+                "98%",
+                "99.5%",
+                "优"
+              ],
+              [
+                "供应商B-电池",
+                "A-",
+                "95%",
+                "98.2%",
+                "优"
+              ],
+              [
+                "供应商C-外壳",
+                "B+",
+                "92%",
+                "97.0%",
+                "良"
+              ],
+              [
+                "供应商D-屏幕",
+                "B",
+                "88%",
+                "96.5%",
+                "良"
+              ],
+              [
+                "供应商E-包装",
+                "A",
+                "97%",
+                "99.0%",
+                "优"
+              ]
+            ]
+          }
+        },
+        {
+          "id": "w-1779763614637-7",
+          "type": "kanban",
+          "title": "预警面板",
+          "position": {
+            "x": 0,
+            "y": 5,
+            "w": 6,
+            "h": 3
+          },
+          "data": {
+            "stages": [
+              "🔴 芯片SKU-001库存低于安全线",
+              "🟡 供应商C交货延迟2天",
+              "🟡 海外仓某批次效期<90天",
+              "🟢 所有在途订单正常",
+              "🟢 华北仓补货已完成"
+            ]
+          }
+        },
+        {
+          "id": "w-1779763614637-8",
+          "type": "list",
+          "title": "物流在途",
+          "position": {
+            "x": 6,
+            "y": 5,
+            "w": 6,
+            "h": 3
+          },
+          "data": {
+            "items": [
+              "订单#SC20240601 | 华东仓→上海 | 已签收",
+              "订单#SC20240602 | 华北仓→北京 | 运输中 预计明天",
+              "订单#SC20240603 | 华南仓→深圳 | 已发货",
+              "订单#SC20240604 | 海外仓→新加坡 | 清关中"
+            ]
+          }
+        },
+        {
+          "id": "w-1779763614637-9",
+          "type": "chart",
+          "title": "采购成本趋势",
+          "position": {
+            "x": 0,
+            "y": 8,
+            "w": 6,
+            "h": 3
+          },
+          "data": {
+            "labels": [
+              "1月",
+              "2月",
+              "3月",
+              "4月",
+              "5月",
+              "6月"
+            ],
+            "values": [
+              5200,
+              5100,
+              4950,
+              4800,
+              4750,
+              4680
+            ]
+          }
+        },
+        {
+          "id": "w-1779763614637-10",
+          "type": "metric",
+          "title": "需求预测偏差",
+          "position": {
+            "x": 6,
+            "y": 8,
+            "w": 3,
+            "h": 2
+          },
+          "data": {
+            "value": "±5.2%",
+            "change": "准确度 94.8%",
+            "trend": "up"
+          }
+        },
+        {
+          "id": "w-1779763614637-11",
+          "type": "metric",
+          "title": "供应链总成本占收比",
+          "position": {
+            "x": 9,
+            "y": 8,
+            "w": 3,
+            "h": 2
+          },
+          "data": {
+            "value": "32.4%",
+            "change": "-1.2pp 同比",
+            "trend": "up"
+          }
+        }
+      ],
+      "useDemoDataFallback": false
+    },
+    {
+      "id": "ws-1779764799245-j3q",
+      "name": "CEO战略总览驾驶舱",
+      "description": "CEO战略总览驾驶舱 — 企业战略健康度一站式总览，覆盖经营、财务、客户、运营、人力、风险六大维度",
+      "icon": "Target",
+      "color": "#1e3a5f",
+      "status": "running",
+      "createdAt": "2026-05-26",
+      "updatedAt": "2026-05-26",
+      "agentIds": [
+        "ceo-agent"
+      ],
+      "primaryAgentId": "ceo-agent",
+      "agentMode": "single",
+      "agentBindings": [
+        {
+          "agentId": "ceo-agent",
+          "status": "pending"
+        }
+      ],
+      "widgets": [
+        {
+          "id": "w-1779764799244-1",
+          "type": "metric",
+          "title": "营收达成率",
+          "position": {
+            "x": 0,
+            "y": 0,
+            "w": 3,
+            "h": 2
+          },
+          "data": {
+            "value": "¥8,420万",
+            "change": "+12.3% 同比",
+            "trend": "up"
+          }
+        },
+        {
+          "id": "w-1779764799244-2",
+          "type": "metric",
+          "title": "净利润率",
+          "position": {
+            "x": 3,
+            "y": 0,
+            "w": 3,
+            "h": 2
+          },
+          "data": {
+            "value": "18.5%",
+            "change": "+1.2pp 同比",
+            "trend": "up"
+          }
+        },
+        {
+          "id": "w-1779764799244-3",
+          "type": "metric",
+          "title": "经营现金流",
+          "position": {
+            "x": 6,
+            "y": 0,
+            "w": 3,
+            "h": 2
+          },
+          "data": {
+            "value": "¥1,260万",
+            "change": "+8.7% 环比",
+            "trend": "up"
+          }
+        },
+        {
+          "id": "w-1779764799244-4",
+          "type": "metric",
+          "title": "客户留存率",
+          "position": {
+            "x": 9,
+            "y": 0,
+            "w": 3,
+            "h": 2
+          },
+          "data": {
+            "value": "94.2%",
+            "change": "-0.8pp 环比",
+            "trend": "down"
+          }
+        },
+        {
+          "id": "w-1779764799244-5",
+          "type": "progress",
+          "title": "年度战略目标进度",
+          "position": {
+            "x": 0,
+            "y": 2,
+            "w": 4,
+            "h": 2
+          },
+          "data": {
+            "value": 68,
+            "max": 100,
+            "label": "68%",
+            "color": "indigo",
+            "caption": "12项关键举措中8项按计划推进"
+          }
+        },
+        {
+          "id": "w-1779764799244-6",
+          "type": "status",
+          "title": "组织健康度",
+          "position": {
+            "x": 4,
+            "y": 2,
+            "w": 4,
+            "h": 2
+          },
+          "data": {
+            "items": [
+              {
+                "label": "财务健康",
+                "status": "green",
+                "value": "良好"
+              },
+              {
+                "label": "运营效率",
+                "status": "green",
+                "value": "正常"
+              },
+              {
+                "label": "人才稳定",
+                "status": "yellow",
+                "value": "关注"
+              },
+              {
+                "label": "合规风险",
+                "status": "green",
+                "value": "正常"
+              }
+            ]
+          }
+        },
+        {
+          "id": "w-1779764799244-7",
+          "type": "metric",
+          "title": "人均产出",
+          "position": {
+            "x": 8,
+            "y": 2,
+            "w": 4,
+            "h": 2
+          },
+          "data": {
+            "value": "¥52.6万",
+            "change": "+5.3% 同比",
+            "trend": "up"
+          }
+        },
+        {
+          "id": "w-1779764799244-8",
+          "type": "chart",
+          "title": "核心指标趋势（近6个月）",
+          "position": {
+            "x": 0,
+            "y": 4,
+            "w": 6,
+            "h": 4
+          },
+          "data": {
+            "labels": [
+              "1月",
+              "2月",
+              "3月",
+              "4月",
+              "5月",
+              "6月"
+            ],
+            "values": [
+              7200,
+              7450,
+              7800,
+              8100,
+              8200,
+              8420
+            ]
+          }
+        },
+        {
+          "id": "w-1779764799244-9",
+          "type": "kanban",
+          "title": "风险预警面板",
+          "position": {
+            "x": 6,
+            "y": 4,
+            "w": 6,
+            "h": 4
+          },
+          "data": {
+            "stages": [
+              "🔴 现金流安全垫低于30天",
+              "🟡 关键人才流失率接近阈值",
+              "🟡 某核心客户续约延迟",
+              "🟢 所有合规检查通过",
+              "🟢 供应链交付正常"
+            ]
+          }
+        },
+        {
+          "id": "w-1779764799244-10",
+          "type": "list",
+          "title": "职能驾驶舱导航",
+          "position": {
+            "x": 0,
+            "y": 8,
+            "w": 6,
+            "h": 4
+          },
+          "data": {
+            "items": [
+              "📊 CFO财务决策驾驶舱 — 深入盈利与现金流分析",
+              "⚙️ COO运营效率驾驶舱 — 生产与交付实时监控",
+              "📈 CMO营销营收驾驶舱 — 增长引擎与管道健康",
+              "💻 CTO研发效能驾驶舱 — DORA指标与代码质量",
+              "👥 HRD人力资本驾驶舱 — 人才九宫格与流失预警",
+              "🚚 供应链协同驾驶舱 — 库存与供应商全景"
+            ]
+          },
+          "link": {
+            "type": "workspace",
+            "targetTemplate": "financial-decision",
+            "title": "下钻到财务驾驶舱"
+          }
+        },
+        {
+          "id": "w-1779764799244-11",
+          "type": "timeline",
+          "title": "战略里程碑",
+          "position": {
+            "x": 6,
+            "y": 8,
+            "w": 6,
+            "h": 4
+          },
+          "data": {
+            "steps": [
+              "✓ Q1 完成组织架构调整",
+              "✓ Q1 上线新CRM系统",
+              "→ Q2 拓展华东市场（进行中）",
+              "Q3 完成B轮融资",
+              "Q4 启动海外业务试点"
+            ]
+          }
+        }
+      ],
+      "useDemoDataFallback": false
+    },
+    {
+      "id": "ws-1779764997444-g0x",
+      "name": "CFO财务决策驾驶舱",
+      "description": "CFO财务决策驾驶舱 — 企业财务雷达，覆盖盈利分析、现金流管理、预算管控、资产负债、成本费用与风险预警",
+      "icon": "DollarSign",
+      "color": "#0f5c3e",
+      "status": "running",
+      "createdAt": "2026-05-26",
+      "updatedAt": "2026-05-26",
+      "agentIds": [
+        "finance-agent"
+      ],
+      "primaryAgentId": "finance-agent",
+      "agentMode": "single",
+      "agentBindings": [
+        {
+          "agentId": "finance-agent",
+          "status": "pending"
+        }
+      ],
+      "widgets": [
+        {
+          "id": "w-1779764997442-1",
+          "type": "metric",
+          "title": "营业收入",
+          "position": {
+            "x": 0,
+            "y": 0,
+            "w": 3,
+            "h": 2
+          },
+          "data": {
+            "value": "¥8,420万",
+            "change": "预算达成 105%",
+            "trend": "up"
+          }
+        },
+        {
+          "id": "w-1779764997442-2",
+          "type": "metric",
+          "title": "毛利率",
+          "position": {
+            "x": 3,
+            "y": 0,
+            "w": 3,
+            "h": 2
+          },
+          "data": {
+            "value": "42.8%",
+            "change": "+1.5pp 同比",
+            "trend": "up"
+          }
+        },
+        {
+          "id": "w-1779764997442-3",
+          "type": "metric",
+          "title": "经营现金流净额",
+          "position": {
+            "x": 6,
+            "y": 0,
+            "w": 3,
+            "h": 2
+          },
+          "data": {
+            "value": "¥1,260万",
+            "change": "安全垫 45天",
+            "trend": "up"
+          }
+        },
+        {
+          "id": "w-1779764997442-4",
+          "type": "metric",
+          "title": "资产负债率",
+          "position": {
+            "x": 9,
+            "y": 0,
+            "w": 3,
+            "h": 2
+          },
+          "data": {
+            "value": "38.2%",
+            "change": "行业均值 45%",
+            "trend": "up"
+          }
+        },
+        {
+          "id": "w-1779764997442-5",
+          "type": "chart",
+          "title": "盈利结构（按事业部）",
+          "position": {
+            "x": 0,
+            "y": 2,
+            "w": 6,
+            "h": 4
+          },
+          "data": {
+            "labels": [
+              "消费电子",
+              "企业软件",
+              "云服务",
+              "咨询服务"
+            ],
+            "values": [
+              3200,
+              2100,
+              1850,
+              1270
+            ]
+          }
+        },
+        {
+          "id": "w-1779764997442-6",
+          "type": "progress",
+          "title": "预算执行率",
+          "position": {
+            "x": 6,
+            "y": 2,
+            "w": 6,
+            "h": 2
+          },
+          "data": {
+            "value": 82,
+            "max": 100,
+            "label": "82%",
+            "color": "emerald",
+            "caption": "收入预算达成 105% | 成本预算执行 98%"
+          }
+        },
+        {
+          "id": "w-1779764997442-7",
+          "type": "universal",
+          "title": "现金流瀑布",
+          "position": {
+            "x": 6,
+            "y": 4,
+            "w": 6,
+            "h": 4
+          },
+          "data": {
+            "content": "## 本月现金流结构\n\n**流入**\n- 销售收入：¥9,800万\n- 投资收益：¥320万\n- 其他收入：¥180万\n\n**流出**\n- 采购支出：¥5,200万\n- 人工费用：¥2,100万\n- 运营费用：¥1,140万\n- 税费：¥600万\n\n**净额：¥1,260万**"
+          }
+        },
+        {
+          "id": "w-1779764997442-8",
+          "type": "table",
+          "title": "应收应付明细",
+          "position": {
+            "x": 0,
+            "y": 6,
+            "w": 6,
+            "h": 4
+          },
+          "data": {
+            "rows": [
+              [
+                "应收账款周转",
+                "42天",
+                "↓ 3天"
+              ],
+              [
+                "应付账款周转",
+                "38天",
+                "→ 持平"
+              ],
+              [
+                "坏账率",
+                "0.8%",
+                "↓ 0.2pp"
+              ],
+              [
+                "逾期客户数",
+                "5家",
+                "↑ 2家"
+              ],
+              [
+                "回款预测(下月)",
+                "¥7,200万",
+                "—"
+              ]
+            ]
+          }
+        },
+        {
+          "id": "w-1779764997442-9",
+          "type": "chart",
+          "title": "费用结构",
+          "position": {
+            "x": 6,
+            "y": 8,
+            "w": 6,
+            "h": 4
+          },
+          "data": {
+            "labels": [
+              "销售费用",
+              "管理费用",
+              "研发费用",
+              "财务费用"
+            ],
+            "values": [
+              18,
+              12,
+              15,
+              3
+            ]
+          }
+        },
+        {
+          "id": "w-1779764997442-10",
+          "type": "status",
+          "title": "财务健康雷达",
+          "position": {
+            "x": 0,
+            "y": 10,
+            "w": 6,
+            "h": 2
+          },
+          "data": {
+            "items": [
+              {
+                "label": "偿债能力",
+                "status": "green",
+                "value": "流动比率 2.1"
+              },
+              {
+                "label": "盈利能力",
+                "status": "green",
+                "value": "ROE 15.3%"
+              },
+              {
+                "label": "运营效率",
+                "status": "green",
+                "value": "资产周转 1.2"
+              },
+              {
+                "label": "成长能力",
+                "status": "yellow",
+                "value": "营收增速 12%"
+              },
+              {
+                "label": "现金流",
+                "status": "green",
+                "value": "经营现金流 +"
+              }
+            ]
+          }
+        }
+      ],
+      "useDemoDataFallback": false
+    },
+    {
+      "id": "ws-1779765437657-6op",
+      "name": "CFO财务决策驾驶舱",
+      "description": "CFO财务决策驾驶舱 — 企业财务雷达，覆盖盈利分析、现金流管理、预算管控、资产负债、成本费用与风险预警",
+      "icon": "DollarSign",
+      "color": "#0f5c3e",
+      "status": "running",
+      "createdAt": "2026-05-26",
+      "updatedAt": "2026-05-26",
+      "agentIds": [
+        "finance-agent"
+      ],
+      "primaryAgentId": "finance-agent",
+      "agentMode": "single",
+      "agentBindings": [
+        {
+          "agentId": "finance-agent",
+          "status": "pending"
+        }
+      ],
+      "widgets": [
+        {
+          "id": "w-1779765437657-1",
+          "type": "metric",
+          "title": "营业收入",
+          "position": {
+            "x": 0,
+            "y": 0,
+            "w": 3,
+            "h": 2
+          },
+          "data": {
+            "value": "¥8,420万",
+            "change": "预算达成 105%",
+            "trend": "up"
+          }
+        },
+        {
+          "id": "w-1779765437657-2",
+          "type": "metric",
+          "title": "毛利率",
+          "position": {
+            "x": 3,
+            "y": 0,
+            "w": 3,
+            "h": 2
+          },
+          "data": {
+            "value": "42.8%",
+            "change": "+1.5pp 同比",
+            "trend": "up"
+          }
+        },
+        {
+          "id": "w-1779765437657-3",
+          "type": "metric",
+          "title": "经营现金流净额",
+          "position": {
+            "x": 6,
+            "y": 0,
+            "w": 3,
+            "h": 2
+          },
+          "data": {
+            "value": "¥1,260万",
+            "change": "安全垫 45天",
+            "trend": "up"
+          }
+        },
+        {
+          "id": "w-1779765437657-4",
+          "type": "metric",
+          "title": "资产负债率",
+          "position": {
+            "x": 9,
+            "y": 0,
+            "w": 3,
+            "h": 2
+          },
+          "data": {
+            "value": "38.2%",
+            "change": "行业均值 45%",
+            "trend": "up"
+          }
+        },
+        {
+          "id": "w-1779765437657-5",
+          "type": "chart",
+          "title": "盈利结构（按事业部）",
+          "position": {
+            "x": 0,
+            "y": 2,
+            "w": 6,
+            "h": 4
+          },
+          "data": {
+            "labels": [
+              "消费电子",
+              "企业软件",
+              "云服务",
+              "咨询服务"
+            ],
+            "values": [
+              3200,
+              2100,
+              1850,
+              1270
+            ]
+          }
+        },
+        {
+          "id": "w-1779765437657-6",
+          "type": "progress",
+          "title": "预算执行率",
+          "position": {
+            "x": 6,
+            "y": 2,
+            "w": 6,
+            "h": 2
+          },
+          "data": {
+            "value": 82,
+            "max": 100,
+            "label": "82%",
+            "color": "emerald",
+            "caption": "收入预算达成 105% | 成本预算执行 98%"
+          }
+        },
+        {
+          "id": "w-1779765437657-7",
+          "type": "universal",
+          "title": "现金流瀑布",
+          "position": {
+            "x": 6,
+            "y": 4,
+            "w": 6,
+            "h": 4
+          },
+          "data": {
+            "content": "## 本月现金流结构\n\n**流入**\n- 销售收入：¥9,800万\n- 投资收益：¥320万\n- 其他收入：¥180万\n\n**流出**\n- 采购支出：¥5,200万\n- 人工费用：¥2,100万\n- 运营费用：¥1,140万\n- 税费：¥600万\n\n**净额：¥1,260万**"
+          }
+        },
+        {
+          "id": "w-1779765437657-8",
+          "type": "table",
+          "title": "应收应付明细",
+          "position": {
+            "x": 0,
+            "y": 6,
+            "w": 6,
+            "h": 4
+          },
+          "data": {
+            "rows": [
+              [
+                "应收账款周转",
+                "42天",
+                "↓ 3天"
+              ],
+              [
+                "应付账款周转",
+                "38天",
+                "→ 持平"
+              ],
+              [
+                "坏账率",
+                "0.8%",
+                "↓ 0.2pp"
+              ],
+              [
+                "逾期客户数",
+                "5家",
+                "↑ 2家"
+              ],
+              [
+                "回款预测(下月)",
+                "¥7,200万",
+                "—"
+              ]
+            ]
+          }
+        },
+        {
+          "id": "w-1779765437657-9",
+          "type": "chart",
+          "title": "费用结构",
+          "position": {
+            "x": 6,
+            "y": 8,
+            "w": 6,
+            "h": 4
+          },
+          "data": {
+            "labels": [
+              "销售费用",
+              "管理费用",
+              "研发费用",
+              "财务费用"
+            ],
+            "values": [
+              18,
+              12,
+              15,
+              3
+            ]
+          }
+        },
+        {
+          "id": "w-1779765437657-10",
+          "type": "status",
+          "title": "财务健康雷达",
+          "position": {
+            "x": 0,
+            "y": 10,
+            "w": 6,
+            "h": 2
+          },
+          "data": {
+            "items": [
+              {
+                "label": "偿债能力",
+                "status": "green",
+                "value": "流动比率 2.1"
+              },
+              {
+                "label": "盈利能力",
+                "status": "green",
+                "value": "ROE 15.3%"
+              },
+              {
+                "label": "运营效率",
+                "status": "green",
+                "value": "资产周转 1.2"
+              },
+              {
+                "label": "成长能力",
+                "status": "yellow",
+                "value": "营收增速 12%"
+              },
+              {
+                "label": "现金流",
+                "status": "green",
+                "value": "经营现金流 +"
+              }
+            ]
+          }
+        }
+      ],
+      "useDemoDataFallback": false
+    },
+    {
+      "id": "ws-1779769871753-xlq",
+      "name": "CFO财务决策驾驶舱",
+      "description": "CFO财务决策驾驶舱 — 企业财务雷达，覆盖盈利分析、现金流管理、预算管控、资产负债、成本费用与风险预警",
+      "icon": "DollarSign",
+      "color": "#0f5c3e",
+      "status": "running",
+      "createdAt": "2026-05-26",
+      "updatedAt": "2026-05-26",
+      "agentIds": [
+        "finance-agent"
+      ],
+      "primaryAgentId": "finance-agent",
+      "agentMode": "single",
+      "agentBindings": [
+        {
+          "agentId": "finance-agent",
+          "status": "pending"
+        }
+      ],
+      "widgets": [
+        {
+          "id": "w-1779769871753-1",
+          "type": "metric",
+          "title": "营业收入",
+          "position": {
+            "x": 0,
+            "y": 0,
+            "w": 3,
+            "h": 2
+          },
+          "data": {
+            "value": "—",
+            "change": "",
+            "trend": "flat"
+          }
+        },
+        {
+          "id": "w-1779769871753-2",
+          "type": "metric",
+          "title": "毛利率",
+          "position": {
+            "x": 3,
+            "y": 0,
+            "w": 3,
+            "h": 2
+          },
+          "data": {
+            "value": "—",
+            "change": "",
+            "trend": "flat"
+          }
+        },
+        {
+          "id": "w-1779769871753-3",
+          "type": "metric",
+          "title": "经营现金流净额",
+          "position": {
+            "x": 6,
+            "y": 0,
+            "w": 3,
+            "h": 2
+          },
+          "data": {
+            "value": "—",
+            "change": "",
+            "trend": "flat"
+          }
+        },
+        {
+          "id": "w-1779769871753-4",
+          "type": "metric",
+          "title": "资产负债率",
+          "position": {
+            "x": 9,
+            "y": 0,
+            "w": 3,
+            "h": 2
+          },
+          "data": {
+            "value": "—",
+            "change": "",
+            "trend": "flat"
+          }
+        },
+        {
+          "id": "w-1779769871753-5",
+          "type": "chart",
+          "title": "盈利结构（按事业部）",
+          "position": {
+            "x": 0,
+            "y": 2,
+            "w": 6,
+            "h": 4
+          },
+          "data": {
+            "labels": [],
+            "values": []
+          }
+        },
+        {
+          "id": "w-1779769871753-6",
+          "type": "progress",
+          "title": "预算执行率",
+          "position": {
+            "x": 6,
+            "y": 2,
+            "w": 6,
+            "h": 2
+          },
+          "data": {
+            "value": 0,
+            "max": 100,
+            "label": ""
+          }
+        },
+        {
+          "id": "w-1779769871753-7",
+          "type": "universal",
+          "title": "现金流瀑布",
+          "position": {
+            "x": 6,
+            "y": 4,
+            "w": 6,
+            "h": 4
+          },
+          "data": {}
+        },
+        {
+          "id": "w-1779769871753-8",
+          "type": "table",
+          "title": "应收应付明细",
+          "position": {
+            "x": 0,
+            "y": 6,
+            "w": 6,
+            "h": 4
+          },
+          "data": {
+            "rows": [],
+            "columns": []
+          }
+        },
+        {
+          "id": "w-1779769871753-9",
+          "type": "chart",
+          "title": "费用结构",
+          "position": {
+            "x": 6,
+            "y": 8,
+            "w": 6,
+            "h": 4
+          },
+          "data": {
+            "labels": [],
+            "values": []
+          }
+        },
+        {
+          "id": "w-1779769871753-10",
+          "type": "status",
+          "title": "财务健康雷达",
+          "position": {
+            "x": 0,
+            "y": 10,
+            "w": 6,
+            "h": 2
+          },
+          "data": {
+            "items": []
+          }
+        }
+      ],
+      "useDemoDataFallback": false
     }
   ]
 }

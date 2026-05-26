@@ -4,8 +4,10 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useConnections } from '@/hooks/useConnections';
 import { useEventStream } from '@/hooks/useEventStream';
+import { useLayoutSettings } from '@/hooks/useLayoutSettings';
 import ConnectionList from './ConnectionList';
 import ThemeSettings from './ThemeSettings';
+import LayoutSettings from './LayoutSettings';
 import { Loader2, Wifi, WifiOff, Radio, Trash2 } from 'lucide-react';
 
 export default function SettingsPanel() {
@@ -21,6 +23,8 @@ export default function SettingsPanel() {
     connect,
     disconnect,
   } = useConnections();
+
+  const { mode: layoutMode, setLayoutMode } = useLayoutSettings();
 
   const {
     events,
@@ -93,7 +97,8 @@ export default function SettingsPanel() {
               />
             </TabsContent>
 
-            <TabsContent value="appearance" className="mt-4">
+            <TabsContent value="appearance" className="mt-4 space-y-8">
+              <LayoutSettings mode={layoutMode} onChange={setLayoutMode} />
               <ThemeSettings />
             </TabsContent>
 

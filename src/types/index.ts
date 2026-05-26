@@ -64,6 +64,8 @@ export interface Workspace {
   agentMode?: AgentMode;
   agentBindings?: AgentBinding[];
   widgets: Widget[];
+  /** 数据获取失败时是否回退到 demo 示例数据 */
+  useDemoDataFallback?: boolean;
 }
 
 export interface WidgetDataSource {
@@ -95,14 +97,25 @@ export interface WidgetDetailConfig {
   width?: string;
 }
 
+export interface WidgetLinkConfig {
+  type: 'workspace' | 'widget' | 'url';
+  targetId?: string;
+  targetTemplate?: string;
+  url?: string;
+  title?: string;
+}
+
+export type WidgetType = 'chart' | 'table' | 'metric' | 'list' | 'kanban' | 'timeline' | 'report' | 'universal' | 'progress' | 'status';
+
 export interface Widget {
   id: string;
-  type: 'chart' | 'table' | 'metric' | 'list' | 'kanban' | 'timeline' | 'report' | 'universal';
+  type: WidgetType;
   title: string;
   position: { x: number; y: number; w: number; h: number };
   data?: Record<string, unknown>;
   dataSource?: WidgetDataSource;
   detail?: WidgetDetailConfig;
+  link?: WidgetLinkConfig;
 }
 
 // ── Multi-Agent ──
@@ -170,4 +183,24 @@ export interface CardAction {
   label: string;
   variant: 'primary' | 'secondary' | 'danger' | 'ghost';
   icon?: string;
+}
+
+// ── Cockpit Template ──
+export interface CockpitTemplate {
+  id: string;
+  name: string;
+  domain: string;
+  keywords: string[];
+  icon: string;
+  color: string;
+  agentIds: string[];
+  primaryAgentId: string;
+  description: string;
+  widgets: Widget[];
+  initPrompt?: string;
+  useDemoDataFallback?: boolean;
+  isBuiltin?: boolean;
+  _custom?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 }
