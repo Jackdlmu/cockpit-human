@@ -13,7 +13,7 @@ interface WidgetDataState {
   source: string | null;
 }
 
-export function useWidgetData(workspaceId: string, widget: Widget, useDemoDataFallback?: boolean) {
+export function useWidgetData(workspaceId: string, widget: Widget, useDemoDataFallback?: boolean, filterContext?: Record<string, unknown>) {
   const [state, setState] = useState<WidgetDataState>({
     data: (widget.data ?? null) as Record<string, unknown> | null,
     loading: false,
@@ -29,15 +29,16 @@ export function useWidgetData(workspaceId: string, widget: Widget, useDemoDataFa
     setState((s) => ({ ...s, loading: true, error: null }));
 
     try {
-      const result = await api.refreshWidgetData(workspaceId, widget.id);
+      const result = await api.refreshWidgetData(workspaceId, widget.id, filterContext);
       setState({
         data: result.data as Record<string, unknown> | null,
         loading: false,
         error: null,
         source: result.source,
       });
-    } catch (err: any) {
-      console.warn(`[useWidgetData] Refresh failed for "${widget.title}":`, err.message);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.warn(`[useWidgetData] Refresh failed for "${widget.title}":`, msg);
       // 失败时根据 useDemoDataFallback 决定回退行为
       const fallbackData = useDemoDataFallback !== false
         ? (widget.data ?? null)
@@ -45,12 +46,12 @@ export function useWidgetData(workspaceId: string, widget: Widget, useDemoDataFa
       setState((s) => ({
         ...s,
         loading: false,
-        error: err.message,
+        error: msg,
         data: fallbackData,
         source: 'fallback',
       }));
     }
-  }, [workspaceId, widget.id, widget.dataSource, widget.data, widget.title, useDemoDataFallback]);
+  }, [workspaceId, widget.id, widget.type, widget.dataSource, widget.data, widget.title, useDemoDataFallback, filterContext]);
 
   // 初始加载 + 轮询设置
   useEffect(() => {
@@ -92,7 +93,7 @@ export function useWidgetData(workspaceId: string, widget: Widget, useDemoDataFa
         intervalRef.current = null;
       }
     };
-  }, [workspaceId, widget.id, widget.dataSource?.type, widget.dataSource?.refreshInterval, useDemoDataFallback]);
+  }, [workspaceId, widget.id, widget.data, widget.dataSource, refresh, useDemoDataFallback, filterContext]);
 
   return {
     data: state.data,
@@ -107,7 +108,7 @@ export function useWidgetData(workspaceId: string, widget: Widget, useDemoDataFa
 function buildEmptyData(widgetType: string): Record<string, unknown> {
   switch (widgetType) {
     case 'metric':
-      return { value: '', change: '', trend: 'flat' };
+      return { value: '—', change: '', trend: 'flat' };
     case 'chart':
       return { labels: [], values: [] };
     case 'table':
@@ -120,6 +121,28 @@ function buildEmptyData(widgetType: string): Record<string, unknown> {
       return { steps: [] };
     case 'report':
       return { summary: '', highlights: [] };
+    case 'html':
+      return { html: '', title: '' };
+    case 'progress':
+      return { value: 0, max: 100, label: '' };
+    case 'status':
+      return { items: [] };
+    case 'gauge':
+      return { value: 0, min: 0, max: 100, unit: '%' };
+    case 'funnel':
+      return { stages: [] };
+    case 'radar':
+      return { labels: [], values: [] };
+    case 'heatmap':
+      return { rows: [] };
+    case 'bullet':
+      return { value: 0, target: 0, max: 100, label: '' };
+    case 'alert':
+      return { alerts: [] };
+    case 'map':
+      return { points: [] };
+    case 'universal':
+      return {};
     default:
       return {};
   }

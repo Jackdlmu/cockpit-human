@@ -13,7 +13,7 @@ interface LayoutState {
   activeTabId: string | null;
 }
 
-const STORAGE_KEY = 'yoncockpit-layout-v1';
+const STORAGE_KEY = 'yoncockpit-layout-v2';
 
 const DEFAULT_STATE: LayoutState = {
   mode: 'cards',
@@ -59,7 +59,7 @@ export function useLayoutSettings() {
     setState((prev) => {
       // 状态迁移：切换模式时保留有意义的上下文
       if (mode === 'tabs' && prev.mode !== 'tabs') {
-        return { ...prev, mode, openTabs: [], activeTabId: null };
+        return { ...prev, mode };
       }
       if (mode === 'sidebar' && prev.mode !== 'sidebar') {
         return { ...prev, mode, activeTabId: null };
@@ -109,6 +109,15 @@ export function useLayoutSettings() {
     setState((prev) => ({ ...prev, openTabs: [], activeTabId: null }));
   }, []);
 
+  /** 直接设置 openTabs（用于批量同步） */
+  const setOpenTabs = useCallback((tabs: string[], activeId?: string | null) => {
+    setState((prev) => ({
+      ...prev,
+      openTabs: tabs,
+      activeTabId: activeId !== undefined ? activeId : prev.activeTabId,
+    }));
+  }, []);
+
   /** 根据当前存在的 workspace ID 清理无效页签 */
   const syncTabs = useCallback((validIds: Set<string>) => {
     setState((prev) => {
@@ -133,6 +142,7 @@ export function useLayoutSettings() {
     closeTab,
     setActiveTab,
     closeAllTabs,
+    setOpenTabs,
     syncTabs,
   };
 }

@@ -1,20 +1,34 @@
 // ─── Workspace 持久化存储（JSON 文件）───
 // 替代静态 workspacesData，支持运行时增删改
-// 关键设计：内存缓存 + 原子写入，避免并发竞态导致数据丢失
+// 关键设计：内存缓存 + 原子写入 + 自动备份，避免并发竞态导致数据丢失
 
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { randomUUID } from 'crypto';
 import type { WorkspaceData } from './workspacesData';
 import { workspacesData } from './workspacesData';
 
 // 使用 import.meta.url 确保路径不依赖 process.cwd()
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DATA_DIR = path.resolve(__dirname, '../../data');
-const STORE_FILE = path.join(DATA_DIR, 'workspaces.json');
+let DATA_DIR = path.resolve(__dirname, '../../data');
+let STORE_FILE = path.join(DATA_DIR, 'workspaces.json');
+let BAK_FILE = path.join(DATA_DIR, 'workspaces.json.bak');
+
+/** 测试专用：切换数据目录并清空缓存 */
+export function __setTestDir(testDir: string): void {
+  DATA_DIR = testDir;
+  STORE_FILE = path.join(DATA_DIR, 'workspaces.json');
+  BAK_FILE = path.join(DATA_DIR, 'workspaces.json.bak');
+  storeCache = null;
+  writeQueue = Promise.resolve();
+}
 
 // 内存缓存：所有操作共享同一份数据，避免读取-修改-写入竞态
 let storeCache: { workspaces: WorkspaceData[] } | null = null;
+
+// 写入队列：串行化所有写操作，防止并发竞态导致数据丢失
+let writeQueue: Promise<void> = Promise.resolve();
 
 // 确保目录和文件存在（首次运行从静态数据初始化）
 function ensureStore(): { workspaces: WorkspaceData[] } {
@@ -35,18 +49,45 @@ function ensureStore(): { workspaces: WorkspaceData[] } {
     console.log(`[WorkspaceStore] Loaded ${storeCache.workspaces.length} workspaces from ${STORE_FILE}`);
     return storeCache;
   } catch (err) {
-    console.error(`[WorkspaceStore] JSON parse failed, returning empty. File: ${STORE_FILE}`);
+    console.error(`[WorkspaceStore] JSON parse failed, attempting backup recovery. File: ${STORE_FILE}`);
+    // 尝试从备份恢复
+    if (fs.existsSync(BAK_FILE)) {
+      try {
+        const bakRaw = fs.readFileSync(BAK_FILE, 'utf-8');
+        storeCache = JSON.parse(bakRaw);
+        console.log(`[WorkspaceStore] Recovered ${storeCache.workspaces.length} workspaces from backup`);
+        // 将备份恢复为主文件
+        fs.copyFileSync(BAK_FILE, STORE_FILE);
+        return storeCache;
+      } catch (bakErr) {
+        console.error(`[WorkspaceStore] Backup recovery also failed:`, bakErr);
+      }
+    }
+    console.error(`[WorkspaceStore] No valid backup found, returning empty. Data may be lost!`);
     storeCache = { workspaces: [] };
     return storeCache;
   }
 }
 
-// 原子写入：先写临时文件，再重命名，避免写入中断导致文件损坏
+// 原子写入：先写临时文件，再重命名，同时创建备份
+// 通过 writeQueue 串行化，防止并发写入覆盖
 function writeStore(data: { workspaces: WorkspaceData[] }): void {
   storeCache = data;
-  const tmpFile = STORE_FILE + '.tmp';
-  fs.writeFileSync(tmpFile, JSON.stringify(data, null, 2), 'utf-8');
-  fs.renameSync(tmpFile, STORE_FILE);
+  writeQueue = writeQueue.then(() => {
+    const tmpFile = STORE_FILE + '.tmp';
+    // 写入前先备份当前文件
+    if (fs.existsSync(STORE_FILE)) {
+      try {
+        fs.copyFileSync(STORE_FILE, BAK_FILE);
+      } catch {
+        // 备份失败不阻塞写入
+      }
+    }
+    fs.writeFileSync(tmpFile, JSON.stringify(data, null, 2), 'utf-8');
+    fs.renameSync(tmpFile, STORE_FILE);
+  }).catch((err) => {
+    console.error('[WorkspaceStore] Write failed:', err);
+  });
 }
 
 // ── CRUD ──
@@ -83,7 +124,7 @@ export async function createWorkspace(spec: CreateWorkspaceSpec): Promise<Worksp
     }
     const now = new Date().toISOString().slice(0, 10);
     const ws: WorkspaceData = {
-      id: `ws-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
+      id: `ws-${Date.now()}-${randomUUID().slice(0, 5)}`,
       name: spec.name,
       description: spec.description || '',
       icon: spec.icon || 'Layers',
@@ -96,14 +137,15 @@ export async function createWorkspace(spec: CreateWorkspaceSpec): Promise<Worksp
       agentMode: spec.agentMode || 'single',
       agentBindings: spec.agentIds?.map((id) => ({ agentId: id, status: 'pending' as const })),
       widgets: spec.widgets || [],
-      useDemoDataFallback: spec.useDemoDataFallback ?? false,
+      useDemoDataFallback: spec.useDemoDataFallback ?? true,
     };
     store.workspaces.push(ws);
     writeStore(store);
     return ws;
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
     console.error('[WorkspaceStore] createWorkspace failed:', err);
-    throw new Error(`驾驶舱创建失败：${err.message || '无法写入存储文件，请检查 server/data 目录权限'}`);
+    throw new Error(`驾驶舱创建失败：${msg || '无法写入存储文件，请检查 server/data 目录权限'}`);
   }
 }
 

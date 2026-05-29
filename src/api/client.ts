@@ -1,12 +1,14 @@
-// ─── YonCockpit API Client ───
-// 封装所有后端 API 调用，统一错误处理和类型转换
+import type { Agent, Connection, CreateConnectionInput, Workspace, CockpitTemplate } from '@/types';
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3001/api';
 
 async function fetchJson<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
-    headers: { 'Content-Type': 'application/json' },
     ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options?.headers,
+    },
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: 'Unknown error' }));
@@ -22,24 +24,24 @@ export function getHealth() {
 
 // ─── Agents ───
 export function getAgents() {
-  return fetchJson<{ agents: any[] }>('/agents');
+  return fetchJson<{ agents: Agent[] }>('/agents');
 }
 
 export function getAgent(id: string) {
-  return fetchJson<{ agent: any }>(`/agents/${id}`);
+  return fetchJson<{ agent: Agent }>(`/agents/${id}`);
 }
 
 export function getAgentStats(id: string) {
-  return fetchJson<any>(`/agents/${id}/stats`);
+  return fetchJson<Record<string, unknown>>(`/agents/${id}/stats`);
 }
 
 // ─── Workspaces (Cockpits) ───
 export function getWorkspaces() {
-  return fetchJson<{ workspaces: any[] }>('/workspaces');
+  return fetchJson<{ workspaces: Workspace[] }>('/workspaces');
 }
 
 export function getWorkspace(id: string) {
-  return fetchJson<{ workspace: any }>(`/workspaces/${id}`);
+  return fetchJson<{ workspace: Workspace }>(`/workspaces/${id}`);
 }
 
 export function createWorkspace(data: {
@@ -49,9 +51,17 @@ export function createWorkspace(data: {
   color?: string;
   agentIds?: string[];
   primaryAgentId?: string;
-  widgets?: any[];
+  widgets?: Workspace['widgets'];
 }) {
-  return fetchJson<{ workspace: any }>('/workspaces', { method: 'POST', body: JSON.stringify(data) });
+  return fetchJson<{ workspace: Workspace }>('/workspaces', { method: 'POST', body: JSON.stringify(data) });
+}
+
+export function updateWorkspace(id: string, data: Partial<{ name: string; description: string; widgets: Workspace['widgets'] }>) {
+  return fetchJson<{ workspace: Workspace }>(`/workspaces/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+}
+
+export function getWorkspaceOrchestration(id: string) {
+  return fetchJson<{ orchestration: Record<string, unknown>; context: Record<string, unknown> }>(`/workspaces/${id}/orchestration`);
 }
 
 export function deleteWorkspace(id: string) {
@@ -60,15 +70,15 @@ export function deleteWorkspace(id: string) {
 
 // ─── Connections ───
 export function getConnections() {
-  return fetchJson<{ connections: any[] }>('/connections');
+  return fetchJson<{ connections: Connection[] }>('/connections');
 }
 
-export function createConnection(data: { name: string; type: string; config: any; capabilities?: string[]; priority?: number; enabled?: boolean }) {
-  return fetchJson<{ connection: any }>('/connections', { method: 'POST', body: JSON.stringify(data) });
+export function createConnection(data: CreateConnectionInput) {
+  return fetchJson<{ connection: Connection }>('/connections', { method: 'POST', body: JSON.stringify(data) });
 }
 
-export function updateConnection(id: string, data: Partial<{ name: string; config: any; capabilities: string[]; priority: number; enabled: boolean }>) {
-  return fetchJson<{ connection: any }>(`/connections/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+export function updateConnection(id: string, data: Partial<CreateConnectionInput>) {
+  return fetchJson<{ connection: Connection }>(`/connections/${id}`, { method: 'PUT', body: JSON.stringify(data) });
 }
 
 export function deleteConnection(id: string) {
@@ -79,25 +89,34 @@ export function testConnection(id: string) {
   return fetchJson<{ success: boolean; message: string }>(`/connections/${id}/test`, { method: 'POST' });
 }
 
-export function testConnectionConfig(data: { type: string; config: any }) {
+export function testConnectionConfig(data: { type: string; config: Connection['config'] }) {
   return fetchJson<{ success: boolean; message: string }>('/connections/test', { method: 'POST', body: JSON.stringify(data) });
 }
 
 export function connectConnection(id: string) {
-  return fetchJson<{ success: boolean; connection: any }>(`/connections/${id}/connect`, { method: 'POST' });
+  return fetchJson<{ success: boolean; connection: Connection }>(`/connections/${id}/connect`, { method: 'POST' });
 }
 
 export function disconnectConnection(id: string) {
-  return fetchJson<{ success: boolean; connection: any }>(`/connections/${id}/disconnect`, { method: 'POST' });
+  return fetchJson<{ success: boolean; connection: Connection }>(`/connections/${id}/disconnect`, { method: 'POST' });
 }
 
 // ─── CockpitAgent 智能对话 ───
+export interface ChatDoneData {
+  message: string;
+  card?: Record<string, unknown>;
+  suggestedCommands?: string[];
+  plan?: Record<string, unknown>;
+  results?: Record<string, unknown>[];
+  usedLLM?: boolean;
+}
+
 export function cockpitAgentChatStream(
   command: string,
   workspaceId: string | undefined,
   sessionId: string | undefined,
   onChunk: (chunk: string, stage?: string) => void,
-  onDone: (data: { message: string; card?: any; suggestedCommands?: string[]; plan?: any; results?: any[]; usedLLM?: boolean }) => void,
+  onDone: (data: ChatDoneData) => void,
   onError: (err: Error) => void
 ) {
   const body = JSON.stringify({ command, workspaceId, sessionId, stream: true });
@@ -117,6 +136,7 @@ export function cockpitAgentChatStream(
 
     const decoder = new TextDecoder();
     let buffer = '';
+    let doneCalled = false;
 
     while (true) {
       const { done, value } = await reader.read();
@@ -131,26 +151,33 @@ export function cockpitAgentChatStream(
         if (!trimmed.startsWith('data: ')) continue;
 
         const dataStr = trimmed.slice(6).trim();
-        if (dataStr === '[DONE]') return;
+        if (dataStr === '[DONE]') { doneCalled = true; return; }
 
-        try {
-          const data = JSON.parse(dataStr);
-          if (data.error) throw new Error(data.error);
-          if (data.done) {
-            onDone({
-              message: data.message,
-              card: data.card,
-              suggestedCommands: data.suggestedCommands,
-              results: data.results,
-              usedLLM: data.usedLLM,
-            });
-          } else {
-            onChunk(data.chunk, data.stage);
+        let parsed: unknown;
+        try { parsed = JSON.parse(dataStr); } catch { continue; }
+        if (parsed && typeof parsed === 'object') {
+          const data = parsed as Record<string, unknown>;
+          if (data.error) {
+            onError(new Error(String(data.error)));
+            return;
           }
-        } catch {
-          // ignore parse errors
+          if (data.done === true) {
+            doneCalled = true;
+            onDone({
+              message: String(data.message || ''),
+              card: data.card as Record<string, unknown> | undefined,
+              suggestedCommands: Array.isArray(data.suggestedCommands) ? data.suggestedCommands as string[] : undefined,
+              results: Array.isArray(data.results) ? data.results as Record<string, unknown>[] : undefined,
+              usedLLM: data.usedLLM as boolean | undefined,
+            });
+          } else if (typeof data.chunk === 'string') {
+            onChunk(data.chunk, typeof data.stage === 'string' ? data.stage : undefined);
+          }
         }
       }
+    }
+    if (!doneCalled) {
+      onError(new Error('SSE stream ended unexpectedly without completion'));
     }
   }).catch(onError);
 }
@@ -184,26 +211,26 @@ function adminFetch<T>(path: string, options?: RequestInit): Promise<T> {
 }
 
 export function getTemplates() {
-  return fetchJson<{ templates: any[] }>('/templates');
+  return fetchJson<{ templates: CockpitTemplate[] }>('/templates');
 }
 
 export function getTemplate(id: string) {
-  return fetchJson<{ template: any }>(`/templates/${id}`);
+  return fetchJson<{ template: CockpitTemplate }>(`/templates/${id}`);
 }
 
 export function createCockpitFromTemplate(templateId: string, name?: string, initPrompt?: string) {
-  return fetchJson<{ workspace: any; initializing: boolean }>(`/templates/${templateId}/create-cockpit`, {
+  return fetchJson<{ workspace: Workspace; initializing: boolean }>(`/templates/${templateId}/create-cockpit`, {
     method: 'POST',
     body: JSON.stringify({ name, initPrompt }),
   });
 }
 
-export function createTemplate(data: any) {
-  return adminFetch<{ template: any }>('/templates', { method: 'POST', body: JSON.stringify(data) });
+export function createTemplate(data: Partial<CockpitTemplate>) {
+  return adminFetch<{ template: CockpitTemplate }>('/templates', { method: 'POST', body: JSON.stringify(data) });
 }
 
-export function updateTemplate(id: string, data: any) {
-  return adminFetch<{ template: any }>(`/templates/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+export function updateTemplate(id: string, data: Partial<CockpitTemplate>) {
+  return adminFetch<{ template: CockpitTemplate }>(`/templates/${id}`, { method: 'PUT', body: JSON.stringify(data) });
 }
 
 export function deleteTemplate(id: string) {
@@ -211,13 +238,19 @@ export function deleteTemplate(id: string) {
 }
 
 // SSE 流式对话（与驾驶舱主智能体）
+export interface WorkspaceChatDoneData {
+  message: string;
+  card?: Record<string, unknown>;
+  suggestedCommands?: string[];
+}
+
 export function workspaceCommandStream(
   workspaceId: string,
   command: string,
   agentId: string | undefined,
   sessionId: string | undefined,
   onChunk: (chunk: string) => void,
-  onDone: (data: { message: string; card?: any; suggestedCommands?: string[] }) => void,
+  onDone: (data: WorkspaceChatDoneData) => void,
   onError: (err: Error) => void
 ) {
   const body = JSON.stringify({ command, agentId, sessionId });
@@ -237,6 +270,7 @@ export function workspaceCommandStream(
 
     const decoder = new TextDecoder();
     let buffer = '';
+    let doneCalled = false;
 
     while (true) {
       const { done, value } = await reader.read();
@@ -251,23 +285,31 @@ export function workspaceCommandStream(
         if (!trimmed.startsWith('data: ')) continue;
 
         const dataStr = trimmed.slice(6).trim();
-        if (dataStr === '[DONE]') return;
+        if (dataStr === '[DONE]') { doneCalled = true; return; }
 
-        try {
-          const data = JSON.parse(dataStr);
-          if (data.done) {
+        let parsed: unknown;
+        try { parsed = JSON.parse(dataStr); } catch { continue; }
+        if (parsed && typeof parsed === 'object') {
+          const data = parsed as Record<string, unknown>;
+          if (data.error) {
+            onError(new Error(String(data.error)));
+            return;
+          }
+          if (data.done === true) {
+            doneCalled = true;
             onDone({
-              message: data.message,
-              card: data.card,
-              suggestedCommands: data.suggestedCommands,
+              message: String(data.message || ''),
+              card: data.card as Record<string, unknown> | undefined,
+              suggestedCommands: Array.isArray(data.suggestedCommands) ? data.suggestedCommands as string[] : undefined,
             });
-          } else {
+          } else if (typeof data.chunk === 'string') {
             onChunk(data.chunk);
           }
-        } catch {
-          // ignore parse errors
         }
       }
+    }
+    if (!doneCalled) {
+      onError(new Error('SSE stream ended unexpectedly without completion'));
     }
   }).catch(onError);
 }

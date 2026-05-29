@@ -11,6 +11,12 @@ node_modules
 dist
 dist-ssr
 *.local
+*.pid
+test-results/
+server/data/connections.json
+server/data/workspaces.json
+server/data/workspaces.json.bak
+server/data/templates.json
 
 # Editor directories and files
 .vscode/*

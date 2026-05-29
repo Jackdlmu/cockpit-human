@@ -2,9 +2,11 @@
 // Phase 4: Widget 数据管道 API
 
 import { Router } from 'express';
+import type { Request, Response, NextFunction } from 'express';
 import * as workspaceStore from '../data/workspaceStore';
 import { resolveWidgetData } from '../services/widget-data';
 import type { ConnectionManager } from '../connection/manager';
+import type { Widget } from '../types';
 
 export function createWidgetDataRouter(connectionManager: ConnectionManager) {
   const router = Router({ mergeParams: true });
@@ -13,17 +15,17 @@ export function createWidgetDataRouter(connectionManager: ConnectionManager) {
    * POST /api/workspaces/:id/widgets/:widgetId/data
    * 触发 widget 数据刷新（从数据源拉取最新数据）
    */
-  router.post('/:widgetId/data', async (req: any, res, next) => {
+  router.post('/:widgetId/data', async (req: Request, res: Response, next: NextFunction) => {
     try {
       const workspace = await workspaceStore.getWorkspace(req.params.id);
       if (!workspace) {
-        res.status(404).json({ error: 'Workspace not found' });
+        res.status(404).json({ error: 'Workspace not found', code: 'NOT_FOUND', status: 404 });
         return;
       }
 
-      const widget = workspace.widgets?.find((w: any) => w.id === req.params.widgetId);
+      const widget = workspace.widgets?.find((w: Widget) => w.id === req.params.widgetId);
       if (!widget) {
-        res.status(404).json({ error: 'Widget not found' });
+        res.status(404).json({ error: 'Widget not found', code: 'NOT_FOUND', status: 404 });
         return;
       }
 
@@ -49,17 +51,17 @@ export function createWidgetDataRouter(connectionManager: ConnectionManager) {
    * GET /api/workspaces/:id/widgets/:widgetId/data
    * 获取 widget 当前数据（不触发刷新，直接返回现有静态数据）
    */
-  router.get('/:widgetId/data', async (req: any, res, next) => {
+  router.get('/:widgetId/data', async (req: Request, res: Response, next: NextFunction) => {
     try {
       const workspace = await workspaceStore.getWorkspace(req.params.id);
       if (!workspace) {
-        res.status(404).json({ error: 'Workspace not found' });
+        res.status(404).json({ error: 'Workspace not found', code: 'NOT_FOUND', status: 404 });
         return;
       }
 
-      const widget = workspace.widgets?.find((w: any) => w.id === req.params.widgetId);
+      const widget = workspace.widgets?.find((w: Widget) => w.id === req.params.widgetId);
       if (!widget) {
-        res.status(404).json({ error: 'Widget not found' });
+        res.status(404).json({ error: 'Widget not found', code: 'NOT_FOUND', status: 404 });
         return;
       }
 

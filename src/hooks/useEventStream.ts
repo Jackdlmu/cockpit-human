@@ -15,6 +15,8 @@ export interface StreamEvent {
   sourceType: string;
   payload: Record<string, unknown>;
   timestamp: string;
+  /** 历史事件标记（重连后拉取的历史记录，不应触发 toast） */
+  _isHistory?: boolean;
 }
 
 export function useEventStream() {
@@ -44,13 +46,14 @@ export function useEventStream() {
         try {
           const data = JSON.parse(event.data);
           if (data.type === 'history') {
-            const historyEvents = (data.payload?.events || []).map((e: any) => ({
+            const historyEvents = (data.payload?.events || []).map((e: Record<string, unknown>) =>({
               id: e.id || `evt-${Date.now()}`,
               type: e.type || 'unknown',
               source: e.source || 'unknown',
               sourceType: e.sourceType || 'unknown',
               payload: e.payload || {},
               timestamp: e.timestamp || new Date().toISOString(),
+              _isHistory: true,
             }));
             setEvents((prev) => [...historyEvents, ...prev].slice(-200));
           } else if (data.type === 'system') {
@@ -88,8 +91,8 @@ export function useEventStream() {
       ws.onerror = () => {
         setError('WebSocket 连接错误');
       };
-    } catch (err: any) {
-      setError(err.message || '连接失败');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : '连接失败');
     }
   }, []);
 

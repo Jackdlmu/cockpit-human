@@ -1,9 +1,9 @@
 // ─── TabBar ───
-// 顶部多页签导航栏：支持滚动、关闭、安全区
+// 浏览器风格顶部多页签导航栏
 
 import { useRef, useEffect } from 'react';
 import type { Workspace } from '@/types';
-import { Plus, X } from 'lucide-react';
+import { Plus, X, Settings } from 'lucide-react';
 import WorkspaceIcon from '@/components/WorkspaceIcon';
 
 interface Props {
@@ -13,11 +13,10 @@ interface Props {
   onSelect: (id: string) => void;
   onClose: (id: string) => void;
   onCreate: () => void;
+  onSettings?: () => void;
 }
 
-
-
-export default function TabBar({ workspaces, openTabs, activeTabId, onSelect, onClose, onCreate }: Props) {
+export default function TabBar({ workspaces, openTabs, activeTabId, onSelect, onClose, onCreate, onSettings }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // 鼠标滚轮横向滚动
@@ -46,14 +45,14 @@ export default function TabBar({ workspaces, openTabs, activeTabId, onSelect, on
   const wsMap = new Map(workspaces.map((w) => [w.id, w]));
 
   return (
-    <div className="h-10 flex items-center bg-app-surface border-b border-app-border-subtle shrink-0 select-none">
+    <div className="h-[38px] flex items-end bg-app-surface border-b border-app-border-subtle shrink-0 select-none">
       {/* 左侧安全区（macOS 窗口按钮区） */}
-      <div className="w-4 shrink-0" />
+      <div className="w-3 shrink-0" />
 
       {/* 页签滚动区 */}
       <div
         ref={scrollRef}
-        className="flex-1 flex items-center overflow-x-auto scrollbar-hide"
+        className="flex-1 flex items-end overflow-x-auto scrollbar-hide"
         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
       >
         {openTabs.map((tabId) => {
@@ -66,27 +65,24 @@ export default function TabBar({ workspaces, openTabs, activeTabId, onSelect, on
               data-tab-id={tabId}
               onClick={() => onSelect(tabId)}
               className={`
-                group relative flex items-center gap-1.5 px-3 h-10 max-w-[160px] shrink-0
-                border-r border-app-border-subtle text-xs transition-colors
+                group relative flex items-center gap-1.5 px-3 h-[32px] max-w-[180px] min-w-[80px] shrink-0
+                text-xs transition-all rounded-t-md mx-[2px]
                 ${isActive
-                  ? 'bg-app-bg text-app-text'
+                  ? 'bg-app-bg text-app-text border-t border-x border-app-border-subtle'
                   : 'bg-app-surface text-app-text-muted hover:bg-app-surface-hover hover:text-app-text-secondary'
                 }
               `}
             >
-              {/* Active bottom line */}
-              {isActive && (
-                <div className="absolute bottom-0 left-2 right-2 h-0.5 bg-red-400 rounded-t-full" />
-              )}
-              <WorkspaceIcon icon={ws.icon} color={ws.color} className="w-3.5 h-3.5 shrink-0" />
-              <span className="truncate">{ws.name}</span>
+              <WorkspaceIcon icon={ws.icon} color={ws.color} className="w-3 h-3 shrink-0" />
+              <span className="truncate flex-1 text-left">{ws.name}</span>
               <span
                 onClick={(e) => { e.stopPropagation(); onClose(tabId); }}
                 className={`
-                  ml-0.5 p-0.5 rounded-md opacity-0 group-hover:opacity-100
-                  hover:bg-app-text-muted/20 transition-all shrink-0
-                  ${isActive ? 'opacity-100' : ''}
+                  p-0.5 rounded-full transition-all shrink-0
+                  ${isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}
+                  hover:bg-red-500/20 hover:text-red-400
                 `}
+                title="删除驾驶舱"
               >
                 <X className="w-3 h-3" />
               </span>
@@ -96,14 +92,23 @@ export default function TabBar({ workspaces, openTabs, activeTabId, onSelect, on
       </div>
 
       {/* 右侧操作区 */}
-      <div className="flex items-center gap-1 px-2 shrink-0">
+      <div className="flex items-center gap-0.5 px-1.5 pb-1 shrink-0">
         <button
           onClick={onCreate}
-          className="p-1.5 rounded-md text-app-text-subtle hover:bg-app-surface-hover hover:text-app-text-secondary transition-colors"
+          className="p-1 rounded-md text-app-text-subtle hover:bg-app-surface-hover hover:text-app-text-secondary transition-colors"
           title="新建驾驶舱"
         >
-          <Plus className="w-4 h-4" />
+          <Plus className="w-3.5 h-3.5" />
         </button>
+        {onSettings && (
+          <button
+            onClick={onSettings}
+            className="p-1 rounded-md text-app-text-subtle hover:bg-app-surface-hover hover:text-app-text-secondary transition-colors"
+            title="设置"
+          >
+            <Settings className="w-3.5 h-3.5" />
+          </button>
+        )}
       </div>
 
       {/* 右侧安全区 */}

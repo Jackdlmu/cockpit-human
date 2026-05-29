@@ -1,5 +1,5 @@
 // ─── 统一 API 数据获取 Hooks ───
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import * as api from '@/api/client';
 import type { Agent, Workspace } from '@/types';
 
@@ -15,8 +15,8 @@ export function useAgents() {
     try {
       const data = await api.getAgents();
       setAgents(data.agents);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : String(err));
     } finally {
       setLoading(false);
     }
@@ -24,13 +24,13 @@ export function useAgents() {
 
   useEffect(() => { refresh(); }, [refresh]);
 
-  return { agents, loading, error, refresh };
+  return useMemo(() => ({ agents, loading, error, refresh }), [agents, loading, error, refresh]);
 }
 
 // ─── useAgentDetail ───
 export function useAgentDetail(id: string | null) {
   const [agent, setAgent] = useState<Agent | null>(null);
-  const [stats, setStats] = useState<any>(null);
+  const [stats, setStats] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -46,11 +46,11 @@ export function useAgentDetail(id: string | null) {
         setAgent(agentRes.agent);
         setStats(statsRes);
       })
-      .catch((err: any) => setError(err.message))
+      .catch((err: unknown) => setError(err instanceof Error ? err.message : String(err)))
       .finally(() => setLoading(false));
   }, [id]);
 
-  return { agent, stats, loading, error };
+  return useMemo(() => ({ agent, stats, loading, error }), [agent, stats, loading, error]);
 }
 
 // ─── useWorkspaces ───
@@ -65,8 +65,8 @@ export function useWorkspaces() {
     try {
       const data = await api.getWorkspaces();
       setWorkspaces(data.workspaces);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : String(err));
     } finally {
       setLoading(false);
     }
@@ -74,7 +74,7 @@ export function useWorkspaces() {
 
   useEffect(() => { refresh(); }, [refresh]);
 
-  return { workspaces, loading, error, refresh };
+  return useMemo(() => ({ workspaces, loading, error, refresh }), [workspaces, loading, error, refresh]);
 }
 
 // ─── useWorkspaceDetail ───
@@ -83,15 +83,19 @@ export function useWorkspaceDetail(id: string | null) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const refresh = useCallback(() => {
     if (!id) { setWorkspace(null); return; }
     setLoading(true);
     setError(null);
     api.getWorkspace(id)
       .then((data) => setWorkspace(data.workspace))
-      .catch((err: any) => setError(err.message))
+      .catch((err: unknown) => setError(err instanceof Error ? err.message : String(err)))
       .finally(() => setLoading(false));
   }, [id]);
 
-  return { workspace, loading, error };
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  return useMemo(() => ({ workspace, loading, error, refresh }), [workspace, loading, error, refresh]);
 }

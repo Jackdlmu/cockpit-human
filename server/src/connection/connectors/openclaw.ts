@@ -33,13 +33,14 @@ export class OpenClawConnector extends BaseConnector {
   private wsConnected = false;
   private wsConnecting = false;
   private wsMessageId = 0;
-  private wsPending = new Map<string, { resolve: (val: any) => void; reject: (err: Error) => void; timer: NodeJS.Timeout }>();
+  private wsPending = new Map<string, { resolve: (val: unknown) => void; reject: (err: Error) => void; timer: NodeJS.Timeout }>();
   private wsReconnectTimer?: NodeJS.Timeout;
   private wsPingTimer?: NodeJS.Timeout;
   private wsReconnectAttempts = 0;
   private readonly wsMaxReconnectAttempts = 5;
   private readonly wsReconnectDelay = 3000;
   private wsUnsupported = false; // 标记服务器是否不支持 WebSocket
+  private wsWaitCleanups?: Set<() => void>;
 
   constructor(connection: Connection) {
     if (connection.type !== 'openclaw') {
@@ -51,7 +52,7 @@ export class OpenClawConnector extends BaseConnector {
   // ── WebSocket 连接 ──
 
   private getWsUrl(): string {
-    let ep = (this.connection.config as any).endpoint || '';
+    let ep = this.connection.config.endpoint || '';
     ep = ep.replace(/\/$/, '');
     // 确保是 wss:// 前缀
     if (ep.startsWith('https://')) ep = ep.replace('https://', 'wss://');
@@ -68,11 +69,19 @@ export class OpenClawConnector extends BaseConnector {
     if (this.wsConnecting) {
       // 等待当前连接完成
       return new Promise((resolve, reject) => {
+        let cleared = false;
         const check = setInterval(() => {
-          if (this.wsConnected) { clearInterval(check); resolve(); }
-          else if (!this.wsConnecting) { clearInterval(check); reject(new Error('WS connect failed')); }
+          if (cleared) return;
+          if (this.wsConnected) { cleared = true; clearInterval(check); resolve(); }
+          else if (!this.wsConnecting) { cleared = true; clearInterval(check); reject(new Error('WS connect failed')); }
         }, 100);
-        setTimeout(() => { clearInterval(check); reject(new Error('WS connect wait timeout')); }, 15000);
+        const waitTimeout = setTimeout(() => {
+          if (!cleared) { cleared = true; clearInterval(check); reject(new Error('WS connect wait timeout')); }
+        }, 15000);
+        // 确保连接完成后清理（防止 confirmTimer 和 check 的竞争条件）
+        const cleanup = () => { if (!cleared) { cleared = true; clearInterval(check); clearTimeout(waitTimeout); } };
+        this.wsWaitCleanups = this.wsWaitCleanups || new Set();
+        this.wsWaitCleanups.add(cleanup);
       });
     }
 
@@ -89,7 +98,7 @@ export class OpenClawConnector extends BaseConnector {
     return new Promise((resolve, reject) => {
       try {
         console.log(`[OpenClaw] Connecting WebSocket: ${wsUrl.replace(/token=[^&]+/, 'token=***')}`);
-        const WS = (globalThis as any).WebSocket;
+        const WS = (globalThis as typeof globalThis & { WebSocket?: typeof WebSocket }).WebSocket;
         if (!WS) {
           this.wsConnecting = false;
           reject(new Error('WebSocket not available in this environment'));
@@ -110,8 +119,13 @@ export class OpenClawConnector extends BaseConnector {
         // 给服务器一点时间确认连接稳定（某些服务器在收到不期望的消息后会立即断开）
         const confirmTimer = setTimeout(() => {
           if (openConfirmed) {
-            this.wsConnecting = false;
             this.wsConnected = true;
+            this.wsConnecting = false;
+            // 清理所有等待者的定时器
+            if (this.wsWaitCleanups) {
+              for (const cleanup of this.wsWaitCleanups) cleanup();
+              this.wsWaitCleanups.clear();
+            }
             this.wsReconnectAttempts = 0;
             this.startWsHeartbeat();
             resolve();
@@ -149,7 +163,7 @@ export class OpenClawConnector extends BaseConnector {
           }
         };
 
-        this.ws.onmessage = (event: any) => {
+        this.ws.onmessage = (event: MessageEvent) => {
           this.handleWsMessage(event.data);
         };
 
@@ -168,7 +182,7 @@ export class OpenClawConnector extends BaseConnector {
           }
         };
 
-        this.ws.onerror = (err: any) => {
+        this.ws.onerror = (err: Event) => {
           connectErrored = true;
           clearTimeout(timeout);
           clearTimeout(confirmTimer);
@@ -178,7 +192,7 @@ export class OpenClawConnector extends BaseConnector {
           }
           reject(new Error(`WebSocket error: ${err.message || 'Unknown'}`));
         };
-      } catch (err: any) {
+      } catch (err: unknown) {
         this.wsConnecting = false;
         reject(err);
       }
@@ -223,7 +237,7 @@ export class OpenClawConnector extends BaseConnector {
 
   private handleWsMessage(raw: string): void {
     try {
-      const msg = JSON.parse(raw) as any;
+      const msg = JSON.parse(raw) as Record<string, unknown>;
       // OpenClaw Gateway connect 响应
       if (msg.type === 'res' && msg.payload?.type === 'hello-ok') {
         console.log('[OpenClaw] Gateway handshake OK, protocol v' + msg.payload.protocol);
@@ -275,7 +289,7 @@ export class OpenClawConnector extends BaseConnector {
     try {
       await this.connectWS();
       return;
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.warn('[OpenClaw] WebSocket connect failed:', err.message, '→ trying HTTP health check');
     }
 
@@ -316,7 +330,7 @@ export class OpenClawConnector extends BaseConnector {
         });
         const latency = Date.now() - start;
         return { healthy: true, latency };
-      } catch (wsErr: any) {
+      } catch (wsErr: unknown) {
         console.warn('[OpenClaw] WS health check failed:', wsErr.message);
       }
     }
@@ -343,7 +357,7 @@ export class OpenClawConnector extends BaseConnector {
         }
       }
       return { healthy: false, latency: Date.now() - start, error: 'All probe endpoints failed' };
-    } catch (err: any) {
+    } catch (err: unknown) {
       return { healthy: false, latency: Date.now() - start, error: err.message };
     }
   }
@@ -351,12 +365,12 @@ export class OpenClawConnector extends BaseConnector {
   // ── 认证 ──
 
   private getAuthToken(): string {
-    const config = this.connection.config as any;
+    const config = this.connection.config;
     return config.apiKey || config.token || config.pat || '';
   }
 
   protected getAuthHeader(): Record<string, string> {
-    const config = this.connection.config as any;
+    const config = this.connection.config;
     const token = config.apiKey || config.token || config.pat || '';
     if (!token) return {};
 
@@ -380,7 +394,7 @@ export class OpenClawConnector extends BaseConnector {
   private async safeFetchJson<T>(url: string, options?: RequestInit): Promise<T | null> {
     try {
       return await this.fetchJson<T>(url, options);
-    } catch (err: any) {
+    } catch (err: unknown) {
       if (err.message?.includes('Unexpected token') || err.message?.includes('is not valid JSON')) {
         console.warn(`[OpenClaw] Endpoint returned HTML instead of JSON: ${url}`);
         return null;
@@ -391,20 +405,20 @@ export class OpenClawConnector extends BaseConnector {
 
   // ── 大模型能力（支持 Tool Calling）─
 
-  async chat(messages: ChatMessage[], options?: any): Promise<string> {
+  async chat(messages: ChatMessage[], options?: LLMOptions): Promise<string> {
     // 优先使用 WebSocket
     if (this.wsConnected) {
       try {
         const res = await this.wsSend('chat', { messages, options });
         return (res.message as string) || '';
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.warn('[OpenClaw] WS chat failed:', err.message, '→ fallback to HTTP');
       }
     }
 
     // Fallback HTTP
     const ep = this.getEndpoint();
-    const res = await this.safeFetchJson<{ message: string; tool_calls?: any[] }>(`${ep}/chat`, {
+    const res = await this.safeFetchJson<{ message: string; tool_calls?: Array<Record<string, unknown>> }>(`${ep}/chat`, {
       method: 'POST',
       body: JSON.stringify({ messages, options }),
     });
@@ -416,7 +430,7 @@ export class OpenClawConnector extends BaseConnector {
       for (const call of res.tool_calls) {
         try {
           await this.callTool(call.function?.name || call.name, call.function?.arguments || call.arguments || {});
-        } catch (err: any) {
+        } catch (err: unknown) {
           console.warn('[OpenClaw] Tool call failed:', err.message);
         }
       }
@@ -425,11 +439,11 @@ export class OpenClawConnector extends BaseConnector {
     return res.message;
   }
 
-  async *streamChat(messages: ChatMessage[], options?: any): AsyncGenerator<string> {
+  async *streamChat(messages: ChatMessage[], options?: LLMOptions): AsyncGenerator<string> {
     const ep = this.getEndpoint();
     try {
       yield* this.fetchStream(`${ep}/chat`, { messages, options, stream: true });
-    } catch (err: any) {
+    } catch (err: unknown) {
       if (err.message?.includes('Unexpected token') || err.message?.includes('is not valid JSON')) {
         console.warn('[OpenClaw] Stream endpoint returned HTML instead of JSON');
         yield '[Error: OpenClaw streaming endpoint not available]';
@@ -446,7 +460,7 @@ export class OpenClawConnector extends BaseConnector {
       try {
         const res = await this.wsSend('plan', { goal: request.goal, constraints: request.constraints });
         return res as CockpitPlanResult;
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.warn('[OpenClaw] WS plan failed:', err.message, '→ fallback to HTTP');
       }
     }
@@ -465,7 +479,7 @@ export class OpenClawConnector extends BaseConnector {
       try {
         const res = await this.wsSend('create', { spec });
         return res;
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.warn('[OpenClaw] WS create failed:', err.message, '→ fallback to HTTP');
       }
     }
@@ -526,7 +540,7 @@ export class OpenClawConnector extends BaseConnector {
     }
 
     const ep = this.getEndpoint();
-    const res = await this.fetchJson<{ message: string; tool_calls?: any[]; data?: any }>(
+    const res = await this.fetchJson<{ message: string; tool_calls?: Array<Record<string, unknown>>; data?: Record<string, unknown> }>(
       `${ep}/agents/${input.agentId}/run`, {
         method: 'POST',
         body: JSON.stringify({ command: input.command, context: input.context, session_id: input.sessionId }),
@@ -536,7 +550,7 @@ export class OpenClawConnector extends BaseConnector {
     if (res.tool_calls && res.tool_calls.length > 0) {
       for (const call of res.tool_calls) {
         try { await this.callTool(call.name, call.arguments || {}); }
-        catch (err: any) { console.warn(`[OpenClaw] Tool call failed: ${call.name}`, err.message); }
+        catch (err: unknown) { console.warn(`[OpenClaw] Tool call failed: ${(call as Record<string, string>).name}`, err instanceof Error ? err.message : String(err)); }
       }
     }
 

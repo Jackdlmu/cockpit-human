@@ -15,6 +15,7 @@ export interface ConnectionConfig {
   temperature?: number;
   maxTokens?: number;
   topicPrefix?: string;
+  organizationId?: string;
 }
 
 export interface Connection {
@@ -50,6 +51,16 @@ export interface AgentBinding {
   lastUsed?: string;
 }
 
+export interface OrchestrationState {
+  mode: 'platform-led' | 'cockpit-led' | 'llm-direct';
+  health: 'healthy' | 'degraded' | 'unavailable';
+  primaryAgent: { id: string; name: string; sourceType?: string } | null;
+  activeAgents: { id: string; name: string; status: string }[];
+  cockpitAgentActive: boolean;
+  reason: string;
+  timestamp: string;
+}
+
 export interface Workspace {
   id: string;
   name: string;
@@ -64,6 +75,8 @@ export interface Workspace {
   agentMode?: AgentMode;
   agentBindings?: AgentBinding[];
   widgets: Widget[];
+  /** 协作调度状态 */
+  orchestration?: OrchestrationState;
   /** 数据获取失败时是否回退到 demo 示例数据 */
   useDemoDataFallback?: boolean;
 }
@@ -97,6 +110,18 @@ export interface WidgetDetailConfig {
   width?: string;
 }
 
+export interface WidgetThreshold {
+  value: number;
+  color?: string;
+  level?: 'normal' | 'warning' | 'critical';
+}
+
+export interface WidgetDrillDownConfig {
+  enabled: boolean;
+  dimension?: string;
+  targetType?: WidgetType;
+}
+
 export interface WidgetLinkConfig {
   type: 'workspace' | 'widget' | 'url';
   targetId?: string;
@@ -105,7 +130,16 @@ export interface WidgetLinkConfig {
   title?: string;
 }
 
-export type WidgetType = 'chart' | 'table' | 'metric' | 'list' | 'kanban' | 'timeline' | 'report' | 'universal' | 'progress' | 'status';
+export type WidgetType =
+  | 'chart' | 'table' | 'metric' | 'list' | 'kanban' | 'timeline'
+  | 'report' | 'universal' | 'progress' | 'status' | 'html'
+  | 'gauge'      // 仪表盘：展示目标达成率 (0-100%)
+  | 'funnel'     // 漏斗图：流程转化分析
+  | 'radar'      // 雷达图：多维能力评估
+  | 'heatmap'    // 热力图：二维数据密度
+  | 'bullet'     // 子弹图：紧凑目标进度
+  | 'alert'      // 告警列表：带级别的事件日志
+  | 'map';       // 地图：地理分布
 
 export interface Widget {
   id: string;

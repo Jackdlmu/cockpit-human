@@ -26,8 +26,8 @@ export function useConnections() {
     try {
       const data = await getConnections();
       setConnections(data.connections);
-    } catch (err: any) {
-      setError(err.message || '获取连接列表失败');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : '获取连接列表失败');
     } finally {
       setLoading(false);
     }
@@ -53,8 +53,8 @@ export function useConnections() {
       } else {
         toast.warning('连接测试未通过', { description: testRes.message });
       }
-    } catch (err: any) {
-      toast.error('连接测试失败', { description: err.message });
+    } catch (err: unknown) {
+      toast.error('连接测试失败', { description: err instanceof Error ? err.message : String(err) });
     }
     return data.connection;
   }, [refresh]);
@@ -87,8 +87,8 @@ export function useConnections() {
       await refresh();
       toast.success(`连接「${data.connection.name}」已连接`);
       return data.connection;
-    } catch (err: any) {
-      toast.error('连接失败', { description: err.message });
+    } catch (err: unknown) {
+      toast.error('连接失败', { description: err instanceof Error ? err.message : String(err) });
       throw err;
     }
   }, [refresh]);
@@ -99,8 +99,8 @@ export function useConnections() {
       await refresh();
       toast.success(`连接「${data.connection.name}」已断开`);
       return data.connection;
-    } catch (err: any) {
-      toast.error('断开连接失败', { description: err.message });
+    } catch (err: unknown) {
+      toast.error('断开连接失败', { description: err instanceof Error ? err.message : String(err) });
       throw err;
     }
   }, [refresh]);

@@ -3,6 +3,7 @@
 // 规则打底 → LLM 增强（生成 patch）→ 校验应用
 
 import type { Connector, ChatMessage } from '../../connection/types';
+import { inferWidgetType, isTypeMismatched } from '../../services/widget-type-inferer';
 
 /**
  * LLM 增强 patch 结构
@@ -63,14 +64,37 @@ export function buildGenerationPrompt(
 - timeline: 时间线，data = { steps: ["事件1","事件2","事件3"] }
 - list: 列表，data = { items: ["事项A","事项B"] }
 - report: 报告摘要，data = { summary: "摘要文本", highlights: [{label:"指标",value:"数值"}], detail: { content: "# 详细报告\n..." } }
+- html: HTML报告（完整网页内容），data = { html: "<完整的HTML报告内容...>", title: "报告标题" }
+- progress: 进度条，data = { value: 65, max: 100, label: "完成度", color: "indigo|emerald|amber|red|blue|purple" }
+- status: 状态面板，data = { items: [{label:"服务A", status:"ok|warning|error", value:"运行中"}] }
 - universal: 通用容器（当无法确定具体类型时使用），data = { content: "markdown文本", contentType: "markdown" }
+- gauge: 仪表盘（目标达成率），data = { value: 68, min: 0, max: 100, unit: "%", thresholds: [{value:70,color:"#f59e0b"},{value:90,color:"#ef4444"}] }
+- funnel: 漏斗图（流程转化），data = { stages: [{name:"曝光",value:10000,rate:100},{name:"点击",value:3500,rate:35},{name:"转化",value:800,rate:23}] }
+- radar: 雷达图（多维评估），data = { labels: ["速度","质量","成本","服务","创新"], values: [80,90,75,85,70] }
+- heatmap: 热力图（二维密度），data = { rows: [{x:"周一",y:"上午",value:30},{x:"周二",y:"下午",value:50}] }
+- bullet: 子弹图（目标进度），data = { value: 75, target: 80, max: 100, label: "目标达成率" }
+- alert: 告警列表（级别+事件），data = { alerts: [{level:"warning",message:"库存不足",time:"10:30"},{level:"critical",message:"服务宕机",time:"10:35"}] }
+- map: 地图（地理分布），data = { points: [{name:"北京",value:120},{name:"上海",value:95},{name:"广州",value:80}] }
 
 【布局规则（网格 12 列）】
 - metric: w=3 h=2
 - chart/table/kanban/timeline/list: w=6 h=4
 - report: w=9 h=4 或 w=12 h=4
 - universal: w=6 h=4
+- gauge: w=3 h=3
+- funnel/radar/heatmap/alert/map: w=6 h=4
+- bullet: w=6 h=2
 - 位置避免重叠，y 坐标优先放在最下方
+
+【关联/穿透配置（可选 link 字段）】
+- link = { type: "workspace|widget|url", targetId?: "目标workspaceID", targetTemplate?: "目标模板ID", url?: "https://...", title?: "链接标题" }
+- workspace类型：点击后导航到另一个驾驶舱（优先用targetId，如不知ID可用targetTemplate）
+- widget类型：点击后打开该widget的详情抽屉
+- url类型：点击后在新标签页打开外部链接
+
+【详情配置（可选 detail 字段）】
+- detail = { type: "slide-out", content?: "markdown或html详细内容", width?: "480px" }
+- 用于定义点击widget后展开的侧滑详情面板内容
 
 请只输出以下 JSON 格式，不要其他内容：
 {
@@ -78,7 +102,7 @@ export function buildGenerationPrompt(
   "description": "驾驶舱描述",
   "widgets": [
     {
-      "type": "metric|chart|table|kanban|timeline|list|report|universal",
+      "type": "metric|chart|table|kanban|timeline|list|report|html|progress|status|universal|gauge|funnel|radar|heatmap|bullet|alert|map",
       "title": "组件标题",
       "position": {"x":0,"y":0,"w":3,"h":2},
       "data": {...}
@@ -122,6 +146,20 @@ ${specJson}
 - list 类型：items 应为具体的列表项（如["欧盟AI法案生效","中国生成式AI管理办法"]）
 - timeline 类型：steps 应为具体的事件节点（如["Transformer诞生","ChatGPT引爆"]）
 - report 类型：summary 应为完整的分析摘要，highlights 应为关键指标，支持 detail.content 存放详细报告内容
+- gauge 类型：value 为0-100数字，可配 thresholds 阈值告警着色
+- funnel 类型：stages 为 [{name, value, rate}] 数组，体现流程转化
+- radar 类型：labels + values 数组，体现多维评估
+- heatmap 类型：rows 为 [{x, y, value}] 数组，体现二维密度
+- bullet 类型：value + target + max，体现紧凑目标进度
+- alert 类型：alerts 为 [{level, message, time}] 数组，level 取 warning/critical/info/success
+- map 类型：points 为 [{name, value}] 数组，体现地理分布
+
+【新增widget类型布局尺寸】
+- gauge: w=3 h=3 | funnel/radar/heatmap/alert/map: w=6 h=4 | bullet: w=6 h=2
+
+【关联/穿透与详情配置】
+- 可为widget添加 link 字段实现点击跳转/穿透：{ type: "workspace|widget|url", targetId?: "...", targetTemplate?: "...", url?: "...", title?: "..." }
+- 可为widget添加 detail 字段定义侧滑详情面板：{ type: "slide-out", content?: "详细内容", width?: "480px" }
 
 约束（绝对不可修改）：
 - 名称：${baseSpec.name}
@@ -203,15 +241,23 @@ function parseGeneratedSpec(raw: string): Record<string, unknown> | null {
   if (!p.widgets || !Array.isArray(p.widgets)) return null;
 
   // 标准化 widget 结构
-  const widgets = (p.widgets as any[]).map((w: any, i: number) => ({
-    id: w.id || `w-gen-${Date.now()}-${i}`,
-    type: String(w.type || 'metric'),
-    title: String(w.title || '新组件'),
-    position: w.position || { x: (i * 3) % 12, y: Math.floor(i / 4) * 4, w: 3, h: 2 },
-    data: w.data || {},
-    ...(w.dataSource ? { dataSource: w.dataSource } : {}),
-    ...(w.detail ? { detail: w.detail } : {}),
-  }));
+  const widgets = (p.widgets as any[]).map((w: any, i: number) => {
+    const inferred = inferWidgetType(w.data || {});
+    const rawType = String(w.type || '');
+    // 如果 LLM 返回的类型与数据不匹配，用推断类型修正
+    const finalType = (rawType && !isTypeMismatched(rawType, w.data || {}))
+      ? rawType
+      : (inferred !== 'universal' ? inferred : rawType || 'metric');
+    return {
+      id: w.id || `w-gen-${Date.now()}-${i}`,
+      type: finalType,
+      title: String(w.title || '新组件'),
+      position: w.position || { x: (i * 3) % 12, y: Math.floor(i / 4) * 4, w: 3, h: 2 },
+      data: w.data || {},
+      ...(w.dataSource ? { dataSource: w.dataSource } : {}),
+      ...(w.detail ? { detail: w.detail } : {}),
+    };
+  });
 
   return {
     name: p.name || '新驾驶舱',
@@ -233,7 +279,7 @@ function validateEnhancement(
       if (!w.title || w.title.length < 1) {
         violations.push(`widget "${w.title || '?'}" 标题不能为空`);
       }
-      if (!['metric', 'chart', 'table', 'kanban', 'timeline', 'list', 'report', 'universal'].includes(w.type)) {
+      if (!['metric', 'chart', 'table', 'kanban', 'timeline', 'list', 'report', 'html', 'progress', 'status', 'universal', 'gauge', 'funnel', 'radar', 'heatmap', 'bullet', 'alert', 'map'].includes(w.type)) {
         violations.push(`widget "${w.title}" 类型 "${w.type}" 不支持`);
       }
     }

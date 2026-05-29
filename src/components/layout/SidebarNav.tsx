@@ -77,6 +77,11 @@ export default function SidebarNav({
 
         {/* Workspace List */}
         <div className="flex-1 overflow-y-auto sidebar-scroll py-2 space-y-0.5">
+          {workspaces.length === 0 && !collapsed && (
+            <div className="px-3 py-4 text-center">
+              <p className="text-[11px] text-app-text-subtle">暂无驾驶舱</p>
+            </div>
+          )}
           {workspaces.map((ws) => {
             const isActive = ws.id === selectedId;
             return (
@@ -105,9 +110,6 @@ export default function SidebarNav({
                     <div className="text-xs font-medium truncate">{ws.name}</div>
                     <div className="text-[10px] text-app-text-subtle truncate">{ws.description || '智能驾驶舱'}</div>
                   </div>
-                )}
-                {!collapsed && ws.status === 'running' && (
-                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
                 )}
               </button>
             );

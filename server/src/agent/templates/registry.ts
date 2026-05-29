@@ -73,7 +73,15 @@ function buildEmptyWidgetData(type: string): Record<string, unknown> {
     case 'report': return { summary: '', highlights: [] };
     case 'progress': return { value: 0, max: 100, label: '' };
     case 'status': return { items: [] };
+    case 'html': return { html: '', title: '' };
     case 'universal': return {};
+    case 'gauge': return { value: 0, min: 0, max: 100, unit: '%' };
+    case 'funnel': return { stages: [{ name: '阶段1', value: 100, rate: 100 }, { name: '阶段2', value: 50, rate: 50 }] };
+    case 'radar': return { labels: ['维度A', '维度B', '维度C'], values: [50, 50, 50] };
+    case 'heatmap': return { rows: [{ x: 'X1', y: 'Y1', value: 0 }] };
+    case 'bullet': return { value: 0, target: 0, max: 100, label: '' };
+    case 'alert': return { alerts: [{ level: 'info', message: '暂无告警', time: '--:--' }] };
+    case 'map': return { points: [{ name: '示例', value: 0 }] };
     default: return {};
   }
 }
@@ -131,8 +139,9 @@ export function personalizeTemplate(
     .replace(/\{\{domain\}\}/g, template.domain);
 
   // 深拷贝 widgets 并重新生成 ID
-  // 当 useDemoDataFallback 为 false 时，清空 widget data 以避免显示示例数据
-  const useFallback = template.useDemoDataFallback ?? false;
+  // 默认保留模板的演示数据，让用户创建后立即看到内容
+  // 仅当模板显式设置 useDemoDataFallback=false 时才清空数据
+  const useFallback = template.useDemoDataFallback ?? true;
   const widgets = template.widgets.map((w) => ({
     ...w,
     id: nextId(),
@@ -147,7 +156,7 @@ export function personalizeTemplate(
     agentIds: [...template.agentIds],
     primaryAgentId: template.primaryAgentId,
     widgets,
-    useDemoDataFallback: template.useDemoDataFallback ?? false,
+    useDemoDataFallback: template.useDemoDataFallback ?? true,
   };
 }
 

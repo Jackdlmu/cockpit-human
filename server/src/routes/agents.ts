@@ -1,10 +1,11 @@
 import { Router } from 'express';
+import type { Request, Response, NextFunction } from 'express';
 import { getAgentRouter } from '../services/agent-router';
 
 const router = Router();
 
 /** GET /api/agents —— 聚合所有已连接平台的可用智能体 */
-router.get('/', async (req: any, res, next) => {
+router.get('/', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const router = getAgentRouter();
     if (router) {
@@ -29,7 +30,7 @@ router.get('/', async (req: any, res, next) => {
           skills: staticInfo?.skills || a.tags || [],
           category: staticInfo?.category || '通用',
           // 使用发现的数据覆盖静态
-          ...((a.meta || {}) as any),
+          ...(a.meta as Record<string, unknown> || {}),
         };
       });
 
@@ -42,7 +43,7 @@ router.get('/', async (req: any, res, next) => {
     }
 
     // 没有 AgentRouter：回退到 adapter
-    const agents = await req.adapter.getAgents();
+    const agents = await (req as Request & { adapter: { getAgents: () => Promise<unknown[]> } }).adapter.getAgents();
     res.json({ agents, source: 'adapter', discovered: false });
   } catch (err) {
     next(err);
@@ -50,7 +51,7 @@ router.get('/', async (req: any, res, next) => {
 });
 
 /** GET /api/agents/:id —— 获取单个智能体 */
-router.get('/:id', async (req: any, res, next) => {
+router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const router = getAgentRouter();
     if (router) {
@@ -76,16 +77,16 @@ router.get('/:id', async (req: any, res, next) => {
       }
     }
 
-    const agent = await req.adapter.getAgent(req.params.id);
+    const agent = await (req as Request & { adapter: { getAgent: (id: string) => Promise<unknown> } }).adapter.getAgent(req.params.id);
     res.json({ agent });
   } catch (err) {
     next(err);
   }
 });
 
-router.get('/:id/stats', async (req: any, res, next) => {
+router.get('/:id/stats', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const stats = await req.adapter.getAgentStats(req.params.id);
+    const stats = await (req as Request & { adapter: { getAgentStats: (id: string) => Promise<unknown> } }).adapter.getAgentStats(req.params.id);
     res.json(stats);
   } catch (err) {
     next(err);

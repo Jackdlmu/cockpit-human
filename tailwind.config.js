@@ -2,6 +2,7 @@
 module.exports = {
   darkMode: ["class"],
   content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
+  safelist: ['border-border', 'bg-background', 'text-foreground'],
   theme: {
     extend: {
       colors: {
@@ -13,6 +14,17 @@ module.exports = {
         primary: {
           DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",
+          50: "hsl(var(--primary-50))",
+          100: "hsl(var(--primary-100))",
+          200: "hsl(var(--primary-200))",
+          300: "hsl(var(--primary-300))",
+          400: "hsl(var(--primary-400))",
+          500: "hsl(var(--primary-500))",
+          600: "hsl(var(--primary-600))",
+          700: "hsl(var(--primary-700))",
+          800: "hsl(var(--primary-800))",
+          900: "hsl(var(--primary-900))",
+          950: "hsl(var(--primary-950))",
         },
         secondary: {
           DEFAULT: "hsl(var(--secondary))",
@@ -21,6 +33,18 @@ module.exports = {
         destructive: {
           DEFAULT: "hsl(var(--destructive) / <alpha-value>)",
           foreground: "hsl(var(--destructive-foreground) / <alpha-value>)",
+        },
+        success: {
+          DEFAULT: "hsl(var(--success))",
+          foreground: "hsl(var(--success-foreground))",
+        },
+        warning: {
+          DEFAULT: "hsl(var(--warning))",
+          foreground: "hsl(var(--warning-foreground))",
+        },
+        info: {
+          DEFAULT: "hsl(var(--info))",
+          foreground: "hsl(var(--info-foreground))",
         },
         muted: {
           DEFAULT: "hsl(var(--muted))",
@@ -48,28 +72,72 @@ module.exports = {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        /* ── App 语义色彩 Token ── */
         "app-bg": "hsl(var(--app-bg))",
+        "app-bg-elevated": "hsl(var(--app-bg-elevated))",
         "app-surface": "hsl(var(--app-surface))",
         "app-surface-hover": "hsl(var(--app-surface-hover))",
         "app-surface-elevated": "hsl(var(--app-surface-elevated))",
         "app-surface-subtle": "hsl(var(--app-surface-subtle))",
         "app-border": "hsl(var(--app-border))",
         "app-border-subtle": "hsl(var(--app-border-subtle))",
+        "app-border-hover": "hsl(var(--app-border-hover))",
         "app-text": "hsl(var(--app-text))",
         "app-text-secondary": "hsl(var(--app-text-secondary))",
         "app-text-muted": "hsl(var(--app-text-muted))",
         "app-text-subtle": "hsl(var(--app-text-subtle))",
         "app-overlay": "hsl(var(--app-overlay))",
+        /* ── Widget 专用 Token ── */
+        "widget-bg": "hsl(var(--widget-bg))",
+        "widget-bg-hover": "hsl(var(--widget-bg-hover))",
+        "widget-border": "hsl(var(--widget-border))",
+        "widget-border-hover": "hsl(var(--widget-border-hover))",
       },
       borderRadius: {
+        "2xl": "calc(var(--radius) + 8px)",
         xl: "calc(var(--radius) + 4px)",
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
         xs: "calc(var(--radius) - 6px)",
+        "2xs": "0.25rem",
       },
       boxShadow: {
-        xs: "0 1px 2px 0 rgb(0 0 0 / 0.05)",
+        xs: "var(--shadow-xs)",
+        sm: "var(--shadow-sm)",
+        md: "var(--shadow-md)",
+        lg: "var(--shadow-lg)",
+        xl: "var(--shadow-xl)",
+        "glow-primary": "var(--shadow-glow-primary)",
+        widget: "var(--widget-shadow)",
+        "widget-hover": "var(--widget-shadow-hover)",
+      },
+      fontFamily: {
+        sans: [
+          "Inter",
+          "system-ui",
+          "-apple-system",
+          "BlinkMacSystemFont",
+          "Segoe UI",
+          "Roboto",
+          "Helvetica Neue",
+          "Arial",
+          "sans-serif",
+        ],
+        mono: [
+          "JetBrains Mono",
+          "Fira Code",
+          "SF Mono",
+          "Monaco",
+          "monospace",
+        ],
+      },
+      fontSize: {
+        "2xs": ["0.625rem", { lineHeight: "0.875rem" }],
+      },
+      transitionTimingFunction: {
+        "widget": "cubic-bezier(0.4, 0, 0.2, 1)",
+        "bounce-subtle": "cubic-bezier(0.34, 1.56, 0.64, 1)",
       },
       keyframes: {
         "accordion-down": {
@@ -84,11 +152,31 @@ module.exports = {
           "0%,70%,100%": { opacity: "1" },
           "20%,50%": { opacity: "0" },
         },
+        "fade-in": {
+          from: { opacity: "0", transform: "translateY(4px)" },
+          to: { opacity: "1", transform: "translateY(0)" },
+        },
+        "slide-in-right": {
+          from: { opacity: "0", transform: "translateX(8px)" },
+          to: { opacity: "1", transform: "translateX(0)" },
+        },
+        "pulse-subtle": {
+          "0%, 100%": { opacity: "1" },
+          "50%": { opacity: "0.7" },
+        },
+        "shimmer": {
+          "0%": { backgroundPosition: "-200% 0" },
+          "100%": { backgroundPosition: "200% 0" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
         "caret-blink": "caret-blink 1.25s ease-out infinite",
+        "fade-in": "fade-in 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+        "slide-in-right": "slide-in-right 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
+        "pulse-subtle": "pulse-subtle 2s ease-in-out infinite",
+        "shimmer": "shimmer 2s linear infinite",
       },
     },
   },

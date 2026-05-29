@@ -25,6 +25,7 @@ export class HermesConnector implements Connector {
   private reconnectDelay = 3000;
   private pingTimer?: NodeJS.Timeout;
   private lastPong = Date.now();
+  private shouldReconnect = true;
 
   constructor(connection: Connection) {
     if (connection.type !== 'hermes') {
@@ -43,7 +44,7 @@ export class HermesConnector implements Connector {
 
       try {
         this.ws = new WebSocket(ep);
-      } catch (err: any) {
+      } catch (err: unknown) {
         reject(new Error(`WebSocket creation failed: ${err.message}`));
         return;
       }
@@ -68,10 +69,12 @@ export class HermesConnector implements Connector {
       this.ws.onclose = () => {
         clearTimeout(timeout);
         this.stopPing();
-        this.scheduleReconnect();
+        if (this.shouldReconnect) {
+          this.scheduleReconnect();
+        }
       };
 
-      this.ws.onerror = (err: any) => {
+      this.ws.onerror = (err: Event) => {
         clearTimeout(timeout);
         reject(new Error(`WebSocket error: ${err.message || 'Unknown'}`));
       };
@@ -79,6 +82,7 @@ export class HermesConnector implements Connector {
   }
 
   async disconnect(): Promise<void> {
+    this.shouldReconnect = false;
     this.stopReconnect();
     this.stopPing();
     if (this.ws) {
@@ -196,7 +200,7 @@ export class HermesConnector implements Connector {
     this.messageHandlers.add(handler);
 
     // 发送订阅消息
-    const topicPrefix = (this.connection.config as any).topicPrefix || '*';
+    const topicPrefix = this.connection.config.topicPrefix || '*';
     this.send({
       id: `sub-${Date.now()}`,
       topic: topicPrefix,
@@ -228,7 +232,7 @@ export class HermesConnector implements Connector {
   // ── 工具方法 ──
 
   private getWsEndpoint(): string {
-    let ep = (this.connection.config as any).endpoint || '';
+    let ep = this.connection.config.endpoint || '';
     ep = ep.replace(/\/$/, '');
     // 将 http/https 转换为 ws/wss
     if (ep.startsWith('https://')) {

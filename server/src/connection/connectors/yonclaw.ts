@@ -59,7 +59,7 @@ export class YonClawConnector extends BaseConnector {
         return { healthy: true, latency };
       }
       return { healthy: false, latency, error: `HTTP ${res.status}` };
-    } catch (err: any) {
+    } catch (err: unknown) {
       return { healthy: false, latency: Date.now() - start, error: err.message };
     }
   }
@@ -143,12 +143,12 @@ export class YonClawConnector extends BaseConnector {
       context: input.context,
       sessionId: input.sessionId,
     });
-    const r = result as any;
+    const r = result as Record<string, unknown>;
     return {
-      message: r.message || r.output || JSON.stringify(result),
-      data: r.data,
-      suggestedCommands: r.suggestedCommands,
-      sessionId: input.sessionId || r.sessionId,
+      message: String(r.message || r.output || JSON.stringify(result)),
+      data: r.data as Record<string, unknown> | undefined,
+      suggestedCommands: Array.isArray(r.suggestedCommands) ? r.suggestedCommands as string[] : undefined,
+      sessionId: input.sessionId || (r.sessionId as string | undefined),
     };
   }
 
@@ -173,7 +173,7 @@ export class YonClawConnector extends BaseConnector {
 
   // ── 大模型能力（YonClaw 内置 LLM）─
 
-  async chat(messages: ChatMessage[], options?: any): Promise<string> {
+  async chat(messages: ChatMessage[], options?: LLMOptions): Promise<string> {
     const ep = this.getEndpoint();
     const res = await this.fetchJson<{ message: string }>(`${ep}/llm/chat`, {
       method: 'POST',
@@ -182,7 +182,7 @@ export class YonClawConnector extends BaseConnector {
     return res.message;
   }
 
-  async *streamChat(messages: ChatMessage[], options?: any): AsyncGenerator<string> {
+  async *streamChat(messages: ChatMessage[], options?: LLMOptions): AsyncGenerator<string> {
     const ep = this.getEndpoint();
     yield* this.fetchStream(`${ep}/llm/chat`, { messages, options, stream: true });
   }

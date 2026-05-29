@@ -56,40 +56,41 @@ export function buildDefaultCockpitSpec(
     });
   }
 
-  // 最终兜底：提供一组通用基础组件，确保驾驶舱不为空
+  // 最终兜底：提供一组带演示数据的通用基础组件
   return {
     name,
-    description: `由座舱代理自动创建的${name}`,
+    description: `由驾驶舱智能体自动创建的${name}`,
     icon: 'Layers',
     color: '#8b5cf6',
+    useDemoDataFallback: true,
     widgets: [
       {
         id: 'w-metric-1',
         type: 'metric',
         title: '核心指标',
         position: { x: 0, y: 0, w: 3, h: 2 },
-        data: { value: '—', change: '', trend: 'flat' },
+        data: { value: '1,248', change: '+12.5%', trend: 'up', caption: '较上月' },
       },
       {
         id: 'w-chart-1',
         type: 'chart',
         title: '趋势分析',
         position: { x: 3, y: 0, w: 6, h: 4 },
-        data: { labels: [], values: [] },
+        data: { labels: ['1月', '2月', '3月', '4月', '5月', '6月'], values: [65, 78, 90, 81, 95, 110] },
       },
       {
         id: 'w-list-1',
         type: 'list',
         title: '关键事项',
         position: { x: 9, y: 0, w: 3, h: 4 },
-        data: { items: [] },
+        data: { items: ['完成Q3目标设定', '启动客户满意度调研', '更新产品路线图', '组织团队培训'] },
       },
       {
         id: 'w-status-1',
         type: 'status',
         title: '运行状态',
         position: { x: 0, y: 2, w: 3, h: 2 },
-        data: { items: [] },
+        data: { items: [{ label: '系统服务', value: '正常', status: 'green' }, { label: '数据同步', value: '运行中', status: 'green' }] },
       },
     ],
     agentIds: [],

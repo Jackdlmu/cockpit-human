@@ -1,4 +1,4 @@
-import type { Workspace } from '@/types';
+import type { Workspace, CockpitTemplate } from '@/types';
 import { useState, useCallback } from 'react';
 import { Layers, BarChart3, UserPlus, CheckCircle, Monitor, Target, Plus, Clock, Settings, Trash2, DollarSign, TrendingUp, Code2, Users, Truck } from 'lucide-react';
 import {
@@ -26,6 +26,7 @@ interface WorkspaceViewProps {
   workspaces: Workspace[];
   onSelectWorkspace: (id: string) => void;
   onDeleteWorkspace?: (id: string) => Promise<void>;
+  onRefreshWorkspaces?: () => Promise<void>;
 }
 
 const wsIcons: Record<string, React.ElementType> = {
@@ -33,18 +34,14 @@ const wsIcons: Record<string, React.ElementType> = {
   DollarSign, TrendingUp, Code2, Users, Truck,
 };
 
-const statusConfig = {
-  running: { label: '运行中', color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20', dot: 'bg-emerald-400' },
-  stopped: { label: '已停止', color: 'text-white/30', bg: 'bg-white/[0.03]', border: 'border-white/[0.06]', dot: 'bg-white/20' },
-  error: { label: '异常', color: 'text-red-400', bg: 'bg-red-500/10', border: 'border-red-500/20', dot: 'bg-red-400' },
-};
 
-export function WorkspaceView({ workspaces, onSelectWorkspace, onDeleteWorkspace }: WorkspaceViewProps) {
+
+export function WorkspaceView({ workspaces, onSelectWorkspace, onDeleteWorkspace, onRefreshWorkspaces }: WorkspaceViewProps) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
 
   // 模板列表（用于新建弹窗快速选择）
-  const [templates, setTemplates] = useState<any[]>([]);
+  const [templates, setTemplates] = useState<CockpitTemplate[]>([]);
 
   // 进度浮层状态
   const [progressVisible, setProgressVisible] = useState(false);
@@ -74,7 +71,6 @@ export function WorkspaceView({ workspaces, onSelectWorkspace, onDeleteWorkspace
     setDialogOpen(false);
 
     let fullMessage = '';
-    let createdWorkspaceId: string | undefined;
 
     cockpitAgentChatStream(
       command,
@@ -93,12 +89,24 @@ export function WorkspaceView({ workspaces, onSelectWorkspace, onDeleteWorkspace
         // 检查是否有 cockpit-create 成功的结果
         if (data.results) {
           const createResult = data.results.find(
-            (r: any) => r.success && r.data?.id?.startsWith('ws-')
+            (r: Record<string, unknown>) => r.success === true && (r.data as Record<string, string>)?.id?.startsWith('ws-')
           );
           if (createResult) {
-            createdWorkspaceId = createResult.data.id;
+            const newId = (createResult.data as Record<string, string>).id;
             setProgressSuccess(true);
-            setProgressMessage(`✅ ${data.message || '驾驶舱创建成功'}\n\n🆔 驾驶舱 ID：${createdWorkspaceId}`);
+            setProgressMessage(`✅ ${data.message || '驾驶舱创建成功'}\n\n🆔 驾驶舱 ID：${newId}`);
+            // 刷新列表并延迟后自动选中新驾驶舱
+            const switchToNew = () => {
+              setTimeout(() => {
+                setProgressVisible(false);
+                onSelectWorkspace(newId);
+              }, 1500);
+            };
+            if (onRefreshWorkspaces) {
+              onRefreshWorkspaces().then(switchToNew).catch(switchToNew);
+            } else {
+              switchToNew();
+            }
             return;
           }
         }
@@ -114,7 +122,7 @@ export function WorkspaceView({ workspaces, onSelectWorkspace, onDeleteWorkspace
         setProgressMessage(`❌ 出错：${err.message}`);
       }
     );
-  }, [onSelectWorkspace]);
+  }, [onSelectWorkspace, onRefreshWorkspaces]);
 
   const handleCloseProgress = useCallback(() => {
     setProgressVisible(false);
@@ -150,12 +158,17 @@ export function WorkspaceView({ workspaces, onSelectWorkspace, onDeleteWorkspace
         res.initializing ? '驾驶舱创建成功，正在初始化数据...' : '驾驶舱创建成功',
         { description: `ID: ${res.workspace.id}` }
       );
-      window.location.reload();
-    } catch (err: any) {
-      toast.error('创建失败', { description: err.message });
+      // 刷新列表确保新驾驶舱出现
+      if (onRefreshWorkspaces) {
+        await onRefreshWorkspaces();
+      }
+      onSelectWorkspace(res.workspace.id);
+    } catch (err: unknown) {
+      toast.error('创建失败', { description: err instanceof Error ? err.message : String(err) });
+    } finally {
       setExecuting(false);
     }
-  }, []);
+  }, [onSelectWorkspace, onRefreshWorkspaces]);
 
   return (
     <div className="flex-1 flex flex-col min-w-0 bg-app-bg overflow-y-auto">
@@ -209,17 +222,23 @@ export function WorkspaceView({ workspaces, onSelectWorkspace, onDeleteWorkspace
 
       {/* Content */}
       <div className="p-6">
+        {workspaces.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 text-app-text-subtle gap-3">
+            <Layers className="w-8 h-8 text-app-text-muted" />
+            <p className="text-sm">暂无驾驶舱</p>
+            <p className="text-xs text-app-text-subtle">点击右上角「新建驾驶舱」创建您的第一个驾驶舱</p>
+          </div>
+        ) : (
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
           {workspaces.map((ws) => {
             const Icon = wsIcons[ws.icon] || Layers;
-            const status = statusConfig[ws.status];
             return (
               <div
                 key={ws.id}
                 onClick={() => onSelectWorkspace(ws.id)}
                 className="group relative p-5 rounded-xl bg-app-surface border border-app-border-subtle shadow-[0_1px_3px_rgba(0,0,0,0.18)] hover:bg-app-surface-hover hover:border-app-border hover:shadow-[0_2px_6px_rgba(0,0,0,0.22)] transition-all text-left cursor-pointer"
               >
-                {/* Status indicator + delete */}
+                {/* Delete button */}
                 <div className="absolute top-4 right-4 flex items-center gap-1.5">
                   <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
                     {onDeleteWorkspace && (
@@ -232,8 +251,6 @@ export function WorkspaceView({ workspaces, onSelectWorkspace, onDeleteWorkspace
                       </button>
                     )}
                   </div>
-                  <div className={`w-1.5 h-1.5 rounded-full ${status.dot}`} />
-                  <span className={`text-[10px] ${status.color}`}>{status.label}</span>
                 </div>
 
                 <div
@@ -261,6 +278,38 @@ export function WorkspaceView({ workspaces, onSelectWorkspace, onDeleteWorkspace
                   </div>
                 </div>
 
+                {/* Active Agents indicator */}
+                {ws.agentIds && ws.agentIds.length > 0 && (
+                  <div className="mt-3 flex items-center gap-1.5">
+                    <div className="flex -space-x-1">
+                      {ws.agentIds.slice(0, 3).map((agentId, idx) => {
+                        const isPrimary = agentId === ws.primaryAgentId;
+                        return (
+                          <span
+                            key={agentId}
+                            className={`
+                              w-4 h-4 rounded-full flex items-center justify-center text-[8px]
+                              border border-app-surface-elevated
+                              ${isPrimary ? 'bg-red-400 text-white z-10' : 'bg-app-surface-subtle text-app-text-subtle'}
+                            `}
+                          >
+                            {isPrimary ? '◉' : '●'}
+                          </span>
+                        );
+                      })}
+                    </div>
+                    {ws.orchestration && (
+                      <span
+                        className={`w-1.5 h-1.5 rounded-full ${
+                          ws.orchestration.health === 'healthy' ? 'bg-emerald-400'
+                            : ws.orchestration.health === 'degraded' ? 'bg-amber-400'
+                            : 'bg-red-400'
+                        }`}
+                      />
+                    )}
+                  </div>
+                )}
+
                 {/* Widget preview */}
                 <div className="mt-4 pt-4 border-t border-app-border-subtle grid grid-cols-3 gap-2">
                   {ws.widgets.slice(0, 3).map((w) => (
@@ -276,6 +325,7 @@ export function WorkspaceView({ workspaces, onSelectWorkspace, onDeleteWorkspace
             );
           })}
         </div>
+        )}
       </div>
 
       {/* 新建驾驶舱对话框 */}

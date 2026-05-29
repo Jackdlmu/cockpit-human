@@ -8,7 +8,6 @@ export abstract class BaseConnector implements Connector {
   readonly type: ConnectionType;
 
   protected connection: Connection;
-  protected abortController?: AbortController;
 
   constructor(connection: Connection) {
     this.connection = connection;
@@ -23,18 +22,18 @@ export abstract class BaseConnector implements Connector {
   // ── 通用 HTTP 工具 ──
 
   protected async fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
-    const timeout = (this.connection.config as any).timeout ?? 30000;
-    this.abortController = new AbortController();
-    const timer = setTimeout(() => this.abortController?.abort(), timeout);
+    const timeout = this.connection.config.timeout ?? 30000;
+    const abortController = new AbortController();
+    const timer = setTimeout(() => abortController.abort(), timeout);
 
     try {
       const res = await fetch(url, {
         ...options,
-        signal: this.abortController.signal,
+        signal: abortController.signal,
         headers: {
           'Content-Type': 'application/json',
-          ...(this.getAuthHeader()),
-          ...(options?.headers || {}),
+          ...this.getAuthHeader(),
+          ...options?.headers,
         },
       });
       clearTimeout(timer);
@@ -45,37 +44,37 @@ export abstract class BaseConnector implements Connector {
         throw new Error(errMsg);
       }
       return res.json() as T;
-    } catch (err: any) {
+    } catch (err: unknown) {
       clearTimeout(timer);
-      if (err.name === 'AbortError') throw new Error('Request timeout');
+      if ((err as Error).name === 'AbortError') throw new Error('Request timeout');
       throw err;
     }
   }
 
   /** 从 API 错误响应中提取可读的错误信息 */
-  private static extractErrorMessage(body: any, status: number): string {
-    if (typeof body?.error === 'string') return body.error;
-    if (typeof body?.error?.message === 'string') return body.error.message;
-    if (typeof body?.message === 'string') return body.message;
-    if (typeof body?.error?.type === 'string') return `${body.error.type} (HTTP ${status})`;
+  private static extractErrorMessage(body: Record<string, unknown>, status: number): string {
+    if (typeof (body as { error?: string }).error === 'string') return (body as { error: string }).error;
+    if (typeof (body as { error?: { message?: string } }).error?.message === 'string') return (body as { error: { message: string } }).error.message;
+    if (typeof (body as { message?: string }).message === 'string') return (body as { message: string }).message;
+    if (typeof (body as { error?: { type?: string } }).error?.type === 'string') return `${(body as { error: { type: string } }).error.type} (HTTP ${status})`;
     return `HTTP ${status}`;
   }
 
   protected async *fetchStream(url: string, body: unknown): AsyncGenerator<string> {
-    const timeout = (this.connection.config as any).timeout ?? 30000;
-    this.abortController = new AbortController();
-    const timer = setTimeout(() => this.abortController?.abort(), timeout);
+    const timeout = this.connection.config.timeout ?? 30000;
+    const abortController = new AbortController();
+    const timer = setTimeout(() => abortController.abort(), timeout);
 
     try {
       const res = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(this.getAuthHeader()),
+          ...this.getAuthHeader(),
           'Accept': 'text/event-stream',
         },
         body: JSON.stringify(body),
-        signal: this.abortController.signal,
+        signal: abortController.signal,
       });
       clearTimeout(timer);
 
@@ -90,44 +89,48 @@ export abstract class BaseConnector implements Connector {
       const decoder = new TextDecoder();
       let buffer = '';
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
 
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
 
-        for (const line of lines) {
-          const trimmed = line.trim();
-          if (!trimmed.startsWith('data: ')) continue;
-          const dataStr = trimmed.slice(6).trim();
-          if (dataStr === '[DONE]') return;
-          try {
-            const data = JSON.parse(dataStr);
-            if (data.chunk) yield data.chunk;
-            else if (data.choices?.[0]?.delta?.content) yield data.choices[0].delta.content;
-            else if (data.content) yield data.content;
-          } catch {
-            // 非 JSON 直接输出
-            yield dataStr;
+          for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed.startsWith('data: ')) continue;
+            const dataStr = trimmed.slice(6).trim();
+            if (dataStr === '[DONE]') return;
+            try {
+              const data = JSON.parse(dataStr);
+              if (data.chunk) yield data.chunk;
+              else if (data.choices?.[0]?.delta?.content) yield data.choices[0].delta.content;
+              else if (data.content) yield data.content;
+            } catch {
+              // 非 JSON 直接输出
+              yield dataStr;
+            }
           }
         }
+      } finally {
+        reader.releaseLock();
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       clearTimeout(timer);
-      if (err.name === 'AbortError') throw new Error('Request timeout');
+      if ((err as Error).name === 'AbortError') throw new Error('Request timeout');
       throw err;
     }
   }
 
   protected getAuthHeader(): Record<string, string> {
-    const apiKey = (this.connection.config as any).apiKey;
+    const apiKey = this.connection.config.apiKey;
     return apiKey ? { 'Authorization': `Bearer ${apiKey}` } : {};
   }
 
   protected getEndpoint(): string {
-    let ep = (this.connection.config as any).endpoint || '';
+    let ep = this.connection.config.endpoint || '';
     ep = ep.replace(/\/$/, '');
     // 自动将 WebSocket 协议转换为 HTTP，供 fetch 使用
     if (ep.startsWith('wss://')) return ep.replace('wss://', 'https://');

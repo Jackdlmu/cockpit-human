@@ -34,9 +34,9 @@ export default function ConnectionForm({ connection, onSubmit, onCancel, onTest 
   const [type, setType] = useState<ConnectionType>(connection?.type || 'generic-llm');
   const [endpoint, setEndpoint] = useState(connection?.config.endpoint || '');
   const [apiKey, setApiKey] = useState(connection?.config.apiKey || '');
-  const [model, setModel] = useState((connection?.config as any)?.model || '');
-  const [topicPrefix, setTopicPrefix] = useState((connection?.config as any)?.topicPrefix || '');
-  const [organizationId, setOrganizationId] = useState((connection?.config as any)?.organizationId || '');
+  const [model, setModel] = useState(connection?.config?.model || '');
+  const [topicPrefix, setTopicPrefix] = useState(connection?.config?.topicPrefix || '');
+  const [organizationId, setOrganizationId] = useState(connection?.config?.organizationId || '');
   const [priority, setPriority] = useState(connection?.priority ?? 100);
   const [enabled, setEnabled] = useState(connection?.enabled ?? true);
   const [testing, setTesting] = useState(false);
@@ -54,9 +54,9 @@ export default function ConnectionForm({ connection, onSubmit, onCancel, onTest 
     e.preventDefault();
     if (!name.trim() || !endpoint.trim()) return;
 
-    const config: any = {
+    const config: Connection['config'] = {
       endpoint: endpoint.trim(),
-      protocol: isHermes ? 'websocket' : (protocol as any),
+      protocol: isHermes ? 'websocket' : (protocol as 'http' | 'websocket'),
       timeout: 30000,
     };
     if (apiKey.trim()) config.apiKey = apiKey.trim();
@@ -81,9 +81,9 @@ export default function ConnectionForm({ connection, onSubmit, onCancel, onTest 
     setTesting(true);
     setTestResult(null);
     try {
-      const config: any = {
+      const config: Connection['config'] = {
         endpoint: endpoint.trim(),
-        protocol: isHermes ? 'websocket' : (protocol as any),
+        protocol: isHermes ? 'websocket' : (protocol as 'http' | 'websocket'),
         timeout: 30000,
       };
       if (apiKey.trim()) config.apiKey = apiKey.trim();
@@ -98,8 +98,8 @@ export default function ConnectionForm({ connection, onSubmit, onCancel, onTest 
         capabilities: defaultCapabilityMap[type],
       });
       setTestResult(result.message);
-    } catch (err: any) {
-      setTestResult(err.message || '测试失败');
+    } catch (err: unknown) {
+      setTestResult(err instanceof Error ? err.message : '测试失败');
     } finally {
       setTesting(false);
     }

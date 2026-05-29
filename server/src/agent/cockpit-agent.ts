@@ -1,5 +1,5 @@
 // ─── CockpitAgent ───
-// 座舱代理：智能驾驶舱的「大脑」
+// 驾驶舱智能体：智能驾驶舱的「大脑」
 // 职责：意图识别 → 任务规划 → 连接路由 → 执行 → 结果聚合
 
 import type { ConnectionManager } from '../connection/manager';
@@ -25,6 +25,30 @@ export class CockpitAgent {
   private sessionCache = new Map<string, any>();
 
   constructor(private connectionManager: ConnectionManager) {}
+
+  // ── 构建带 workspace 上下文的 system prompt ──
+
+  private buildSystemPrompt(context: ExecutionContext, basePrompt: string): string {
+    const parts: string[] = [basePrompt];
+    if (context.promptContext) {
+      parts.push('\n\n' + context.promptContext);
+    } else if (context.workspace) {
+      const ws = context.workspace;
+      const widgets = ws.widgets || [];
+      const widgetSummary = widgets.slice(0, 20).map((w: any) => {
+        const dataHint = w.data?.value ? ` (数据: ${w.data.value})` : '';
+        return `- [${w.type}] ${w.title}${dataHint}`;
+      }).join('\n');
+      parts.push(`\n\n【当前驾驶舱上下文】
+名称：${ws.name}
+描述：${ws.description || '无'}
+组件概况：共 ${widgets.length} 个组件
+${widgetSummary ? '组件列表：\n' + widgetSummary : ''}
+主控智能体：${ws.primaryAgentId || '无'}
+协作智能体：${(ws.agentIds || []).join('、') || '无'}`);
+    }
+    return parts.join('');
+  }
 
   // ── 获取 LLM 连接器（用于意图识别和规划）─
 
@@ -94,6 +118,45 @@ export class CockpitAgent {
         intent = ruleResult || { type: 'chat', confidence: 0.5, entities: extractEntities(command), raw: command };
       }
       yield { chunk: `💡 识别到意图：${intentLabel(intent.type)} 📋（置信度 ${Math.round(intent.confidence * 100)}%，来源：规则 fallback）\n`, stage: 'thinking', done: false };
+    }
+
+    // ── Phase 2: chat 意图短路路径（高置信度 + 无次要意图） ──
+    if (intent.type === 'chat' && intent.confidence >= 0.7 && (!multiResult || multiResult.secondary.length === 0) && llmConnector && llmConnector.chat) {
+      yield { chunk: `💬 直接对话（基于「${context.workspace?.name || '当前驾驶舱'}」上下文）...\n`, stage: 'thinking', done: false };
+      const chatStart = Date.now();
+      try {
+        const systemPrompt = this.buildSystemPrompt(context,
+          '你是一个智能驾驶舱助手。你可以查看驾驶舱中的数据、分析趋势、回答用户关于当前驾驶舱的问题。');
+        const messages: ChatMessage[] = [
+          { role: 'system', content: systemPrompt },
+          ...((context.history || []).map((h) => ({ role: h.role as 'user' | 'assistant', content: h.content }))),
+          { role: 'user', content: command },
+        ];
+        const reply = await llmConnector.chat(messages, { temperature: 0.7, maxTokens: 1200 });
+        const latency = Date.now() - chatStart;
+        yield { chunk: `\n`, stage: 'summarizing', done: false };
+        yield {
+          chunk: '\n',
+          stage: 'summarizing',
+          done: true,
+          message: reply,
+          card: null,
+          suggestedCommands: this.suggestCommands('chat'),
+          results: [{ taskId: 'direct-chat', success: true, data: reply, latency }],
+          usedLLM: true,
+        };
+        return {
+          message: reply,
+          card: null,
+          suggestedCommands: this.suggestCommands('chat'),
+          plan: undefined,
+          results: [{ taskId: 'direct-chat', success: true, data: reply, latency }],
+          sessionId: context.sessionId,
+        };
+      } catch (err: any) {
+        console.warn('[CockpitAgent] Chat shortcut failed:', err.message, '→ falling back to full pipeline');
+        yield { chunk: `⚠️ 直接对话失败，回退到标准流程...\n`, stage: 'thinking', done: false };
+      }
     }
 
     // ── Stage 2: 任务规划（Phase 3: 规则打底 + LLM 增强） ──
@@ -489,8 +552,10 @@ export class CockpitAgent {
     switch (task.capability) {
       case 'llm-chat': {
         const msg = (task.params.message as string) || (task.params.input as string) || '';
+        const systemPrompt = this.buildSystemPrompt(context,
+          '你是一个智能驾驶舱助手。你可以查看驾驶舱中的数据、分析趋势、回答用户关于当前驾驶舱的问题。');
         const messages: ChatMessage[] = [
-          { role: 'system', content: '你是一个智能驾驶舱助手。' },
+          { role: 'system', content: systemPrompt },
           { role: 'user', content: msg },
         ];
         if (!connector.chat) throw new Error('连接器不支持 chat');
@@ -516,11 +581,38 @@ export class CockpitAgent {
           if (llm && llm.chat) {
             console.log(`[CockpitAgent] agent-invoke failed (${err.message}), fallback to LLM`);
             const cmd = (task.params.command as string) || '';
+            const ws = context.workspace;
+            const widgetDesc = ws && ws.widgets
+              ? ws.widgets.map((w: any) => `- ${w.title}（${w.type}）`).join('\n')
+              : '无';
+            const systemPrompt = this.buildSystemPrompt(context,
+              '你是一个数据查询代理。根据用户请求返回简洁的结果。如果查询结果可以填充到驾驶舱组件中，请在回答末尾附加JSON代码块，格式：{"widgets":[{"title":"组件标题","data":{...}}]}');
             const messages: ChatMessage[] = [
-              { role: 'system', content: '你是一个数据查询代理。根据用户请求返回简洁的结果。' },
-              { role: 'user', content: cmd },
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: `当前驾驶舱组件：\n${widgetDesc}\n\n用户请求：${cmd}` },
             ];
-            return llm.chat(messages, { temperature: 0.3, maxTokens: 1024 });
+            const reply = await llm.chat(messages, { temperature: 0.3, maxTokens: 2048 });
+
+            // 尝试从回复中提取 widget 数据更新
+            if (ws && ws.id) {
+              try {
+                const dataUpdate = this.tryExtractWidgetUpdate(reply, ws.widgets || []);
+                if (dataUpdate && dataUpdate.length > 0) {
+                  const updatedWidgets = (ws.widgets || []).map((w: any) => {
+                    const patch = dataUpdate.find((u: any) => u.title === w.title);
+                    if (patch && patch.data && typeof patch.data === 'object') {
+                      return { ...w, data: { ...(w.data || {}), ...patch.data } };
+                    }
+                    return w;
+                  });
+                  await workspaceStore.updateWorkspace(ws.id, { widgets: updatedWidgets });
+                  eventBus.emit('workspace:updated', { workspaceId: ws.id, source: 'cockpit-agent-query' });
+                }
+              } catch (e) {
+                // 解析失败不影响正常回复
+              }
+            }
+            return reply;
           }
           throw err;
         }
@@ -568,6 +660,24 @@ export class CockpitAgent {
 
     // 先通过规则聚合获取 card（LLM 聚合可能丢失结构化数据）
     const ruleResult = this.aggregateByRule(plan, results);
+
+    // chat 意图：executeSubTask 的 llm-chat 已返回完整回答，无需再次总结
+    if (plan.intent.type === 'chat') {
+      // 如果 llm-chat 子任务成功，直接使用其结果作为 message
+      const chatResult = successResults.find((r) => {
+        const task = plan.tasks.find((t) => t.id === r.taskId);
+        return task?.capability === 'llm-chat' && typeof r.data === 'string';
+      });
+      if (chatResult) {
+        return {
+          message: String(chatResult.data),
+          card: ruleResult.card,
+          suggestedCommands: this.suggestCommands(plan.intent.type),
+        };
+      }
+      // 否则 fallback 到规则聚合
+      return ruleResult;
+    }
 
     // 尝试用 LLM 生成优美的聚合回复
     if (llmConnector && llmConnector.chat && allSuccess && successResults.length > 0) {
@@ -724,6 +834,40 @@ export class CockpitAgent {
       chat: ['继续对话', '查看帮助', '执行任务'],
     };
     return suggestions[intentType] || ['继续对话'];
+  }
+
+  // ── 辅助：从 LLM 回复中提取 widget 数据更新 ──
+  private tryExtractWidgetUpdate(reply: string, widgets: any[]): Array<{ title: string; data: Record<string, unknown> }> | null {
+    try {
+      const codeMatch = reply.match(/```json\s*\n?([\s\S]*?)\n?```/);
+      const jsonStr = codeMatch ? codeMatch[1].trim() : reply;
+      const start = jsonStr.indexOf('{');
+      if (start === -1) return null;
+      let depth = 0;
+      let end = -1;
+      for (let i = start; i < jsonStr.length; i++) {
+        if (jsonStr[i] === '{') depth++;
+        else if (jsonStr[i] === '}') {
+          depth--;
+          if (depth === 0) { end = i; break; }
+        }
+      }
+      if (end <= start) return null;
+      const parsed = JSON.parse(jsonStr.slice(start, end + 1));
+      if (!parsed || !Array.isArray(parsed.widgets)) return null;
+      const result: Array<{ title: string; data: Record<string, unknown> }> = [];
+      for (const w of parsed.widgets) {
+        if (w.title && typeof w.data === 'object' && w.data !== null) {
+          const matched = widgets.find((existing: any) => existing.title === w.title);
+          if (matched) {
+            result.push({ title: w.title, data: w.data as Record<string, unknown> });
+          }
+        }
+      }
+      return result.length > 0 ? result : null;
+    } catch {
+      return null;
+    }
   }
 }
 

@@ -66,7 +66,7 @@ export async function resolveWidgetData(
       case 'skill':
         return await resolveSkill(dataSource, widget, connectionManager, start, context, useDemoDataFallback);
       case 'query':
-        return await resolveQuery(dataSource, connectionManager, start, useDemoDataFallback);
+        return await resolveQuery(dataSource, connectionManager, start, context, useDemoDataFallback);
       case 'event':
         return resolveEvent(widget, start);
       default:
@@ -112,7 +112,7 @@ async function resolveSkill(
           const raw = await route.connector.invokeAgent({
             agentId: ds.agentId || ds.skillId || 'default',
             command,
-            context: { ...ds.input, workspaceId: context?.workspaceId },
+            context: { ...context, ...ds.input },
           });
 
           const transformed = applyTransform(raw, ds.transform);
@@ -170,7 +170,7 @@ async function resolveSkill(
   const raw = await connector.invokeAgent({
     agentId: ds.agentId || 'default',
     command,
-    context: ds.input ?? {},
+    context: { ...context, ...ds.input },
   });
 
   const transformed = applyTransform(raw, ds.transform);
@@ -182,6 +182,7 @@ async function resolveQuery(
   ds: WidgetDataSource,
   cm: ConnectionManager,
   start: number,
+  context?: Record<string, unknown>,
   useDemoDataFallback?: boolean
 ): Promise<WidgetDataResult> {
   if (!ds.query) {
@@ -203,6 +204,9 @@ async function resolveQuery(
 
   console.log(`[WidgetData] Query: ${ds.query.method || 'GET'} ${ds.query.endpoint || ds.query.sql?.slice(0, 40) || ''}`);
 
+  // 合并外部 context 到 query 参数
+  const mergedParams = { ...context, ...ds.query.params };
+
   let raw: unknown;
 
   // 如果 connector 支持 cockpit-execute，用它执行命令
@@ -210,7 +214,7 @@ async function resolveQuery(
     raw = await connector.executeOnCockpit(
       ds.query.endpoint,
       ds.query.method || 'GET',
-      ds.query.params ?? {}
+      mergedParams
     );
   }
   // 否则通过 agent-invoke 代理查询
@@ -218,7 +222,7 @@ async function resolveQuery(
     raw = await connector.invokeAgent({
       agentId: 'data-query-agent',
       command: ds.query.sql || ds.query.endpoint || '',
-      context: ds.query.params ?? {},
+      context: mergedParams,
     });
   } else {
     return fallback(widget, start, useDemoDataFallback, 'Connector does not support query operations');
@@ -276,7 +280,7 @@ function fallback(
 function buildEmptyData(widgetType: string): Record<string, unknown> {
   switch (widgetType) {
     case 'metric':
-      return { value: '', change: '', trend: 'flat' };
+      return { value: '—', change: '', trend: 'flat' };
     case 'chart':
       return { labels: [], values: [] };
     case 'table':
@@ -289,6 +293,28 @@ function buildEmptyData(widgetType: string): Record<string, unknown> {
       return { steps: [] };
     case 'report':
       return { summary: '', highlights: [] };
+    case 'html':
+      return { html: '', title: '' };
+    case 'progress':
+      return { value: 0, max: 100, label: '' };
+    case 'status':
+      return { items: [] };
+    case 'gauge':
+      return { value: 0, min: 0, max: 100, unit: '%' };
+    case 'funnel':
+      return { stages: [] };
+    case 'radar':
+      return { labels: [], values: [] };
+    case 'heatmap':
+      return { rows: [] };
+    case 'bullet':
+      return { value: 0, target: 0, max: 100, label: '' };
+    case 'alert':
+      return { alerts: [] };
+    case 'map':
+      return { points: [] };
+    case 'universal':
+      return {};
     default:
       return {};
   }

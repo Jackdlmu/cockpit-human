@@ -39,8 +39,8 @@ export class GenericLLMConnector extends BaseConnector {
       const latency = Date.now() - start;
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return { healthy: true, latency };
-    } catch (err: any) {
-      const configModel = (this.connection.config as any).model;
+    } catch (err: unknown) {
+      const configModel = this.connection.config.model;
       if (!configModel) {
         return { healthy: false, latency: Date.now() - start, error: '未配置 model — 请在连接设置中填写模型名称（如 moonshot-v1-8k、gpt-4o）' };
       }
@@ -63,7 +63,7 @@ export class GenericLLMConnector extends BaseConnector {
         if (res.status === 401) return { healthy: false, latency, error: '认证失败 (401) — API Key 无效或已过期' };
         if (res.ok || res.status === 400) return { healthy: true, latency };
         return { healthy: false, latency: Date.now() - start, error: `HTTP ${res.status}` };
-      } catch (err2: any) {
+      } catch (err2: unknown) {
         const is404 = err.message?.includes('404') || err2.message?.includes('404');
         const hint = is404
           ? ` — 请确认 endpoint 格式为 Base URL（如 https://api.openai.com/v1），而非完整路径`
@@ -77,7 +77,7 @@ export class GenericLLMConnector extends BaseConnector {
 
   async chat(messages: ChatMessage[], options?: LLMOptions): Promise<string> {
     const ep = this.getEndpoint();
-    const config = this.connection.config as any;
+    const config = this.connection.config;
     const model = options?.model || config.model;
     if (!model) {
       throw new Error('未配置 model — 请在连接设置中填写模型名称（如 moonshot-v1-8k、gpt-4o）');
@@ -102,7 +102,7 @@ export class GenericLLMConnector extends BaseConnector {
 
   async *streamChat(messages: ChatMessage[], options?: LLMOptions): AsyncGenerator<string> {
     const ep = this.getEndpoint();
-    const config = this.connection.config as any;
+    const config = this.connection.config;
     const model = options?.model || config.model;
     if (!model) {
       throw new Error('未配置 model — 请在连接设置中填写模型名称（如 moonshot-v1-8k、gpt-4o）');

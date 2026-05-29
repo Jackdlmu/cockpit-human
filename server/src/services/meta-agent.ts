@@ -8,6 +8,7 @@ import { planTasks } from '../agent/planner';
 import type { ConnectionManager } from '../connection/manager';
 import * as workspaceStore from '../data/workspaceStore';
 import { eventBus } from './event-bus';
+import { inferWidgetType } from './widget-type-inferer';
 import type { Connection } from '../connection/types';
 
 // ── 工具定义 ──
@@ -444,7 +445,7 @@ export class CockpitMetaAgent {
 当前驾驶舱已有组件：
 ${existingWidgets || '  (无)'}
 
-【重要】组件类型(type)只允许以下 7 种标准值，不能自行发明其他类型：
+【重要】组件类型(type)只允许以下 18 种标准值，不能自行发明其他类型：
 - metric（指标/仪表/数据卡/数字）
 - chart（图表/折线图/柱状图/饼图/趋势图）
 - table（表格/数据表）
@@ -452,27 +453,30 @@ ${existingWidgets || '  (无)'}
 - timeline（时间线/时间轴/里程碑）
 - list（列表/事项/任务/清单）
 - report（报告/总结/简报）
-
-每种类型对应的 data 结构要求：
-- metric:  {"value":"数值","change":"变化","trend":"up|down|flat"}
-- chart:   {"labels":["标签1","标签2"],"values":[10,20]}
-- table:   {"rows":[["列1","列2"],["数据A","数据B"]]}
-- kanban:  {"stages":["待处理","进行中","已完成"]}
-- timeline:{"steps":["步骤1","步骤2","步骤3"]}
-- list:    {"items":["事项1","事项2"]}
-- report:  {"summary":"摘要","highlights":[{"label":"指标","value":"数值"}]}
+- progress（进度条）
+- status（状态面板）
+- html（HTML组件）
+- gauge（仪表盘/进度盘）
+- funnel（漏斗图/转化漏斗）
+- radar（雷达图/蛛网图）
+- heatmap（热力图/密度图）
+- bullet（子弹图/目标进度）
+- alert（告警列表/事件通知）
+- map（地图/地理分布）
+- sparkline（迷你趋势图）
 
 布局规则（网格 12 列宽）：
-- metric: w=3 h=2
-- chart/table/kanban/timeline/list: w=6 h=4
-- report: w=9 h=4
+- metric/progress/status/bullet/sparkline: w=3 h=2
+- chart/table/kanban/timeline/list/funnel/radar/heatmap/alert/map: w=6 h=4
+- gauge: w=3 h=3
+- report/html: w=9 h=4
 - 位置需避免与现有组件重叠，y 坐标优先放在最下方空行
 
 用户指令："""${cmd}"""
 
-请只输出 JSON 数组，不要其他内容。确保 type 只能是上述 8 种标准值（含 universal）：
+请只输出 JSON 数组，不要其他内容。确保 type 只能是上述 18 种标准值（含 universal）：
 [
-  {"type":"metric|chart|table|kanban|timeline|list|report|universal","title":"组件标题","position":{"x":0,"y":0,"w":3,"h":2},"data":{"value":"—","change":"+0%","trend":"flat"}},
+  {"type":"metric|chart|table|kanban|timeline|list|report|progress|status|html|gauge|funnel|radar|heatmap|bullet|alert|map|sparkline|universal","title":"组件标题","position":{"x":0,"y":0,"w":3,"h":2},"data":{}},
   ...
 ]`;
 
@@ -483,17 +487,27 @@ ${existingWidgets || '  (无)'}
 
               const parsed = this.tryParseJson(parseResult);
               if (Array.isArray(parsed) && parsed.length > 0) {
-                newWidgets = parsed.map((w: any, i: number) => {
-                  const normType = this.normalizeWidgetType(w.type);
-                  const normData = this.normalizeWidgetData(w.data || this.defaultWidgetData(normType), normType);
-                  return {
-                    id: `w-${Date.now()}-${i}`,
-                    type: normType,
-                    title: String(w.title || '新组件'),
-                    position: w.position || this.calcWidgetPosition(normType, existingWidgets, [], i),
-                    data: normData,
-                  };
-                });
+                newWidgets = parsed
+                  .filter((w: any) => w && typeof w === 'object')
+                  .map((w: any, i: number) => {
+                    const normType = this.normalizeWidgetType(w.type, w.data);
+                    const normData = this.normalizeWidgetData(w.data || this.defaultWidgetData(normType), normType);
+                    // 防御 LLM/连接器返回异常 title（如字符数组或截断字符串）
+                    let title = w.title;
+                    if (Array.isArray(title)) title = title.join('');
+                    title = String(title || '').trim();
+                    if (title.length === 0 || title.length === 1) {
+                      // 单字 title 尝试从指令上下文推断，否则使用类型默认名
+                      title = this.widgetTypeLabel(normType);
+                    }
+                    return {
+                      id: `w-${Date.now()}-${i}`,
+                      type: normType,
+                      title,
+                      position: w.position || this.calcWidgetPosition(normType, existingWidgets, [], i),
+                      data: normData,
+                    };
+                  });
               }
             } catch (err: any) {
               console.warn('[MetaAgent] LLM widget parse failed:', err.message, '→ fallback to rule');
@@ -553,15 +567,46 @@ ${existingWidgets || '  (无)'}
         // 默认：查询/对话模式 —— 直接调用 LLM，不走 CockpitAgent（避免触发 create_cockpit）
         const llmConnector = this.connectionManager.getConnectorByCapability('llm-chat');
         if (llmConnector && llmConnector.chat) {
-          const prompt = `用户正在驾驶舱「${ws.name}」中提问。驾驶舱信息：${ws.description || '无描述'}，组件：${(ws.widgets || []).map((w: any) => w.title).join('、') || '无'}。
+          const widgetDesc = (ws.widgets || []).map((w: any) =>
+            `- ${w.title}（${this.widgetTypeLabel(w.type)}）`
+          ).join('\n') || '无';
+          const prompt = `用户正在驾驶舱「${ws.name}」中提问。驾驶舱信息：${ws.description || '无描述'}。
+
+当前组件列表：
+${widgetDesc}
 
 用户问题：${cmd}
 
-请基于驾驶舱上下文回答。如果用户要求查看数据，请说明当前是静态演示数据。`;
+请基于驾驶舱上下文回答。如果用户要求查看数据，请说明当前是静态演示数据。
+
+如果用户的查询结果可以填充到某个组件中（如查询天气、销售额等），请在回答末尾附加一个JSON代码块，格式如下，系统会自动将数据回填到对应组件：
+\`\`\`json
+{
+  "widgets": [
+    { "title": "组件标题", "data": { /* 该组件类型的数据字段 */ } }
+  ]
+}
+\`\`\``;
           const reply = await llmConnector.chat([
-            { role: 'system', content: '你是智能驾驶舱助手，基于驾驶舱上下文回答用户问题。' },
+            { role: 'system', content: '你是智能驾驶舱助手，基于驾驶舱上下文回答用户问题。支持将查询结果以JSON格式回填到组件。' },
             { role: 'user', content: prompt },
-          ], { temperature: 0.5, maxTokens: 1024 });
+          ], { temperature: 0.5, maxTokens: 2048 });
+
+          // 尝试从回复中提取 widget 数据更新
+          const dataUpdate = this.tryExtractWidgetUpdate(reply, ws.widgets || []);
+          if (dataUpdate && dataUpdate.length > 0) {
+            const updatedWidgets = (ws.widgets || []).map((w: any) => {
+              const patch = dataUpdate.find((u: any) => u.title === w.title);
+              if (patch && patch.data && typeof patch.data === 'object') {
+                return { ...w, data: { ...(w.data || {}), ...patch.data } };
+              }
+              return w;
+            });
+            await workspaceStore.updateWorkspace(ws.id, { widgets: updatedWidgets });
+            // 触发前端刷新
+            eventBus.emit('workspace:updated', { workspaceId: ws.id, source: 'meta-agent-query' });
+          }
+
           return { message: reply };
         }
 
@@ -605,7 +650,7 @@ ${existingWidgets || '  (无)'}
             // 支持传入单个 widget 或 widget 数组
             const inputWidgets = Array.isArray(raw) ? raw : [raw];
             const newWidgets = inputWidgets.map((w: any, i: number) => {
-              const normType = this.normalizeWidgetType(w.type);
+              const normType = this.normalizeWidgetType(w.type, w.data);
               return {
                 ...w,
                 id: w.id || `w-${Date.now()}-${i}`,
@@ -632,9 +677,46 @@ ${existingWidgets || '  (无)'}
           case 'update_widget': {
             const widgetId = String(params.widgetId || '');
             const patch = params.widget ? JSON.parse(String(params.widget)) : {};
-            const widgets = (ws.widgets || []).map((w: any) =>
-              w.id === widgetId ? { ...w, ...patch } : w
-            );
+
+            // 将已知的 widget data 字段自动包装到 data 中，兼容 cockpit_update 写顶层字段的调用方式
+            const knownDataFields = new Set([
+              'value', 'change', 'trend', 'caption', 'variant', 'accentColor', 'status',
+              'labels', 'values', 'categories', 'data', 'series', 'datasets', 'names', 'xaxis', 'xAxis', 'yaxis', 'yAxis',
+              'rows', 'columns', 'records', 'entries',
+              'stages', 'statuses', 'columns', 'phases',
+              'steps', 'milestones', 'events', 'nodes',
+              'items', 'tasks', 'todos',
+              'summary', 'highlights', 'keyPoints', 'metrics', 'stats', 'overview', 'detail', 'fullContent', 'content', 'html',
+              'label', 'color',
+              'min', 'max', 'unit', 'thresholds', 'percentage', 'percent', 'current',
+              'indicators', 'dimensions', 'scores',
+              'cells', 'cellData',
+              'target', 'ranges', 'goal',
+              'alerts', 'notifications',
+              'points', 'locations', 'regions', 'cities',
+              'sparkline', 'compareValue', 'compareLabel', 'previous',
+              'subtitle', 'title', 'body',
+            ]);
+            const dataPatch: Record<string, unknown> = {};
+            const topPatch: Record<string, unknown> = {};
+            for (const [key, val] of Object.entries(patch)) {
+              if (knownDataFields.has(key)) {
+                dataPatch[key] = val;
+              } else {
+                topPatch[key] = val;
+              }
+            }
+
+            const widgets = (ws.widgets || []).map((w: any) => {
+              if (w.id !== widgetId) return w;
+              // 合并 data：patch.data 优先，其次是自动提取的 dataPatch
+              const mergedData = { ...(w.data || {}), ...dataPatch, ...(patch.data || {}) };
+              const result = { ...w, ...topPatch };
+              if (Object.keys(mergedData).length > 0) {
+                result.data = mergedData;
+              }
+              return result;
+            });
             const updated = await workspaceStore.updateWorkspace(wsId, { widgets });
             return { message: `已更新组件 ${widgetId}`, data: updated };
           }
@@ -823,15 +905,64 @@ ${existingWidgets || '  (无)'}
       const cleaned = raw.trim();
       const codeBlock = cleaned.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/);
       const jsonStr = codeBlock ? codeBlock[1].trim() : cleaned;
-      const jsonMatch = jsonStr.match(/\[[\s\S]*\]/);
-      return JSON.parse(jsonMatch ? jsonMatch[0] : jsonStr);
+      // 精确提取最外层的 JSON 数组：找第一个 '[' 和与之匹配的最后一个 ']'
+      const start = jsonStr.indexOf('[');
+      if (start === -1) return null;
+      let depth = 0;
+      let end = -1;
+      for (let i = start; i < jsonStr.length; i++) {
+        if (jsonStr[i] === '[') depth++;
+        else if (jsonStr[i] === ']') {
+          depth--;
+          if (depth === 0) { end = i; break; }
+        }
+      }
+      const target = end > start ? jsonStr.slice(start, end + 1) : jsonStr;
+      return JSON.parse(target);
+    } catch {
+      return null;
+    }
+  }
+
+  // ── 辅助：从 LLM 回复中提取 widget 数据更新 ──
+  private tryExtractWidgetUpdate(reply: string, widgets: any[]): Array<{ title: string; data: Record<string, unknown> }> | null {
+    try {
+      // 尝试提取 ```json ... ``` 代码块中的对象
+      const codeMatch = reply.match(/```json\s*\n?([\s\S]*?)\n?```/);
+      const jsonStr = codeMatch ? codeMatch[1].trim() : reply;
+      // 找第一个 { 和匹配的 }
+      const start = jsonStr.indexOf('{');
+      if (start === -1) return null;
+      let depth = 0;
+      let end = -1;
+      for (let i = start; i < jsonStr.length; i++) {
+        if (jsonStr[i] === '{') depth++;
+        else if (jsonStr[i] === '}') {
+          depth--;
+          if (depth === 0) { end = i; break; }
+        }
+      }
+      if (end <= start) return null;
+      const parsed = JSON.parse(jsonStr.slice(start, end + 1));
+      if (!parsed || !Array.isArray(parsed.widgets)) return null;
+      const result: Array<{ title: string; data: Record<string, unknown> }> = [];
+      for (const w of parsed.widgets) {
+        if (w.title && typeof w.data === 'object' && w.data !== null) {
+          // 按 title 匹配现有 widget
+          const matched = widgets.find((existing: any) => existing.title === w.title);
+          if (matched) {
+            result.push({ title: w.title, data: w.data as Record<string, unknown> });
+          }
+        }
+      }
+      return result.length > 0 ? result : null;
     } catch {
       return null;
     }
   }
 
   // ── 辅助：标准化组件类型 ──
-  private normalizeWidgetType(raw: string): string {
+  private normalizeWidgetType(raw: string, data?: Record<string, unknown>): string {
     const map: Record<string, string> = {
       'metric': 'metric', '指标': 'metric', '仪表': 'metric', '数据卡': 'metric',
       '数字': 'metric', 'kpi': 'metric', '指标卡': 'metric', '数值': 'metric',
@@ -848,9 +979,35 @@ ${existingWidgets || '  (无)'}
       '汇报': 'report', '概览': 'report',
       'universal': 'universal', '通用': 'universal', '文本': 'universal', '内容': 'universal',
       '容器': 'universal', '富文本': 'universal', 'markdown': 'universal', 'md': 'universal',
+      'gauge': 'gauge', '仪表盘': 'gauge', '进度盘': 'gauge', '达成率': 'gauge', 'gauge图': 'gauge',
+      'funnel': 'funnel', '漏斗': 'funnel', '漏斗图': 'funnel', '转化': 'funnel', '转化漏斗': 'funnel',
+      'radar': 'radar', '雷达': 'radar', '雷达图': 'radar', '蛛网图': 'radar', '蜘蛛图': 'radar',
+      'heatmap': 'heatmap', '热力图': 'heatmap', '热力': 'heatmap', '密度图': 'heatmap',
+      'bullet': 'bullet', '子弹图': 'bullet', '目标进度': 'bullet', '进度条': 'bullet',
+      'alert': 'alert', '告警': 'alert', '告警列表': 'alert', '事件': 'alert', '通知': 'alert',
+      'map': 'map', '地图': 'map', '地理': 'map', '区域': 'map', '分布图': 'map',
     };
     const key = String(raw || '').toLowerCase().trim();
-    return map[key] || 'metric';
+    const mapped = map[key] || 'metric';
+    // 如果数据与映射后的类型明显不匹配，用推断修正
+    if (data && (mapped === 'universal' || mapped === 'metric') && (!data.value || data.html || data.content)) {
+      const inferred = inferWidgetType(data);
+      if (inferred !== 'universal') return inferred;
+    }
+    return mapped;
+  }
+
+  // ── 辅助：类型默认中文名 ──
+  private widgetTypeLabel(type: string): string {
+    const labels: Record<string, string> = {
+      metric: '指标卡', chart: '图表', table: '表格', kanban: '看板',
+      timeline: '时间线', list: '列表', report: '报告', universal: '通用组件',
+      progress: '进度条', status: '状态面板', html: 'HTML组件',
+      gauge: '仪表盘', funnel: '漏斗图', radar: '雷达图', heatmap: '热力图',
+      bullet: '子弹图', alert: '告警列表', map: '地图',
+      sparkline: '迷你趋势',
+    };
+    return labels[type] || '新组件';
   }
 
   // ── 辅助：规则解析批量组件 ──
@@ -867,10 +1024,17 @@ ${existingWidgets || '  (无)'}
       '时间线': 'timeline', 'timeline': 'timeline', '时间轴': 'timeline', '里程碑': 'timeline',
       '列表': 'list', 'list': 'list', '事项': 'list', '任务': 'list', '清单': 'list', '待办': 'list',
       '报告': 'report', 'report': 'report', '总结': 'report', '简报': 'report',
+      '仪表盘': 'gauge', 'gauge': 'gauge', '进度盘': 'gauge', '达成率': 'gauge',
+      '漏斗': 'funnel', 'funnel': 'funnel', '漏斗图': 'funnel', '转化': 'funnel',
+      '雷达': 'radar', 'radar': 'radar', '雷达图': 'radar', '蛛网图': 'radar',
+      '热力图': 'heatmap', 'heatmap': 'heatmap', '热力': 'heatmap',
+      '子弹图': 'bullet', 'bullet': 'bullet', '目标进度': 'bullet',
+      '告警': 'alert', 'alert': 'alert', '告警列表': 'alert', '事件': 'alert',
+      '地图': 'map', 'map': 'map', '地理': 'map', '区域': 'map',
     };
 
     // 匹配 "添加[一个]XX[叫]YY" 模式（含更多类型同义词）
-    const segmentPattern = /(?:添加|增加|新建|插入)\s*(?:一个|个)?\s*(?:\d+个)?\s*(指标|仪表|数据卡|metric|图表|折线图|柱状图|饼图|趋势图|chart|表格|数据表|table|看板|状态板|流程板|kanban|时间线|时间轴|里程碑|timeline|列表|事项|任务|清单|待办|list|报告|总结|简报|report)?\s*(?:叫|名为|named)?\s*["']?([^"'，；、。]+?)["']?/gi;
+    const segmentPattern = /(?:添加|增加|新建|插入)\s*(?:一个|个)?\s*(?:\d+个)?\s*(指标|仪表|数据卡|metric|图表|折线图|柱状图|饼图|趋势图|chart|表格|数据表|table|看板|状态板|流程板|kanban|时间线|时间轴|里程碑|timeline|列表|事项|任务|清单|待办|list|报告|总结|简报|report|仪表盘|gauge|进度盘|漏斗|漏斗图|funnel|转化|雷达|雷达图|radar|蛛网图|热力图|heatmap|热力|子弹图|bullet|目标进度|告警|alert|告警列表|事件|地图|map|地理|区域)?\s*(?:叫|名为|named)?\s*["']?([^"'，；、。]+?)["']?/gi;
 
     let match;
     let idx = 0;
@@ -902,6 +1066,13 @@ ${existingWidgets || '  (无)'}
       table: { w: 6, h: 4 },
       kanban: { w: 6, h: 4 },
       timeline: { w: 9, h: 4 },
+      gauge: { w: 3, h: 3 },
+      funnel: { w: 6, h: 4 },
+      radar: { w: 6, h: 4 },
+      heatmap: { w: 6, h: 4 },
+      bullet: { w: 6, h: 2 },
+      alert: { w: 6, h: 4 },
+      map: { w: 6, h: 4 },
       list: { w: 6, h: 4 },
       report: { w: 9, h: 4 },
     };
@@ -993,6 +1164,54 @@ ${existingWidgets || '  (无)'}
       if ('数值' in d && !('value' in d)) d.value = d.数值;
       if ('变化' in d && !('change' in d)) d.change = d.变化;
     }
+    // gauge: percent→value, current→value, percentage→value
+    if (type === 'gauge') {
+      if ('percent' in d && !('value' in d)) d.value = d.percent;
+      if ('current' in d && !('value' in d)) d.value = d.current;
+      if ('percentage' in d && !('value' in d)) d.value = d.percentage;
+      if ('limit' in d && !('max' in d)) d.max = d.limit;
+    }
+    // funnel: 兼容 flat arrays (stages + values)
+    if (type === 'funnel') {
+      if (!('stages' in d) && Array.isArray(d.data)) d.stages = d.data;
+      if (Array.isArray(d.stages) && d.stages.length > 0 && typeof d.stages[0] === 'string') {
+        d.stages = d.stages.map((name: string, i: number) => ({
+          name,
+          value: Array.isArray(d.values) ? d.values[i] || 0 : 0,
+          rate: Array.isArray(d.values) && d.values[0] ? Math.round((d.values[i] / d.values[0]) * 100) : 0,
+        }));
+      }
+    }
+    // radar: labels→indicators 兼容
+    if (type === 'radar') {
+      if ('indicators' in d && !('labels' in d)) d.labels = d.indicators;
+      if ('labels' in d && !('indicators' in d)) d.indicators = d.labels;
+      if ('dimensions' in d && !('labels' in d)) d.labels = d.dimensions;
+      if ('dimensions' in d && !('indicators' in d)) d.indicators = d.dimensions;
+    }
+    // heatmap: data→rows, cells→rows
+    if (type === 'heatmap') {
+      if ('data' in d && !('rows' in d)) d.rows = d.data;
+      if ('cells' in d && !('rows' in d)) d.rows = d.cells;
+    }
+    // bullet: current→value, goal→target
+    if (type === 'bullet') {
+      if ('current' in d && !('value' in d)) d.value = d.current;
+      if ('goal' in d && !('target' in d)) d.target = d.goal;
+      if ('maximum' in d && !('max' in d)) d.max = d.maximum;
+    }
+    // alert: items→alerts, events→alerts
+    if (type === 'alert') {
+      if ('items' in d && !('alerts' in d)) d.alerts = d.items;
+      if ('events' in d && !('alerts' in d)) d.alerts = d.events;
+      if ('notifications' in d && !('alerts' in d)) d.alerts = d.notifications;
+    }
+    // map: locations→points, regions→points
+    if (type === 'map') {
+      if ('locations' in d && !('points' in d)) d.points = d.locations;
+      if ('regions' in d && !('points' in d)) d.points = d.regions;
+      if ('cities' in d && !('points' in d)) d.points = d.cities;
+    }
 
     return d;
   }
@@ -1008,6 +1227,13 @@ ${existingWidgets || '  (无)'}
       list: { items: ['事项1', '事项2'] },
       report: { summary: '报告摘要...', highlights: [{ label: '核心指标', value: '—' }] },
       universal: { content: '通用内容容器...' },
+      gauge: { value: 68, min: 0, max: 100, unit: '%' },
+      funnel: { stages: [{ name: '访问', value: 1000, rate: 100 }, { name: '注册', value: 600, rate: 60 }, { name: '付费', value: 200, rate: 20 }] },
+      radar: { labels: ['速度', '质量', '成本', '服务', '创新'], values: [85, 70, 90, 75, 80] },
+      heatmap: { rows: [{ x: '周一', y: '上午', value: 30 }, { x: '周一', y: '下午', value: 50 }, { x: '周二', y: '上午', value: 40 }] },
+      bullet: { value: 75, target: 80, max: 100, label: '目标达成率' },
+      alert: { alerts: [{ level: 'warning', message: '示例告警信息', time: '10:30' }] },
+      map: { points: [{ name: '北京', value: 120 }, { name: '上海', value: 95 }, { name: '广州', value: 80 }] },
     };
     return defaults[type] || defaults.metric;
   }

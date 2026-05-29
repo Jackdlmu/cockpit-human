@@ -3,6 +3,8 @@
 
 import { Router } from 'express';
 import { cockpitAgent } from '../agent/cockpit-agent';
+import * as workspaceStore from '../data/workspaceStore';
+import { contextBuilder } from '../services/context-builder';
 
 const router = Router();
 
@@ -20,10 +22,27 @@ router.post('/chat', async (req, res, next) => {
       return;
     }
 
+    // 加载当前驾驶舱数据并构建上下文
+    let workspace: workspaceStore.Workspace | undefined;
+    let promptContext = '';
+    if (workspaceId) {
+      try {
+        workspace = await workspaceStore.getWorkspace(workspaceId);
+        if (workspace) {
+          const ctx = workspace.context || await contextBuilder.build(workspace as any);
+          promptContext = contextBuilder.buildPromptContext(workspace as any, ctx);
+        }
+      } catch (err: any) {
+        console.warn(`[AgentRoute] Failed to load workspace ${workspaceId}:`, err.message);
+      }
+    }
+
     const context = {
       workspaceId: workspaceId || undefined,
       sessionId: sessionId || `session-${Date.now()}`,
       history: req.body.history || [],
+      workspace: workspace as any,
+      promptContext,
     };
 
     if (!stream) {
@@ -43,6 +62,7 @@ router.post('/chat', async (req, res, next) => {
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders();
 
     try {
       const generator = cockpitAgent.handleCommandStream(command, context);

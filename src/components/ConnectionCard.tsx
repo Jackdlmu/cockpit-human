@@ -49,8 +49,8 @@ export default function ConnectionCard({ connection, onEdit, onDelete, onConnect
       const result = await onTest(connection.id);
       setTestResult(result.message);
       setTimeout(() => setTestResult(null), 4000);
-    } catch (err: any) {
-      setTestResult(err.message || '测试失败');
+    } catch (err: unknown) {
+      setTestResult(err instanceof Error ? err.message : '测试失败');
     } finally {
       setTesting(false);
     }

@@ -7,6 +7,56 @@ export interface AgentBinding {
   lastUsed?: string;
 }
 
+/** 智能体上下文摘要 */
+export interface AgentContextRef {
+  id: string;
+  name: string;
+  role: 'primary' | 'collaborator' | 'observer';
+  status: string;
+  capabilities: string[];
+  recentContributions?: string[];
+}
+
+/** 驾驶舱智能上下文 */
+export interface CockpitContext {
+  version: number;
+  summary: {
+    name: string;
+    description: string;
+    purpose: string;
+    keyMetrics: string[];
+    lastUpdated: string;
+  };
+  agents: {
+    primary: AgentContextRef | null;
+    collaborators: AgentContextRef[];
+    orchestrationMode: string;
+    healthStatus: string;
+  };
+  widgets: {
+    count: number;
+    types: Record<string, number>;
+    highlights: string[];
+  };
+  recentActions: Array<{
+    action: string;
+    agent: string;
+    result: string;
+    timestamp: string;
+  }>;
+}
+
+/** 协作调度状态 */
+export interface OrchestrationState {
+  mode: 'platform-led' | 'cockpit-led' | 'llm-direct';
+  health: 'healthy' | 'degraded' | 'unavailable';
+  primaryAgent: { id: string; name: string; sourceType?: string } | null;
+  activeAgents: { id: string; name: string; status: string }[];
+  cockpitAgentActive: boolean;
+  reason: string;
+  timestamp: string;
+}
+
 export interface WorkspaceData {
   id: string; name: string; description: string; icon: string; color: string;
   status: 'running' | 'stopped' | 'error';
@@ -14,8 +64,12 @@ export interface WorkspaceData {
   agentIds: string[]; primaryAgentId: string;
   /** 多智能体模式 */
   agentMode?: AgentMode;
-  /** 运行时智能体绑定状态（非持久化或可选持久化） */
+  /** 运行时智能体绑定状态 */
   agentBindings?: AgentBinding[];
+  /** 智能体友好的上下文存储 */
+  context?: CockpitContext;
+  /** 当前协作调度状态 */
+  orchestration?: OrchestrationState;
   widgets: any[];
   /** 数据获取失败时是否回退到 demo 示例数据 */
   useDemoDataFallback?: boolean;

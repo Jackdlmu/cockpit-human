@@ -21,7 +21,7 @@
     ],
     "primaryAgentId": "ceo-agent",
     "description": "{{name}} — 企业战略健康度一站式总览，覆盖经营、财务、客户、运营、人力、风险六大维度",
-    "useDemoDataFallback": false,
+    "useDemoDataFallback": true,
     "widgets": [
       {
         "id": "w-revenue",
@@ -88,21 +88,91 @@
         }
       },
       {
-        "id": "w-strategy-progress",
-        "type": "progress",
-        "title": "年度战略目标进度",
+        "id": "w-strategy-gauge",
+        "type": "gauge",
+        "title": "年度战略达成率",
         "position": {
           "x": 0,
           "y": 2,
-          "w": 4,
-          "h": 2
+          "w": 3,
+          "h": 3
         },
         "data": {
           "value": 68,
+          "min": 0,
           "max": 100,
-          "label": "68%",
-          "color": "indigo",
-          "caption": "12项关键举措中8项按计划推进"
+          "unit": "%",
+          "thresholds": [
+            {
+              "value": 70,
+              "color": "#f59e0b",
+              "level": "warning"
+            },
+            {
+              "value": 90,
+              "color": "#ef4444",
+              "level": "critical"
+            }
+          ]
+        }
+      },
+      {
+        "id": "w-radar",
+        "type": "radar",
+        "title": "企业六维能力评估",
+        "position": {
+          "x": 3,
+          "y": 2,
+          "w": 6,
+          "h": 4
+        },
+        "data": {
+          "labels": [
+            "财务健康",
+            "运营效率",
+            "创新能力",
+            "客户满意",
+            "人才发展",
+            "合规风控"
+          ],
+          "values": [
+            85,
+            78,
+            72,
+            88,
+            75,
+            92
+          ]
+        }
+      },
+      {
+        "id": "w-alert",
+        "type": "alert",
+        "title": "风险告警",
+        "position": {
+          "x": 9,
+          "y": 2,
+          "w": 3,
+          "h": 3
+        },
+        "data": {
+          "alerts": [
+            {
+              "level": "warning",
+              "message": "现金流安全垫低于30天",
+              "time": "09:30"
+            },
+            {
+              "level": "critical",
+              "message": "关键人才流失率接近阈值",
+              "time": "09:15"
+            },
+            {
+              "level": "info",
+              "message": "Q2华东市场拓展进度正常",
+              "time": "08:45"
+            }
+          ]
         }
       },
       {
@@ -111,7 +181,7 @@
         "title": "组织健康度",
         "position": {
           "x": 4,
-          "y": 2,
+          "y": 6,
           "w": 4,
           "h": 2
         },
@@ -146,7 +216,7 @@
         "title": "人均产出",
         "position": {
           "x": 8,
-          "y": 2,
+          "y": 6,
           "w": 4,
           "h": 2
         },
@@ -162,7 +232,7 @@
         "title": "核心指标趋势（近6个月）",
         "position": {
           "x": 0,
-          "y": 4,
+          "y": 8,
           "w": 6,
           "h": 4
         },
@@ -191,7 +261,7 @@
         "title": "风险预警面板",
         "position": {
           "x": 6,
-          "y": 4,
+          "y": 8,
           "w": 6,
           "h": 4
         },
@@ -211,7 +281,7 @@
         "title": "职能驾驶舱导航",
         "position": {
           "x": 0,
-          "y": 8,
+          "y": 12,
           "w": 6,
           "h": 4
         },
@@ -237,7 +307,7 @@
         "title": "战略里程碑",
         "position": {
           "x": 6,
-          "y": 8,
+          "y": 12,
           "w": 6,
           "h": 4
         },
@@ -278,7 +348,7 @@
     ],
     "primaryAgentId": "finance-agent",
     "description": "{{name}} — 企业财务雷达，覆盖盈利分析、现金流管理、预算管控、资产负债、成本费用与风险预警",
-    "useDemoDataFallback": false,
+    "useDemoDataFallback": true,
     "widgets": [
       {
         "id": "w-revenue",
@@ -330,18 +400,31 @@
       },
       {
         "id": "w-debt",
-        "type": "metric",
+        "type": "gauge",
         "title": "资产负债率",
         "position": {
           "x": 9,
           "y": 0,
           "w": 3,
-          "h": 2
+          "h": 3
         },
         "data": {
-          "value": "38.2%",
-          "change": "行业均值 45%",
-          "trend": "up"
+          "value": 38.2,
+          "min": 0,
+          "max": 100,
+          "unit": "%",
+          "thresholds": [
+            {
+              "value": 50,
+              "color": "#f59e0b",
+              "level": "warning"
+            },
+            {
+              "value": 70,
+              "color": "#ef4444",
+              "level": "critical"
+            }
+          ]
         }
       },
       {
@@ -371,20 +454,88 @@
       },
       {
         "id": "w-budget",
-        "type": "progress",
+        "type": "bullet",
         "title": "预算执行率",
         "position": {
           "x": 6,
-          "y": 2,
+          "y": 3,
           "w": 6,
           "h": 2
         },
         "data": {
           "value": 82,
+          "target": 85,
           "max": 100,
-          "label": "82%",
-          "color": "emerald",
-          "caption": "收入预算达成 105% | 成本预算执行 98%"
+          "label": "预算执行率",
+          "ranges": [
+            {
+              "value": 60,
+              "color": "#ef4444"
+            },
+            {
+              "value": 80,
+              "color": "#f59e0b"
+            },
+            {
+              "value": 100,
+              "color": "#22c55e"
+            }
+          ]
+        }
+      },
+      {
+        "id": "w-heatmap",
+        "type": "heatmap",
+        "title": "费用热力分布",
+        "position": {
+          "x": 0,
+          "y": 10,
+          "w": 6,
+          "h": 4
+        },
+        "data": {
+          "rows": [
+            {
+              "x": "销售",
+              "y": "Q1",
+              "value": 3200
+            },
+            {
+              "x": "管理",
+              "y": "Q1",
+              "value": 1800
+            },
+            {
+              "x": "研发",
+              "y": "Q1",
+              "value": 2100
+            },
+            {
+              "x": "财务",
+              "y": "Q1",
+              "value": 300
+            },
+            {
+              "x": "销售",
+              "y": "Q2",
+              "value": 3500
+            },
+            {
+              "x": "管理",
+              "y": "Q2",
+              "value": 1900
+            },
+            {
+              "x": "研发",
+              "y": "Q2",
+              "value": 2400
+            },
+            {
+              "x": "财务",
+              "y": "Q2",
+              "value": 320
+            }
+          ]
         }
       },
       {
@@ -393,7 +544,7 @@
         "title": "现金流瀑布",
         "position": {
           "x": 6,
-          "y": 4,
+          "y": 5,
           "w": 6,
           "h": 4
         },
@@ -447,7 +598,7 @@
         "title": "费用结构",
         "position": {
           "x": 6,
-          "y": 8,
+          "y": 9,
           "w": 6,
           "h": 4
         },
@@ -472,7 +623,7 @@
         "title": "财务健康雷达",
         "position": {
           "x": 0,
-          "y": 10,
+          "y": 14,
           "w": 6,
           "h": 2
         },
@@ -532,22 +683,35 @@
     ],
     "primaryAgentId": "ops-agent",
     "description": "{{name}} — 生产运营全流程效率监控，覆盖OEE、质量、交付、能耗与设备状态",
-    "useDemoDataFallback": false,
+    "useDemoDataFallback": true,
     "widgets": [
       {
         "id": "w-oee",
-        "type": "metric",
+        "type": "gauge",
         "title": "OEE综合效率",
         "position": {
           "x": 0,
           "y": 0,
           "w": 3,
-          "h": 2
+          "h": 3
         },
         "data": {
-          "value": "72.4%",
-          "change": "+3.2pp 环比",
-          "trend": "up"
+          "value": 72.4,
+          "min": 0,
+          "max": 100,
+          "unit": "%",
+          "thresholds": [
+            {
+              "value": 60,
+              "color": "#ef4444",
+              "level": "critical"
+            },
+            {
+              "value": 80,
+              "color": "#f59e0b",
+              "level": "warning"
+            }
+          ]
         }
       },
       {
@@ -599,25 +763,42 @@
         }
       },
       {
-        "id": "w-oee-breakdown",
-        "type": "chart",
-        "title": "OEE三要素分解",
+        "id": "w-funnel",
+        "type": "funnel",
+        "title": "生产流程转化漏斗",
         "position": {
           "x": 0,
-          "y": 2,
+          "y": 3,
           "w": 6,
-          "h": 3
+          "h": 4
         },
         "data": {
-          "labels": [
-            "稼动率",
-            "性能效率",
-            "良率"
-          ],
-          "values": [
-            88,
-            92,
-            98
+          "stages": [
+            {
+              "name": "投料",
+              "value": 10000,
+              "rate": 100
+            },
+            {
+              "name": "加工",
+              "value": 9850,
+              "rate": 98.5
+            },
+            {
+              "name": "质检",
+              "value": 9720,
+              "rate": 98.7
+            },
+            {
+              "name": "包装",
+              "value": 9680,
+              "rate": 99.6
+            },
+            {
+              "name": "入库",
+              "value": 9650,
+              "rate": 99.7
+            }
           ]
         }
       },
@@ -667,7 +848,7 @@
         "title": "质量趋势（近30天）",
         "position": {
           "x": 0,
-          "y": 5,
+          "y": 7,
           "w": 6,
           "h": 3
         },
@@ -727,7 +908,7 @@
         "title": "单位产品能耗",
         "position": {
           "x": 0,
-          "y": 8,
+          "y": 10,
           "w": 3,
           "h": 2
         },
@@ -739,19 +920,36 @@
       },
       {
         "id": "w-equipment-alert",
-        "type": "list",
+        "type": "alert",
         "title": "设备故障预警",
         "position": {
           "x": 3,
-          "y": 8,
-          "w": 3,
-          "h": 2
+          "y": 10,
+          "w": 6,
+          "h": 4
         },
         "data": {
-          "items": [
-            "D产线测试机#3温度异常",
-            "C产线模具磨损预警",
-            "空压机压力波动"
+          "alerts": [
+            {
+              "level": "critical",
+              "message": "D产线测试机#3温度异常 85°C",
+              "time": "10:15"
+            },
+            {
+              "level": "warning",
+              "message": "C产线模具磨损度达78%",
+              "time": "09:42"
+            },
+            {
+              "level": "warning",
+              "message": "空压机压力波动 ±0.3MPa",
+              "time": "09:30"
+            },
+            {
+              "level": "info",
+              "message": "B产线例行维护已完成",
+              "time": "08:00"
+            }
           ]
         }
       },
@@ -761,7 +959,7 @@
         "title": "班次产量对比",
         "position": {
           "x": 6,
-          "y": 8,
+          "y": 14,
           "w": 6,
           "h": 3
         },
@@ -806,7 +1004,7 @@
     ],
     "primaryAgentId": "marketing-agent",
     "description": "{{name}} — 增长引擎仪表盘，覆盖收入业绩、销售漏斗、获客效率、客户成功与营销ROI",
-    "useDemoDataFallback": false,
+    "useDemoDataFallback": true,
     "widgets": [
       {
         "id": "w-mrr",
@@ -903,21 +1101,105 @@
       },
       {
         "id": "w-funnel",
-        "type": "kanban",
+        "type": "funnel",
         "title": "销售漏斗",
         "position": {
           "x": 6,
           "y": 2,
           "w": 6,
-          "h": 3
+          "h": 4
         },
         "data": {
           "stages": [
-            "访客 120,000",
-            "MQL 4,200 (3.5%)",
-            "SQL 1,050 (25%)",
-            "成交 315 (30%)",
-            "续约 280 (89%)"
+            {
+              "name": "访客",
+              "value": 120000,
+              "rate": 100
+            },
+            {
+              "name": "MQL",
+              "value": 4200,
+              "rate": 3.5
+            },
+            {
+              "name": "SQL",
+              "value": 1050,
+              "rate": 25
+            },
+            {
+              "name": "成交",
+              "value": 315,
+              "rate": 30
+            },
+            {
+              "name": "续约",
+              "value": 280,
+              "rate": 89
+            }
+          ]
+        }
+      },
+      {
+        "id": "w-radar",
+        "type": "radar",
+        "title": "销售团队能力评估",
+        "position": {
+          "x": 0,
+          "y": 10,
+          "w": 6,
+          "h": 4
+        },
+        "data": {
+          "labels": [
+            "获客能力",
+            "转化能力",
+            "客单价",
+            "客户成功",
+            "协作效率",
+            "产品知识"
+          ],
+          "values": [
+            82,
+            75,
+            88,
+            70,
+            78,
+            85
+          ]
+        }
+      },
+      {
+        "id": "w-map",
+        "type": "map",
+        "title": "区域营收分布",
+        "position": {
+          "x": 6,
+          "y": 11,
+          "w": 6,
+          "h": 4
+        },
+        "data": {
+          "points": [
+            {
+              "name": "华东区",
+              "value": 420
+            },
+            {
+              "name": "华北区",
+              "value": 380
+            },
+            {
+              "name": "华南区",
+              "value": 310
+            },
+            {
+              "name": "西南区",
+              "value": 260
+            },
+            {
+              "name": "海外市场",
+              "value": 180
+            }
           ]
         }
       },
@@ -967,7 +1249,7 @@
         "title": "销售团队业绩排名",
         "position": {
           "x": 6,
-          "y": 5,
+          "y": 6,
           "w": 6,
           "h": 3
         },
@@ -1038,7 +1320,7 @@
         "title": "赢单率",
         "position": {
           "x": 6,
-          "y": 8,
+          "y": 9,
           "w": 3,
           "h": 2
         },
@@ -1056,7 +1338,7 @@
         "title": "Rule of 40",
         "position": {
           "x": 9,
-          "y": 8,
+          "y": 9,
           "w": 3,
           "h": 2
         },
@@ -1092,7 +1374,7 @@
     ],
     "primaryAgentId": "tech-agent",
     "description": "{{name}} — 技术创新引擎仪表盘，基于DORA框架衡量研发交付效率、质量、能力与成本",
-    "useDemoDataFallback": false,
+    "useDemoDataFallback": true,
     "widgets": [
       {
         "id": "w-deploy-freq",
@@ -1249,7 +1531,7 @@
         "title": "代码质量评分",
         "position": {
           "x": 0,
-          "y": 4,
+          "y": 5,
           "w": 6,
           "h": 3
         },
@@ -1306,7 +1588,7 @@
       },
       {
         "id": "w-auto-coverage",
-        "type": "progress",
+        "type": "bullet",
         "title": "自动化测试覆盖率",
         "position": {
           "x": 9,
@@ -1316,10 +1598,117 @@
         },
         "data": {
           "value": 72,
+          "target": 80,
           "max": 100,
-          "label": "72%",
-          "color": "emerald",
-          "caption": "目标 80%"
+          "label": "覆盖率",
+          "ranges": [
+            {
+              "value": 50,
+              "color": "#ef4444"
+            },
+            {
+              "value": 70,
+              "color": "#f59e0b"
+            },
+            {
+              "value": 100,
+              "color": "#22c55e"
+            }
+          ]
+        }
+      },
+      {
+        "id": "w-radar",
+        "type": "radar",
+        "title": "技术债多维评估",
+        "position": {
+          "x": 0,
+          "y": 9,
+          "w": 6,
+          "h": 4
+        },
+        "data": {
+          "labels": [
+            "代码复杂度",
+            "测试覆盖",
+            "文档完整",
+            "依赖健康",
+            "安全漏洞",
+            "性能基线"
+          ],
+          "values": [
+            65,
+            72,
+            55,
+            80,
+            90,
+            75
+          ]
+        }
+      },
+      {
+        "id": "w-heatmap",
+        "type": "heatmap",
+        "title": "代码提交热力",
+        "position": {
+          "x": 6,
+          "y": 9,
+          "w": 6,
+          "h": 4
+        },
+        "data": {
+          "rows": [
+            {
+              "x": "周一",
+              "y": "上午",
+              "value": 45
+            },
+            {
+              "x": "周一",
+              "y": "下午",
+              "value": 62
+            },
+            {
+              "x": "周二",
+              "y": "上午",
+              "value": 38
+            },
+            {
+              "x": "周二",
+              "y": "下午",
+              "value": 55
+            },
+            {
+              "x": "周三",
+              "y": "上午",
+              "value": 50
+            },
+            {
+              "x": "周三",
+              "y": "下午",
+              "value": 70
+            },
+            {
+              "x": "周四",
+              "y": "上午",
+              "value": 42
+            },
+            {
+              "x": "周四",
+              "y": "下午",
+              "value": 58
+            },
+            {
+              "x": "周五",
+              "y": "上午",
+              "value": 35
+            },
+            {
+              "x": "周五",
+              "y": "下午",
+              "value": 48
+            }
+          ]
         }
       },
       {
@@ -1382,7 +1771,7 @@
     ],
     "primaryAgentId": "hr-agent",
     "description": "{{name}} — 组织健康度仪表盘，覆盖人才获取、保留、成本、效能、发展与组织健康",
-    "useDemoDataFallback": false,
+    "useDemoDataFallback": true,
     "widgets": [
       {
         "id": "w-turnover",
@@ -1574,18 +1963,120 @@
       },
       {
         "id": "w-engagement",
-        "type": "metric",
+        "type": "gauge",
         "title": "员工敬业度指数",
         "position": {
           "x": 3,
           "y": 9,
           "w": 3,
-          "h": 2
+          "h": 3
         },
         "data": {
-          "value": "4.2/5",
-          "change": "+0.3 同比",
-          "trend": "up"
+          "value": 84,
+          "min": 0,
+          "max": 100,
+          "unit": "%",
+          "thresholds": [
+            {
+              "value": 60,
+              "color": "#ef4444",
+              "level": "critical"
+            },
+            {
+              "value": 75,
+              "color": "#f59e0b",
+              "level": "warning"
+            }
+          ]
+        }
+      },
+      {
+        "id": "w-radar",
+        "type": "radar",
+        "title": "组织能力雷达",
+        "position": {
+          "x": 0,
+          "y": 12,
+          "w": 6,
+          "h": 4
+        },
+        "data": {
+          "labels": [
+            "招聘效率",
+            "保留能力",
+            "发展速度",
+            "绩效产出",
+            "文化认同",
+            "领导力"
+          ],
+          "values": [
+            78,
+            72,
+            80,
+            85,
+            75,
+            70
+          ]
+        }
+      },
+      {
+        "id": "w-heatmap",
+        "type": "heatmap",
+        "title": "绩效分布热力",
+        "position": {
+          "x": 6,
+          "y": 11,
+          "w": 6,
+          "h": 4
+        },
+        "data": {
+          "rows": [
+            {
+              "x": "技术部",
+              "y": "A",
+              "value": 25
+            },
+            {
+              "x": "技术部",
+              "y": "B",
+              "value": 45
+            },
+            {
+              "x": "技术部",
+              "y": "C",
+              "value": 20
+            },
+            {
+              "x": "产品部",
+              "y": "A",
+              "value": 20
+            },
+            {
+              "x": "产品部",
+              "y": "B",
+              "value": 50
+            },
+            {
+              "x": "产品部",
+              "y": "C",
+              "value": 15
+            },
+            {
+              "x": "销售部",
+              "y": "A",
+              "value": 30
+            },
+            {
+              "x": "销售部",
+              "y": "B",
+              "value": 40
+            },
+            {
+              "x": "销售部",
+              "y": "C",
+              "value": 25
+            }
+          ]
         }
       },
       {
@@ -1647,7 +2138,7 @@
     ],
     "primaryAgentId": "supply-agent",
     "description": "{{name}} — 供应链作战地图，覆盖采购、供应商、库存、物流与需求协同全链路",
-    "useDemoDataFallback": false,
+    "useDemoDataFallback": true,
     "widgets": [
       {
         "id": "w-inventory-turn",
@@ -1792,40 +2283,111 @@
       },
       {
         "id": "w-alert",
-        "type": "kanban",
-        "title": "预警面板",
+        "type": "alert",
+        "title": "供应风险告警",
         "position": {
           "x": 0,
           "y": 5,
           "w": 6,
-          "h": 3
+          "h": 4
         },
         "data": {
-          "stages": [
-            "🔴 芯片SKU-001库存低于安全线",
-            "🟡 供应商C交货延迟2天",
-            "🟡 海外仓某批次效期<90天",
-            "🟢 所有在途订单正常",
-            "🟢 华北仓补货已完成"
+          "alerts": [
+            {
+              "level": "critical",
+              "message": "芯片SKU-001库存低于安全线（剩12天）",
+              "time": "10:30"
+            },
+            {
+              "level": "warning",
+              "message": "供应商C交货延迟2天",
+              "time": "09:15"
+            },
+            {
+              "level": "warning",
+              "message": "海外仓某批次效期<90天",
+              "time": "08:45"
+            },
+            {
+              "level": "info",
+              "message": "华北仓补货已完成",
+              "time": "08:00"
+            }
           ]
         }
       },
       {
-        "id": "w-logistics",
-        "type": "list",
-        "title": "物流在途",
+        "id": "w-map",
+        "type": "map",
+        "title": "供应商地理分布",
         "position": {
           "x": 6,
           "y": 5,
           "w": 6,
-          "h": 3
+          "h": 4
         },
         "data": {
-          "items": [
-            "订单#SC20240601 | 华东仓→上海 | 已签收",
-            "订单#SC20240602 | 华北仓→北京 | 运输中 预计明天",
-            "订单#SC20240603 | 华南仓→深圳 | 已发货",
-            "订单#SC20240604 | 海外仓→新加坡 | 清关中"
+          "points": [
+            {
+              "name": "深圳",
+              "value": 420
+            },
+            {
+              "name": "苏州",
+              "value": 310
+            },
+            {
+              "name": "东莞",
+              "value": 280
+            },
+            {
+              "name": "上海",
+              "value": 250
+            },
+            {
+              "name": "海外",
+              "value": 120
+            }
+          ]
+        }
+      },
+      {
+        "id": "w-funnel",
+        "type": "funnel",
+        "title": "采购流程漏斗",
+        "position": {
+          "x": 0,
+          "y": 12,
+          "w": 6,
+          "h": 4
+        },
+        "data": {
+          "stages": [
+            {
+              "name": "询价比价",
+              "value": 120,
+              "rate": 100
+            },
+            {
+              "name": "样品测试",
+              "value": 85,
+              "rate": 71
+            },
+            {
+              "name": "商务谈判",
+              "value": 52,
+              "rate": 61
+            },
+            {
+              "name": "合同签订",
+              "value": 38,
+              "rate": 73
+            },
+            {
+              "name": "首批交付",
+              "value": 32,
+              "rate": 84
+            }
           ]
         }
       },
@@ -1835,7 +2397,7 @@
         "title": "采购成本趋势",
         "position": {
           "x": 0,
-          "y": 8,
+          "y": 9,
           "w": 6,
           "h": 3
         },
@@ -1864,7 +2426,7 @@
         "title": "需求预测偏差",
         "position": {
           "x": 6,
-          "y": 8,
+          "y": 9,
           "w": 3,
           "h": 2
         },
@@ -1880,7 +2442,7 @@
         "title": "供应链总成本占收比",
         "position": {
           "x": 9,
-          "y": 8,
+          "y": 9,
           "w": 3,
           "h": 2
         },

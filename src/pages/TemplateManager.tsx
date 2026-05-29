@@ -19,7 +19,26 @@ import {
 import { getTemplates, createTemplate, updateTemplate, deleteTemplate, createCockpitFromTemplate } from '@/api/client';
 import { toast } from 'sonner';
 
-const WIDGET_TYPES = ['metric', 'chart', 'table', 'kanban', 'timeline', 'list', 'report', 'universal', 'progress', 'status'];
+const WIDGET_TYPES = ['metric', 'chart', 'table', 'kanban', 'timeline', 'list', 'report', 'universal', 'progress', 'status', 'gauge', 'funnel', 'radar', 'heatmap', 'bullet', 'alert', 'map'];
+const WIDGET_TYPE_LABELS: Record<string, string> = {
+  metric: 'metric - 指标卡',
+  chart: 'chart - 趋势图表',
+  table: 'table - 数据表格',
+  kanban: 'kanban - 状态看板',
+  timeline: 'timeline - 时间线',
+  list: 'list - 列表',
+  report: 'report - 报告摘要',
+  universal: 'universal - 通用容器',
+  progress: 'progress - 进度条',
+  status: 'status - 状态面板',
+  gauge: 'gauge - 仪表盘',
+  funnel: 'funnel - 漏斗图',
+  radar: 'radar - 雷达图',
+  heatmap: 'heatmap - 热力图',
+  bullet: 'bullet - 子弹图',
+  alert: 'alert - 告警列表',
+  map: 'map - 地理分布',
+};
 const ICON_OPTIONS = ['BarChart3', 'PieChart', 'LineChart', 'Table2', 'Kanban', 'Clock', 'List', 'FileText', 'TrendingUp', 'Users', 'DollarSign', 'CheckCircle', 'AlertTriangle', 'Target', 'Layers', 'Monitor', 'Sparkles'];
 
 interface TemplateManagerProps {
@@ -831,7 +850,7 @@ function WidgetEditorItem({ widget, index, onChange, onRemove }: { widget: any; 
                 onChange={(e) => onChange({ type: e.target.value })}
                 className="w-full px-2 py-1.5 text-xs rounded bg-app-surface border border-app-border-subtle text-app-text focus:outline-none focus:border-red-400/50"
               >
-                {WIDGET_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+                {WIDGET_TYPES.map((t) => <option key={t} value={t}>{WIDGET_TYPE_LABELS[t] || t}</option>)}
               </select>
             </div>
             <div>
@@ -860,29 +879,132 @@ function WidgetEditorItem({ widget, index, onChange, onRemove }: { widget: any; 
               spellCheck={false}
             />
           </div>
-          <div className="grid grid-cols-2 gap-2">
+          {/* Detail 结构化配置 */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="block text-[10px] text-app-text-subtle">详情配置</label>
+              <button
+                onClick={() => onChange({ detail: { type: 'slide-out', content: '# 详细报告\n\n## 核心发现\n- 指标A：较去年同期增长12%\n- 指标B：达到预期目标\n\n## 建议行动\n1. 继续监控趋势\n2. 优化资源配置', width: '480px' } })}
+                className="text-[9px] text-app-text-subtle hover:text-indigo-400 transition-colors"
+                title="填入样例"
+              >
+                填入样例
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="block text-[9px] text-app-text-subtle/70 mb-0.5">类型</label>
+                <select
+                  value={widget.detail?.type || ''}
+                  onChange={(e) => onChange({ detail: { ...widget.detail, type: e.target.value || undefined } })}
+                  className="w-full px-2 py-1 text-[10px] rounded bg-app-surface border border-app-border-subtle text-app-text focus:outline-none focus:border-red-400/50"
+                >
+                  <option value="">无</option>
+                  <option value="slide-out">侧滑面板</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-[9px] text-app-text-subtle/70 mb-0.5">宽度</label>
+                <input
+                  value={widget.detail?.width || ''}
+                  onChange={(e) => onChange({ detail: { ...widget.detail, width: e.target.value || undefined } })}
+                  placeholder="480px"
+                  className="w-full px-2 py-1 text-[10px] rounded bg-app-surface border border-app-border-subtle text-app-text focus:outline-none focus:border-red-400/50"
+                />
+              </div>
+            </div>
             <div>
-              <label className="block text-[10px] text-app-text-subtle mb-1">详情配置 (JSON)</label>
+              <label className="block text-[9px] text-app-text-subtle/70 mb-0.5">静态内容 (markdown/html)</label>
               <textarea
-                value={JSON.stringify(widget.detail || {}, null, 2)}
-                onChange={(e) => {
-                  try { onChange({ detail: JSON.parse(e.target.value) }); } catch { /* ignore */ }
-                }}
-                className="w-full h-16 p-2 text-[10px] font-mono rounded bg-app-surface border border-app-border-subtle text-app-text resize-none focus:outline-none focus:border-red-400/50"
+                value={typeof widget.detail?.content === 'string' ? widget.detail.content : ''}
+                onChange={(e) => onChange({ detail: { ...widget.detail, content: e.target.value || undefined } })}
+                placeholder="# 标题\n详细内容..."
+                className="w-full h-14 p-2 text-[10px] font-mono rounded bg-app-surface border border-app-border-subtle text-app-text resize-none focus:outline-none focus:border-red-400/50"
                 spellCheck={false}
               />
             </div>
-            <div>
-              <label className="block text-[10px] text-app-text-subtle mb-1">关联/穿透 (JSON)</label>
-              <textarea
-                value={JSON.stringify(widget.link || {}, null, 2)}
-                onChange={(e) => {
-                  try { onChange({ link: JSON.parse(e.target.value) }); } catch { /* ignore */ }
-                }}
-                className="w-full h-16 p-2 text-[10px] font-mono rounded bg-app-surface border border-app-border-subtle text-app-text resize-none focus:outline-none focus:border-red-400/50"
-                spellCheck={false}
-              />
+          </div>
+
+          {/* Link 结构化配置 */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="block text-[10px] text-app-text-subtle">关联/穿透</label>
+              <button
+                onClick={() => onChange({ link: { type: 'workspace', targetTemplate: 'financial-decision', title: '下钻到财务驾驶舱' } })}
+                className="text-[9px] text-app-text-subtle hover:text-indigo-400 transition-colors"
+                title="填入样例"
+              >
+                填入样例
+              </button>
             </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="block text-[9px] text-app-text-subtle/70 mb-0.5">类型</label>
+                <select
+                  value={widget.link?.type || ''}
+                  onChange={(e) => onChange({ link: { ...widget.link, type: e.target.value || undefined } })}
+                  className="w-full px-2 py-1 text-[10px] rounded bg-app-surface border border-app-border-subtle text-app-text focus:outline-none focus:border-red-400/50"
+                >
+                  <option value="">无</option>
+                  <option value="workspace">驾驶舱跳转</option>
+                  <option value="widget">组件详情</option>
+                  <option value="url">外部链接</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-[9px] text-app-text-subtle/70 mb-0.5">标题</label>
+                <input
+                  value={widget.link?.title || ''}
+                  onChange={(e) => onChange({ link: { ...widget.link, title: e.target.value || undefined } })}
+                  placeholder="链接标题"
+                  className="w-full px-2 py-1 text-[10px] rounded bg-app-surface border border-app-border-subtle text-app-text focus:outline-none focus:border-red-400/50"
+                />
+              </div>
+            </div>
+            {widget.link?.type === 'workspace' && (
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-[9px] text-app-text-subtle/70 mb-0.5">目标驾驶舱ID</label>
+                  <input
+                    value={widget.link?.targetId || ''}
+                    onChange={(e) => onChange({ link: { ...widget.link, targetId: e.target.value || undefined } })}
+                    placeholder="workspace-id"
+                    className="w-full px-2 py-1 text-[10px] rounded bg-app-surface border border-app-border-subtle text-app-text focus:outline-none focus:border-red-400/50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[9px] text-app-text-subtle/70 mb-0.5">或目标模板ID</label>
+                  <input
+                    value={widget.link?.targetTemplate || ''}
+                    onChange={(e) => onChange({ link: { ...widget.link, targetTemplate: e.target.value || undefined } })}
+                    placeholder="template-id"
+                    className="w-full px-2 py-1 text-[10px] rounded bg-app-surface border border-app-border-subtle text-app-text focus:outline-none focus:border-red-400/50"
+                  />
+                </div>
+              </div>
+            )}
+            {widget.link?.type === 'widget' && (
+              <div>
+                <label className="block text-[9px] text-app-text-subtle/70 mb-0.5">目标组件ID</label>
+                <input
+                  value={widget.link?.targetId || ''}
+                  onChange={(e) => onChange({ link: { ...widget.link, targetId: e.target.value || undefined } })}
+                  placeholder="widget-id"
+                  className="w-full px-2 py-1 text-[10px] rounded bg-app-surface border border-app-border-subtle text-app-text focus:outline-none focus:border-red-400/50"
+                />
+              </div>
+            )}
+            {widget.link?.type === 'url' && (
+              <div>
+                <label className="block text-[9px] text-app-text-subtle/70 mb-0.5">URL</label>
+                <input
+                  value={widget.link?.url || ''}
+                  onChange={(e) => onChange({ link: { ...widget.link, url: e.target.value || undefined } })}
+                  placeholder="https://..."
+                  className="w-full px-2 py-1 text-[10px] rounded bg-app-surface border border-app-border-subtle text-app-text focus:outline-none focus:border-red-400/50"
+                />
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -902,7 +1024,7 @@ function initFormData(template: any | null) {
     color: '#6366f1',
     agentIds: [],
     primaryAgentId: '',
-    description: '由座舱代理自动创建的{{name}}',
+    description: '由驾驶舱智能体自动创建的{{name}}',
     widgets: [
       {
         id: `w-${Date.now()}`,

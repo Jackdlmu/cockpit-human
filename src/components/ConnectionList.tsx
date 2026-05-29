@@ -10,13 +10,13 @@ import { Button } from '@/components/ui/button';
 
 interface Props {
   connections: Connection[];
-  onCreate: (data: CreateConnectionInput) => Promise<void>;
-  onUpdate: (id: string, data: Partial<Connection>) => Promise<void>;
+  onCreate: (data: CreateConnectionInput) => Promise<Connection>;
+  onUpdate: (id: string, data: Partial<Connection>) => Promise<Connection>;
   onDelete: (id: string) => Promise<void>;
   onTest: (id: string) => Promise<{ success: boolean; message: string }>;
   onTestNew: (data: CreateConnectionInput) => Promise<{ success: boolean; message: string }>;
-  onConnect: (id: string) => Promise<void>;
-  onDisconnect: (id: string) => Promise<void>;
+  onConnect: (id: string) => Promise<Connection>;
+  onDisconnect: (id: string) => Promise<Connection>;
 }
 
 export default function ConnectionList({

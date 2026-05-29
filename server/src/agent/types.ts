@@ -1,6 +1,7 @@
-// ─── 座舱代理类型定义 ───
+// ─── 驾驶舱智能体类型定义 ───
 
 import type { ConnectionCapability } from '../connection/types';
+import type { WorkspaceData } from '../data/workspacesData';
 
 /** 用户意图类型 */
 export type IntentType =
@@ -46,7 +47,7 @@ export interface SubTaskResult {
   latency: number;
 }
 
-/** 座舱代理响应 */
+/** 驾驶舱智能体响应 */
 export interface CockpitAgentResponse {
   message: string;           // 给用户看的自然语言回复
   plan?: TaskPlan;           // 执行的计划（调试用）
@@ -56,7 +57,7 @@ export interface CockpitAgentResponse {
   sessionId: string;
 }
 
-/** 座舱代理流式chunk */
+/** 驾驶舱智能体流式chunk */
 export interface CockpitAgentChunk {
   chunk: string;
   stage?: 'thinking' | 'planning' | 'executing' | 'summarizing';
@@ -115,4 +116,8 @@ export interface ExecutionContext {
   sessionId: string;
   history?: Array<{ role: 'user' | 'agent'; content: string }>;
   command?: string; // 原始用户指令（用于 extractEntities 重新提取信息）
+  /** 当前驾驶舱完整数据（用于注入 LLM 上下文） */
+  workspace?: WorkspaceData;
+  /** 预构建的 LLM prompt 上下文文本 */
+  promptContext?: string;
 }
