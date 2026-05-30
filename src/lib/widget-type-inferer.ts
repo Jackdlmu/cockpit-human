@@ -6,6 +6,14 @@ export function inferWidgetType(data: Record<string, unknown>): string {
   if (!data || typeof data !== 'object' || Array.isArray(data)) return 'universal';
   const d = data;
 
+  const adaptiveSections = d.sections || d.blocks || d.cards;
+  if (Array.isArray(adaptiveSections) && adaptiveSections.length > 0) {
+    return 'adaptive';
+  }
+  if (d.headline && typeof d.headline === 'object') {
+    return 'adaptive';
+  }
+
   // 1. HTML 报告（最高优先级）
   const hasHtmlField = typeof d.html === 'string' && (d.html as string).length > 20;
   const hasHtmlContent = typeof d.content === 'string' && /<[a-z][\s\S]*?>/i.test(d.content as string) && (d.content as string).length > 100;
@@ -132,11 +140,15 @@ export function isTypeMismatched(type: string, data: Record<string, unknown>): b
   const inferred = inferWidgetType(data);
   if (type === inferred) return false;
 
+  if (type === 'metric' && inferred !== 'metric' && inferred !== 'universal') return true;
+  if (type === 'universal' && inferred !== 'universal') return true;
+
   if (type === 'metric' && !data.value && (data.html || data.content || data.summary)) return true;
   if (type === 'chart' && !Array.isArray(data.values) && !Array.isArray(data.data) && !Array.isArray(data.datasets)) return true;
   if (type === 'table' && !Array.isArray(data.rows) && !Array.isArray(data.data)) return true;
   if (type === 'html' && !data.html && !data.body && !(typeof data.content === 'string' && /<[a-z]/i.test(data.content as string))) return true;
   if (type === 'report' && !data.summary && !Array.isArray(data.highlights)) return true;
+  if (type === 'adaptive' && !Array.isArray(data.sections) && !Array.isArray(data.blocks) && !Array.isArray(data.cards) && !(data.headline && typeof data.headline === 'object')) return true;
   if (type === 'gauge' && (typeof data.min !== 'number' && typeof data.max !== 'number')) return true;
   if (type === 'funnel' && !Array.isArray(data.stages) && !Array.isArray(data.steps)) return true;
   if (type === 'radar' && !Array.isArray(data.labels)) return true;

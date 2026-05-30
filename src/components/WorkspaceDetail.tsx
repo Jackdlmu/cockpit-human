@@ -1,5 +1,13 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
-import type { Widget, Agent, WidgetType, Workspace } from '@/types';
+import { useState, useRef, useEffect, useCallback, useMemo, type ElementType } from 'react';
+import type {
+  Widget,
+  Agent,
+  WidgetType,
+  Workspace,
+  WidgetAdaptiveHeadline,
+  WidgetAdaptiveSection,
+  WidgetMetricItem,
+} from '@/types';
 import DOMPurify from 'dompurify';
 import { useWorkspaceDetail } from '@/hooks/useApiData';
 import { useWidgetData } from '@/hooks/useWidgetData';
@@ -9,6 +17,7 @@ import { WidgetDetailDrawer } from './WidgetDetailDrawer';
 import { CanvasGrid } from './CanvasGrid';
 import { WidgetLibraryPanel } from './WidgetLibraryPanel';
 import { inferWidgetType, isTypeMismatched } from '@/lib/widget-type-inferer';
+import { getDefaultWidgetSize, normalizeWidget, normalizeWidgets } from '@/lib/widget-normalizer';
 import { Switch } from '@/components/ui/switch';
 import { AgentAvatar } from '@/components/AgentAvatar';
 import { workspaceCommandStream, cockpitAgentChatStream, updateWorkspace } from '@/api/client';
@@ -59,18 +68,6 @@ interface WorkspaceDetailProps {
   onRequestDelete?: (id: string) => void;
 }
 
-/** 根据 workspace 编排状态判断智能体角色 */
-function resolveAgentRole(agentId: string, workspace: Workspace): 'primary' | 'collaborator' {
-  if (!workspace.orchestration) {
-    return agentId === workspace.primaryAgentId ? 'primary' : 'collaborator';
-  }
-  if (workspace.orchestration.mode === 'platform-led') {
-    return agentId === workspace.orchestration.primaryAgent?.id ? 'primary' : 'collaborator';
-  }
-  // cockpit-led / llm-direct：驾驶舱智能体是主智能体，所有外部 agent 都是协作
-  return 'collaborator';
-}
-
 interface ChatMessage {
   role: 'user' | 'agent';
   content: string;
@@ -83,7 +80,13 @@ interface ChatSession {
   version: number;
 }
 
-const wsIcons: Record<string, React.ElementType> = { BarChart3, UserPlus, CheckCircle, Monitor, Target, DollarSign, TrendingUp, Code2, Users, Truck };
+interface RuntimeWidgetSnapshot {
+  widgetId: string;
+  title: string;
+  data: Record<string, unknown>;
+}
+
+const wsIcons: Record<string, ElementType> = { BarChart3, UserPlus, CheckCircle, Monitor, Target, DollarSign, TrendingUp, Code2, Users, Truck };
 const CHAT_STORAGE_KEY = (id: string) => `ycc_chat_${id}`;
 const CHAT_STORAGE_VERSION = 1;
 
@@ -119,6 +122,51 @@ function saveChatSession(workspaceId: string, messages: ChatMessage[]) {
   }
 }
 
+function buildWorkspaceAgentDisplay(workspace: Workspace, agents: Agent[]) {
+  const isCockpitLed = workspace.orchestration?.mode === 'cockpit-led' || workspace.orchestration?.mode === 'llm-direct';
+  const cockpitAgentVirtual: Agent | null = isCockpitLed ? {
+    id: 'cockpit-self',
+    name: '驾驶舱智能体',
+    avatar: '',
+    description: '智能驾驶舱内置智能体，基于当前上下文独立运行',
+    status: 'active',
+    category: '内置',
+    skills: [],
+    usageCount: 0,
+    lastUsed: '-',
+    owner: 'system',
+    sourceType: 'internal',
+  } : null;
+
+  if (isCockpitLed) {
+    return {
+      isCockpitLed,
+      cockpitAgentVirtual,
+      primaryAgent: cockpitAgentVirtual,
+      collaboratorAgents: [] as Agent[],
+      displayAgents: cockpitAgentVirtual ? [cockpitAgentVirtual] : [],
+    };
+  }
+
+  const availableAgents = agents.filter((agent) => workspace.agentIds.includes(agent.id));
+  const primaryAgent = availableAgents.find((agent) => agent.id === workspace.primaryAgentId)
+    || agents.find((agent) => agent.id === workspace.primaryAgentId)
+    || availableAgents[0]
+    || null;
+  const collaboratorAgents = primaryAgent
+    ? availableAgents.filter((agent) => agent.id !== primaryAgent.id)
+    : availableAgents;
+  const displayAgents = primaryAgent ? [primaryAgent, ...collaboratorAgents] : collaboratorAgents;
+
+  return {
+    isCockpitLed,
+    cockpitAgentVirtual,
+    primaryAgent,
+    collaboratorAgents,
+    displayAgents,
+  };
+}
+
 export function WorkspaceDetail(props: WorkspaceDetailProps) {
   return (
     <WidgetInteractionProvider>
@@ -129,7 +177,7 @@ export function WorkspaceDetail(props: WorkspaceDetailProps) {
 
 function WorkspaceDetailInner({ workspaceId, agents, workspaces: allWorkspaces, onBack, onSelectWorkspace, layoutMode, onRequestDelete }: WorkspaceDetailProps) {
   const { workspace, loading, refresh: refreshWorkspace } = useWorkspaceDetail(workspaceId);
-  const { activeFilters, setFilter, clearFilter, clearAllFilters, hasFilters } = useWidgetInteraction();
+  const { activeFilters, setFilter } = useWidgetInteraction();
   const [activeAgentId, setActiveAgentId] = useState<string | null>(null);
 
   // Agent selector
@@ -149,6 +197,7 @@ function WorkspaceDetailInner({ workspaceId, agents, workspaces: allWorkspaces, 
   const [detailWidget, setDetailWidget] = useState<Widget | null>(null);
   // 下钻状态
   const [drillState, setDrillState] = useState<{ widget: Widget; context: Record<string, unknown>; dimension: string } | null>(null);
+  const [runtimeWidgetSnapshots, setRuntimeWidgetSnapshots] = useState<Record<string, RuntimeWidgetSnapshot>>({});
 
   // Canvas editing state
   const [isEditing, setIsEditing] = useState(false);
@@ -170,9 +219,59 @@ function WorkspaceDetailInner({ workspaceId, agents, workspaces: allWorkspaces, 
   // 从 workspace 同步 widgets
   useEffect(() => {
     if (workspace) {
-      setLocalWidgets(workspace.widgets);
+      setLocalWidgets(normalizeWidgets(workspace.widgets));
     }
   }, [workspace]);
+
+  useEffect(() => {
+    setRuntimeWidgetSnapshots({});
+  }, [workspaceId]);
+
+  useEffect(() => {
+    const validIds = new Set(localWidgets.map((widget) => widget.id));
+    setRuntimeWidgetSnapshots((prev) => {
+      const nextEntries = Object.entries(prev).filter(([widgetId]) => validIds.has(widgetId));
+      if (nextEntries.length === Object.keys(prev).length) {
+        return prev;
+      }
+      return Object.fromEntries(nextEntries);
+    });
+  }, [localWidgets]);
+
+  const chatRequestContext = useMemo(() => {
+    const history = messages.slice(-8).map((msg) => ({
+      role: msg.role,
+      content: msg.content,
+    }));
+
+    const runtimeWidgetData = Object.values(runtimeWidgetSnapshots)
+      .filter((snapshot) => snapshot && snapshot.data && Object.keys(snapshot.data).length > 0)
+      .map((snapshot) => ({
+        widgetId: snapshot.widgetId,
+        title: snapshot.title,
+        data: snapshot.data,
+      }));
+
+    const focusedWidget = drillState?.widget || detailWidget;
+    const focusedWidgetSummary = focusedWidget
+      ? {
+          id: focusedWidget.id,
+          title: focusedWidget.title,
+          type: focusedWidget.type,
+          detail: drillState?.dimension || '',
+        }
+      : undefined;
+
+    return {
+      history,
+      runtimeWidgetData,
+      viewContext: {
+        activeFilters,
+        focusedWidget: focusedWidgetSummary,
+        drillContext: drillState?.context,
+      },
+    };
+  }, [messages, runtimeWidgetSnapshots, activeFilters, detailWidget, drillState]);
 
   // 防抖保存布局
   const saveWidgets = useCallback((widgets: Widget[]) => {
@@ -208,12 +307,13 @@ function WorkspaceDetailInner({ workspaceId, agents, workspaces: allWorkspaces, 
   }, [workspace, workspaceId, editName, editDescription, refreshWorkspace]);
 
   const handleAddWidget = (template: { type: WidgetType; title: string; data?: Record<string, unknown> }) => {
-    const pos = findEmptyPosition(localWidgets, 3, 2);
+    const size = getDefaultWidgetSize(template.type);
+    const pos = findEmptyPosition(localWidgets, size.w, size.h);
     const newWidget: Widget = {
       id: `widget-${Date.now()}-${crypto.randomUUID().slice(0, 5)}`,
       type: template.type,
       title: template.title,
-      position: { x: pos.x, y: pos.y, w: 3, h: 2 },
+      position: { x: pos.x, y: pos.y, w: size.w, h: size.h },
       data: template.data,
     };
     const updated = [...localWidgets, newWidget];
@@ -279,6 +379,7 @@ function WorkspaceDetailInner({ workspaceId, agents, workspaces: allWorkspaces, 
       text,
       workspaceId,
       undefined,
+      chatRequestContext,
       (chunk) => {
         full += chunk;
         setStreaming(full);
@@ -302,6 +403,7 @@ function WorkspaceDetailInner({ workspaceId, agents, workspaces: allWorkspaces, 
           text,
           targetAgentId,
           undefined,
+          chatRequestContext,
           (chunk) => {
             fallbackFull += chunk;
             setStreaming(fallbackFull);
@@ -325,7 +427,7 @@ function WorkspaceDetailInner({ workspaceId, agents, workspaces: allWorkspaces, 
         );
       }
     );
-  }, [input, isLoading, workspace, workspaceId, chatExpanded, selectedAgentId]);
+  }, [input, isLoading, workspace, workspaceId, chatExpanded, selectedAgentId, chatRequestContext]);
 
   const handleClear = useCallback(() => {
     setMessages([]);
@@ -363,172 +465,185 @@ function WorkspaceDetailInner({ workspaceId, agents, workspaces: allWorkspaces, 
   }
 
   const Icon = wsIcons[workspace.icon] || Layers;
-  const associatedAgents = agents.filter((a) => workspace.agentIds.includes(a.id));
-  // 驾驶舱智能体虚拟agent（当orchestration为cockpit-led/llm-direct时注入）
-  const isCockpitLed = workspace.orchestration?.mode === 'cockpit-led' || workspace.orchestration?.mode === 'llm-direct';
-  const cockpitAgentVirtual: Agent | null = isCockpitLed ? {
-    id: 'cockpit-self',
-    name: '驾驶舱智能体',
-    avatar: '',
-    description: '智能驾驶舱内置智能体，基于当前上下文独立运行',
-    status: 'active',
-    category: '内置',
-    skills: [],
-    usageCount: 0,
-    lastUsed: '-',
-    owner: 'system',
-    sourceType: 'internal',
-  } : null;
-
-  // 根据 orchestration 动态判断主智能体
-  // cockpit-led / llm-direct 时，驾驶舱智能体是主智能体，不使用模板预设的 agent
-  const effectivePrimaryAgentId = workspace.orchestration?.mode === 'platform-led'
-    ? workspace.orchestration.primaryAgent?.id
-    : (isCockpitLed ? 'cockpit-self' : workspace.primaryAgentId);
-  const primaryAgent = agents.find((a) => a.id === effectivePrimaryAgentId);
-
-  // 用于显示的完整agent列表（含虚拟驾驶舱智能体）
-  const displayAgents = cockpitAgentVirtual
-    ? [...associatedAgents, cockpitAgentVirtual]
-    : associatedAgents;
-  // cockpit-led / llm-direct 时优先显示驾驶舱智能体，否则回退到模板预设的 agent
-  const displayPrimaryAgent = isCockpitLed ? cockpitAgentVirtual : (primaryAgent || cockpitAgentVirtual);
-  const displayCollaborators = displayAgents.filter((a) => a.id !== effectivePrimaryAgentId && a.id !== 'cockpit-self');
+  const {
+    isCockpitLed,
+    cockpitAgentVirtual,
+    primaryAgent,
+    collaboratorAgents,
+    displayAgents,
+  } = buildWorkspaceAgentDisplay(workspace, agents);
+  const displayPrimaryAgent = primaryAgent || cockpitAgentVirtual;
+  const healthTone = workspace.orchestration?.health === 'healthy'
+    ? 'text-emerald-500'
+    : workspace.orchestration?.health === 'degraded'
+      ? 'text-amber-500'
+      : workspace.orchestration?.health === 'unavailable' || workspace.status === 'error'
+        ? 'text-red-500'
+        : 'text-app-text-secondary';
+  const healthDot = workspace.orchestration?.health === 'healthy'
+    ? 'bg-emerald-500'
+    : workspace.orchestration?.health === 'degraded'
+      ? 'bg-amber-500'
+      : workspace.orchestration?.health === 'unavailable' || workspace.status === 'error'
+        ? 'bg-red-500'
+        : 'bg-app-text-subtle';
 
   return (
     <div className="flex-1 flex flex-col min-w-0 bg-app-bg overflow-hidden">
       {/* Header */}
-      <div className="h-14 border-b border-app-border-subtle flex items-center px-6 shrink-0">
-        {layoutMode === 'cards' && (
-          <button onClick={onBack} className="p-2 rounded-lg hover:bg-app-surface-hover text-app-text-subtle hover:text-app-text-muted transition-colors mr-3">
-            <ArrowLeft className="w-4 h-4" />
-          </button>
-        )}
-        <div className="w-8 h-8 rounded-lg flex items-center justify-center mr-3" style={{ backgroundColor: `${workspace.color}15` }}>
-          <Icon className="w-4 h-4" style={{ color: workspace.color }} />
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            {isEditing ? (
-              <input
-                value={editName}
-                onChange={(e) => setEditName(e.target.value)}
-                onBlur={handleSaveTitle}
-                onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
-                className="text-sm font-semibold text-app-text bg-app-surface border border-app-border-subtle focus:border-red-400 rounded px-1.5 py-0.5 outline-none min-w-[80px] max-w-[200px]"
-              />
-            ) : (
-              <h1 className="text-sm font-semibold text-app-text truncate">{workspace.name}</h1>
-            )}
-            <span className="text-[10px] text-app-text-subtle shrink-0">· 智能驾驶舱</span>
-            {/* Agent Mode Tag */}
-            {workspace.agentMode && workspace.agentMode !== 'single' && (
-              <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full border text-[10px] shrink-0 ${
-                workspace.agentMode === 'llm-only'
-                  ? 'bg-purple-500/10 text-purple-500 border-purple-500/20'
-                  : 'bg-primary/8 text-primary border-primary/15'
-              }`}>
-                <span>{agentModeLabel(workspace.agentMode)}</span>
-              </div>
-            )}
-          </div>
-          {isEditing ? (
-            <input
-              value={editDescription}
-              onChange={(e) => setEditDescription(e.target.value)}
-              onBlur={handleSaveTitle}
-              onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
-              className="text-[10px] text-app-text-muted bg-app-surface border border-app-border-subtle focus:border-red-400 rounded px-1.5 py-0.5 outline-none w-full mt-0.5"
-              placeholder="添加描述..."
-            />
-          ) : (
-            <p className="text-[10px] text-app-text-muted truncate">{workspace.description}</p>
-          )}
-        </div>
-
-        {/* Orchestration State + Agents */}
-        <div className="flex items-center gap-3 mr-4">
-          {/* 智能体头像列表：按顺序排列，第一个为主 */}
-          <div className="flex items-center gap-2">
-            {/* 健康状态指示 */}
-            {workspace.orchestration && (
-              <span
-                className={`w-1.5 h-1.5 rounded-full ${
-                  workspace.orchestration.health === 'healthy' ? 'bg-emerald-500'
-                    : workspace.orchestration.health === 'degraded' ? 'bg-amber-500'
-                    : 'bg-red-500'
-                }`}
-                title={workspace.orchestration.reason}
-              />
-            )}
-            <div className="flex -space-x-1.5">
-              {displayAgents.map((agent, idx) => {
-                const isPrimary = idx === 0;
-                return (
-                  <button
-                    key={agent.id}
-                    onClick={() => setActiveAgentId(activeAgentId === agent.id ? null : agent.id)}
-                    className={`relative transition-all ${activeAgentId === agent.id ? 'z-10 scale-110' : ''}`}
-                  >
-                    {agent.id === 'cockpit-self' ? (
-                      <div
-                        className={`rounded-full flex items-center justify-center bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white shadow-sm ${isPrimary ? 'w-7 h-7 ring-2 ring-red-500/40' : 'w-6 h-6'}`}
-                        title={agent.name}
-                      >
-                        <Sparkles className={isPrimary ? 'w-3.5 h-3.5' : 'w-3 h-3'} />
-                      </div>
-                    ) : (
-                      <div className={isPrimary ? 'ring-2 ring-red-500/40 rounded-full' : ''}>
-                        <AgentAvatar agent={agent} size={isPrimary ? 'sm' : 'sm'} showStatus />
-                      </div>
-                    )}
+      <div className="shrink-0 border-b border-app-border-subtle/80 bg-app-surface-elevated/95 backdrop-blur">
+        <div className="px-6 py-4">
+          <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-4">
+                {layoutMode === 'cards' && (
+                  <button onClick={onBack} className="rounded-xl p-2 text-app-text-subtle transition-colors hover:bg-app-surface-hover hover:text-app-text-muted">
+                    <ArrowLeft className="h-4 w-4" />
                   </button>
-                );
-              })}
+                )}
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-app-border-subtle bg-app-surface" style={{ backgroundColor: `${workspace.color}12` }}>
+                  <Icon className="h-4.5 w-4.5" style={{ color: workspace.color }} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    {isEditing ? (
+                      <input
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        onBlur={handleSaveTitle}
+                        onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+                        className="min-w-[120px] max-w-[320px] rounded-lg border border-app-border-subtle bg-app-surface px-2 py-1 text-lg font-semibold text-app-text outline-none focus:border-red-400"
+                      />
+                    ) : (
+                      <h1 className="truncate text-xl font-semibold text-app-text">{workspace.name}</h1>
+                    )}
+                    <span className="rounded-full border border-app-border-subtle bg-app-surface px-2 py-0.5 text-[10px] text-app-text-subtle">
+                      智能驾驶舱
+                    </span>
+                    {workspace.executionOwner === 'external' && (
+                      <span className="rounded-full border border-primary/15 bg-primary/8 px-2 py-0.5 text-[10px] text-primary">
+                        {workspace.externalProvider === 'yonclaw'
+                          ? 'YonClaw 主控'
+                          : workspace.externalProvider === 'openclaw'
+                            ? 'OpenClaw 主控'
+                            : '外部主控'}
+                      </span>
+                    )}
+                    {workspace.executionOwner !== 'external' && workspace.orchestration?.mode === 'cockpit-led' && (
+                      <span className="rounded-full border border-app-border-subtle bg-app-surface px-2 py-0.5 text-[10px] text-app-text-subtle">
+                        驾驶舱兜底
+                      </span>
+                    )}
+                    {workspace.agentMode && workspace.agentMode !== 'single' && (
+                      <span className={`rounded-full border px-2 py-0.5 text-[10px] ${
+                        workspace.agentMode === 'llm-only'
+                          ? 'border-purple-500/20 bg-purple-500/10 text-purple-500'
+                          : 'border-primary/15 bg-primary/8 text-primary'
+                      }`}>
+                        {agentModeLabel(workspace.agentMode)}
+                      </span>
+                    )}
+                  </div>
+                  {isEditing ? (
+                    <input
+                      value={editDescription}
+                      onChange={(e) => setEditDescription(e.target.value)}
+                      onBlur={handleSaveTitle}
+                      onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+                      className="mt-2 w-full rounded-lg border border-app-border-subtle bg-app-surface px-2 py-1 text-sm text-app-text-muted outline-none focus:border-red-400"
+                      placeholder="添加描述..."
+                    />
+                  ) : (
+                    <p className="mt-1.5 max-w-4xl truncate text-sm text-app-text-muted">
+                      {workspace.description || '当前驾驶舱尚未填写描述。'}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 xl:justify-end">
+              {displayAgents.length > 0 && (
+                <div className="flex items-center gap-2 rounded-xl border border-app-border-subtle bg-app-surface px-3 py-2">
+                  <div className="flex -space-x-2">
+                    {displayAgents.slice(0, 4).map((agent, idx) => {
+                      const isPrimary = displayPrimaryAgent?.id === agent.id || idx === 0;
+                      return (
+                        <button
+                          key={agent.id}
+                          onClick={() => setActiveAgentId(activeAgentId === agent.id ? null : agent.id)}
+                          className={`relative transition-all ${activeAgentId === agent.id ? 'z-20 scale-110' : isPrimary ? 'z-10' : 'z-0'}`}
+                        >
+                          {agent.id === 'cockpit-self' ? (
+                            <div
+                              className={`flex items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white shadow-sm ${isPrimary ? 'h-8 w-8 ring-2 ring-red-500/40' : 'h-7 w-7 ring-2 ring-app-surface'}`}
+                              title={agent.name}
+                            >
+                              <Sparkles className={isPrimary ? 'h-4 w-4' : 'h-3 w-3'} />
+                            </div>
+                          ) : (
+                            <div className={isPrimary ? 'rounded-full ring-2 ring-red-500/40' : 'rounded-full ring-2 ring-app-surface'}>
+                              <AgentAvatar agent={agent} size="sm" showStatus />
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="flex items-center gap-2 text-[11px] text-app-text-subtle">
+                    <span>{collaboratorAgents.length > 0 ? `${displayAgents.length} 个智能体` : '主智能体'}</span>
+                    <span className={`inline-flex items-center gap-1 ${healthTone}`}>
+                      <span className={`h-1.5 w-1.5 rounded-full ${healthDot}`} />
+                      {workspace.orchestration?.health || workspace.status}
+                    </span>
+                  </div>
+                </div>
+              )}
+              {isEditing && (
+                <button
+                  onClick={() => setWidgetLibraryOpen(true)}
+                  className="inline-flex items-center gap-1 rounded-xl border border-primary/15 bg-primary/8 px-3 py-2 text-xs text-primary transition-colors hover:bg-primary/15"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  添加组件
+                </button>
+              )}
+              <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-app-border-subtle bg-app-surface-subtle px-3 py-2">
+                <span className="text-[11px] text-app-text-subtle">编辑模式</span>
+                <Switch checked={isEditing} onCheckedChange={setIsEditing} />
+              </label>
+              <button
+                onClick={() => {
+                  refreshWorkspace();
+                  setDetailWidget(null);
+                  setDrillState(null);
+                }}
+                className="inline-flex items-center gap-1 rounded-xl border border-app-border-subtle px-3 py-2 text-xs text-app-text-muted transition-colors hover:bg-app-surface-hover hover:text-app-text-secondary"
+              >
+                <RefreshCw className="h-3.5 w-3.5" />
+                刷新
+              </button>
+              {onRequestDelete && (
+                <button
+                  onClick={() => onRequestDelete(workspaceId)}
+                  className="inline-flex items-center gap-1 rounded-xl border border-red-500/15 bg-red-500/8 px-3 py-2 text-xs text-red-500 transition-colors hover:bg-red-500/12"
+                  title="删除驾驶舱"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  删除
+                </button>
+              )}
             </div>
           </div>
         </div>
-
-        {/* Canvas Edit Controls */}
-        <div className="flex items-center gap-3 mr-4">
-          {isEditing && (
-            <button
-              onClick={() => setWidgetLibraryOpen(true)}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-primary/8 border border-primary/15 text-primary text-xs hover:bg-primary/15 transition-colors"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              添加组件
-            </button>
-          )}
-          <label className="flex items-center gap-2 cursor-pointer">
-            <span className="text-[10px] text-app-text-subtle">编辑</span>
-            <Switch checked={isEditing} onCheckedChange={setIsEditing} />
-          </label>
-        </div>
-
-        <div className="flex items-center gap-1">
-          <button className="p-2 rounded-lg hover:bg-app-surface-hover text-app-text-subtle hover:text-app-text-muted transition-colors"><RefreshCw className="w-4 h-4" /></button>
-          {onRequestDelete && (
-            <button
-              onClick={() => onRequestDelete(workspaceId)}
-              className="p-2 rounded-lg hover:bg-red-500/10 text-app-text-subtle hover:text-red-500 transition-colors"
-              title="删除驾驶舱"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
-          )}
-        </div>
       </div>
 
-      {/* Active Agent Detail Banner */}
       {activeAgentId && (
-        <div className="mx-6 mt-4 p-4 rounded-xl bg-app-surface border border-app-border-subtle shadow-[0_1px_3px_rgba(0,0,0,0.18)] animate-in slide-in-from-top-2">
+        <div className="mx-6 mt-3 rounded-2xl border border-app-border-subtle bg-app-surface px-4 py-3 shadow-[0_8px_24px_rgba(0,0,0,0.08)] animate-in slide-in-from-top-2">
           {(() => {
             const agent = agents.find((a) => a.id === activeAgentId) || (activeAgentId === 'cockpit-self' ? cockpitAgentVirtual : null);
             if (!agent) return null;
-            const isPrimary = agent.id === 'cockpit-self' || (workspace.orchestration?.mode === 'platform-led'
-              ? agent.id === workspace.orchestration.primaryAgent?.id
-              : agent.id === workspace.primaryAgentId);
+            const isPrimary = agent.id === displayPrimaryAgent?.id;
             const isCockpitSelf = agent.id === 'cockpit-self';
             return (
               <div className="flex items-center gap-4">
@@ -559,11 +674,9 @@ function WorkspaceDetailInner({ workspaceId, agents, workspaces: allWorkspaces, 
                   <p className="text-xs text-app-text-muted mt-0.5">{agent.description}</p>
                   {!isCockpitSelf && (
                     <div className="flex items-center gap-2 mt-1.5 text-[10px] text-app-text-subtle">
-                      <span>{agent.usageCount.toLocaleString()} 次调用</span>
-                      <span>·</span>
                       <span>{agent.skills.length} 项技能</span>
                       <span>·</span>
-                      <span>最近 {agent.lastUsed}</span>
+                      <span>{agent.sourceConnectionName || '外部连接智能体'}</span>
                     </div>
                   )}
                 </div>
@@ -573,30 +686,6 @@ function WorkspaceDetailInner({ workspaceId, agents, workspaces: allWorkspaces, 
               </div>
             );
           })()}
-        </div>
-      )}
-
-      {/* 全局联动过滤条 */}
-      {hasFilters && (
-        <div className="px-6 pt-4 pb-0 flex items-center gap-2 flex-wrap">
-          <span className="text-[10px] text-app-text-subtle">过滤:</span>
-          {Object.entries(activeFilters).map(([key, value]) => (
-            <span
-              key={key}
-              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-app-surface-subtle border border-app-border-subtle text-[10px] text-app-text-muted cursor-pointer hover:border-app-border transition-colors"
-              onClick={() => clearFilter(key)}
-              title="点击清除"
-            >
-              {key}: {String(value)}
-              <span className="text-app-text-subtle hover:text-red-500">×</span>
-            </span>
-          ))}
-          <button
-            onClick={clearAllFilters}
-            className="text-[10px] text-app-text-subtle hover:text-red-500 transition-colors"
-          >
-            清除全部
-          </button>
         </div>
       )}
 
@@ -613,36 +702,56 @@ function WorkspaceDetailInner({ workspaceId, agents, workspaces: allWorkspaces, 
               widget={widget}
               useDemoDataFallback={workspace.useDemoDataFallback}
               isEditing={isEditing}
+              onRuntimeDataChange={(snapshot) => {
+                setRuntimeWidgetSnapshots((prev) => {
+                  const current = prev[widget.id];
+                  const next = { ...prev };
+                  if (!snapshot || !snapshot.data || Object.keys(snapshot.data).length === 0) {
+                    if (!current) return prev;
+                    delete next[widget.id];
+                    return next;
+                  }
+                  const sameData = current
+                    && current.title === snapshot.title
+                    && JSON.stringify(current.data) === JSON.stringify(snapshot.data);
+                  if (sameData) {
+                    return prev;
+                  }
+                  next[widget.id] = snapshot;
+                  return next;
+                });
+              }}
               onClick={() => {
                 if (isEditing) return;
-                if (widget.link) {
-                  const link = widget.link;
+                const safeWidget = normalizeWidget(widget, localWidgets.findIndex((item) => item.id === widget.id)) || widget;
+                if (safeWidget.link) {
+                  const link = safeWidget.link;
                   if (link.type === 'workspace' && onSelectWorkspace) {
                     if (link.targetId) {
                       onSelectWorkspace(link.targetId);
                     } else if (link.targetTemplate && allWorkspaces) {
-                      const targetWs = allWorkspaces.find((w) => w.templateId === link.targetTemplate || w.id === link.targetTemplate);
+                      const targetWs = allWorkspaces.find((w) => w.id === link.targetTemplate || w.name === link.targetTemplate);
                       if (targetWs) {
                         onSelectWorkspace(targetWs.id);
                       } else {
-                        setDetailWidget(widget);
+                        setDetailWidget(safeWidget);
                       }
                     } else {
-                      setDetailWidget(widget);
+                      setDetailWidget(safeWidget);
                     }
                   } else if (link.type === 'url' && link.url) {
                     window.open(link.url, '_blank');
                   } else if (link.type === 'widget' && link.targetId) {
-                    setDetailWidget(widget);
+                    setDetailWidget(safeWidget);
                   } else {
-                    setDetailWidget(widget);
+                    setDetailWidget(safeWidget);
                   }
                 } else {
-                  setDetailWidget(widget);
+                  setDetailWidget(safeWidget);
                 }
               }}
               onDrillDown={(context, dimension) => {
-                setDrillState({ widget, context, dimension });
+                setDrillState({ widget: normalizeWidget(widget, localWidgets.findIndex((item) => item.id === widget.id)) || widget, context, dimension });
                 // 同时设置全局联动过滤
                 Object.entries(context).forEach(([key, value]) => {
                   if (typeof value === 'string' || typeof value === 'number') {
@@ -936,6 +1045,7 @@ const TYPE_GRADIENTS: Record<string, string> = {
   progress: 'from-teal-500/70 via-teal-400/50 to-transparent',
   status:   'from-orange-500/70 via-orange-400/50 to-transparent',
   universal:'from-slate-500/70 via-slate-400/50 to-transparent',
+  adaptive: 'from-cyan-500/70 via-blue-400/50 to-transparent',
   gauge:    'from-red-500/70 via-red-400/50 to-transparent',
   funnel:   'from-purple-500/70 via-purple-400/50 to-transparent',
   radar:    'from-pink-500/70 via-pink-400/50 to-transparent',
@@ -946,7 +1056,7 @@ const TYPE_GRADIENTS: Record<string, string> = {
   sparkline:'from-indigo-500/70 via-blue-400/50 to-transparent',
 };
 
-function WidgetRenderer({ workspaceId, widget, useDemoDataFallback, isEditing, onClick, onDrillDown, filterContext }: { workspaceId: string; widget: Widget; useDemoDataFallback?: boolean; isEditing?: boolean; onClick?: () => void; onDrillDown?: (context: Record<string, unknown>, dimension: string) => void; filterContext?: Record<string, unknown> }) {
+function WidgetRenderer({ workspaceId, widget, useDemoDataFallback, isEditing, onClick, onDrillDown, filterContext, onRuntimeDataChange }: { workspaceId: string; widget: Widget; useDemoDataFallback?: boolean; isEditing?: boolean; onClick?: () => void; onDrillDown?: (context: Record<string, unknown>, dimension: string) => void; filterContext?: Record<string, unknown>; onRuntimeDataChange?: (snapshot: RuntimeWidgetSnapshot | null) => void }) {
   const gridSize = { w: widget.position.w, h: widget.position.h };
   const hasDetail = !!widget.detail || !!((widget.data as Record<string, unknown>)?.detail) || !!((widget.data as Record<string, unknown>)?.fullContent) || widget.type === 'report' || widget.type === 'html';
   const hasLink = !!widget.link;
@@ -955,13 +1065,14 @@ function WidgetRenderer({ workspaceId, widget, useDemoDataFallback, isEditing, o
 
   return (
     <div
-      className={`group h-full rounded-2xl bg-widget-bg border border-widget-border overflow-hidden flex flex-col transition-all duration-300 ease-widget ${isEditing ? 'ring-1 ring-primary/20 shadow-md' : 'shadow-widget hover:shadow-widget-hover hover:border-widget-border-hover'} ${isClickable ? 'cursor-pointer' : ''}`}
+      className={`group relative h-full rounded-[22px] bg-gradient-to-b from-widget-bg via-widget-bg to-app-surface-subtle/30 border border-widget-border/80 overflow-hidden flex flex-col transition-all duration-300 ease-widget backdrop-blur-sm ${isEditing ? 'ring-1 ring-primary/20 shadow-lg shadow-primary/5' : 'shadow-widget hover:shadow-widget-hover hover:border-widget-border-hover'} ${isClickable ? 'cursor-pointer' : ''}`}
       onClick={isClickable ? onClick : undefined}
     >
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-app-surface-hover/70 via-transparent to-transparent opacity-70" />
       {/* 渐变顶部装饰线 */}
-      <div className={`h-[3px] w-full bg-gradient-to-r ${gradient}`} />
+      <div className={`relative z-10 h-[3px] w-full bg-gradient-to-r ${gradient}`} />
       {/* 标题栏 */}
-      <div className="flex items-center justify-between px-3.5 py-2 border-b border-app-border-subtle/60">
+      <div className="relative z-10 flex items-center justify-between px-3.5 py-2.5 border-b border-app-border-subtle/60 bg-app-surface-subtle/55 backdrop-blur-[2px]">
         <div className="flex items-center gap-1.5 min-w-0">
           <div className={`w-1.5 h-1.5 rounded-full bg-gradient-to-br ${gradient.replace('/70', '').replace('/50', '').replace(' to-transparent', '').replace(' via-', ' ')}`} />
           <h4 className="text-[11px] font-medium text-app-text-muted truncate tracking-wide">{widget.title}</h4>
@@ -972,8 +1083,8 @@ function WidgetRenderer({ workspaceId, widget, useDemoDataFallback, isEditing, o
         </div>
       </div>
       {/* 内容区 */}
-      <div className="flex-1 p-3.5 min-h-0">
-        <WidgetContent workspaceId={workspaceId} widget={widget} useDemoDataFallback={useDemoDataFallback} gridSize={gridSize} onDrillDown={onDrillDown} filterContext={filterContext} />
+      <div className="relative z-10 flex-1 p-3.5 min-h-0">
+        <WidgetContent workspaceId={workspaceId} widget={widget} useDemoDataFallback={useDemoDataFallback} gridSize={gridSize} onDrillDown={onDrillDown} filterContext={filterContext} onRuntimeDataChange={onRuntimeDataChange} />
       </div>
     </div>
   );
@@ -991,26 +1102,421 @@ function isEmptyValue(val: unknown): boolean {
   return false;
 }
 
-function EmptyWidgetState({ title, source, error }: { title: string; source?: string; error?: string | null }) {
+function EmptyWidgetState({ title, source, error, initError }: { title: string; source?: string; error?: string | null; initError?: string | null }) {
   return (
     <div className="h-full flex flex-col items-center justify-center gap-2">
       <div className="w-8 h-8 rounded-xl bg-app-surface-subtle border border-app-border-subtle flex items-center justify-center">
         <Monitor className="w-3.5 h-3.5 text-app-text-subtle/50" />
       </div>
-      <div className="text-[11px] text-app-text-subtle font-medium">{error ? '数据获取失败' : '暂无数据'}</div>
+      <div className="text-[11px] text-app-text-subtle font-medium">
+        {initError ? '数据初始化失败' : error ? '数据获取失败' : '暂无数据'}
+      </div>
       {source === 'static' && <div className="text-[10px] text-app-text-subtle/60">演示数据</div>}
       {error && <div className="text-[10px] text-app-text-subtle/40">{error}</div>}
+      {initError && <div className="text-[10px] text-app-text-subtle/40">{initError}</div>}
       <div className="text-[10px] text-app-text-subtle/40">{title}</div>
     </div>
   );
 }
 
-function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onDrillDown, filterContext }: { workspaceId: string; widget: Widget; useDemoDataFallback?: boolean; gridSize: { w: number; h: number }; onDrillDown?: (context: Record<string, unknown>, dimension: string) => void; filterContext?: Record<string, unknown> }) {
-  const { data: liveData, loading, error } = useWidgetData(workspaceId, widget, useDemoDataFallback, filterContext);
+function toRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null;
+}
+
+function toStringValue(value: unknown): string {
+  if (value === null || value === undefined) return '';
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  return '';
+}
+
+function parseNumericValue(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value !== 'string') return null;
+  const normalized = value.replace(/,/g, '');
+  const match = normalized.match(/-?\d+(\.\d+)?/);
+  if (!match) return null;
+  const parsed = Number(match[0]);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function toMetricTone(value: unknown): WidgetMetricItem['tone'] {
+  const tone = String(value || '').toLowerCase();
+  if (tone === 'success' || tone === 'warning' || tone === 'danger' || tone === 'info') {
+    return tone;
+  }
+  return 'default';
+}
+
+function toneClasses(tone?: WidgetMetricItem['tone'] | WidgetAdaptiveHeadline['tone']) {
+  switch (tone) {
+    case 'success':
+      return { chip: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/15', text: 'text-emerald-600', dot: 'bg-emerald-500' };
+    case 'warning':
+      return { chip: 'bg-amber-500/10 text-amber-600 border-amber-500/15', text: 'text-amber-600', dot: 'bg-amber-500' };
+    case 'danger':
+      return { chip: 'bg-red-500/10 text-red-600 border-red-500/15', text: 'text-red-600', dot: 'bg-red-500' };
+    case 'info':
+      return { chip: 'bg-sky-500/10 text-sky-600 border-sky-500/15', text: 'text-sky-600', dot: 'bg-sky-500' };
+    default:
+      return { chip: 'bg-app-surface-subtle text-app-text-subtle border-app-border-subtle', text: 'text-app-text-secondary', dot: 'bg-primary/60' };
+  }
+}
+
+function normalizeMetricItem(item: unknown, index: number): WidgetMetricItem | null {
+  if (item === null || item === undefined) return null;
+  if (typeof item === 'string' || typeof item === 'number') {
+    return {
+      label: `指标 ${index + 1}`,
+      value: typeof item === 'number' ? item : item.trim(),
+      tone: 'default',
+    };
+  }
+
+  const record = toRecord(item);
+  if (!record) return null;
+  const label = toStringValue(record.label || record.name || record.title || record.key || record.metric);
+  const rawValue = record.value ?? record.val ?? record.amount ?? record.num ?? record.result;
+  if (!label && isEmptyValue(rawValue)) return null;
+
+  const trendRaw = String(record.trend || record.direction || '').toLowerCase();
+  const trend: WidgetMetricItem['trend'] =
+    trendRaw === 'up' || trendRaw === 'increase' || trendRaw === 'positive' ? 'up' :
+    trendRaw === 'down' || trendRaw === 'decrease' || trendRaw === 'negative' ? 'down' :
+    trendRaw === 'flat' || trendRaw === 'stable' ? 'flat' :
+    undefined;
+
+  return {
+    label: label || `指标 ${index + 1}`,
+    value: typeof rawValue === 'number' ? rawValue : toStringValue(rawValue) || '—',
+    change: toStringValue(record.change || record.delta || record.comparison || record.diff),
+    trend,
+    caption: toStringValue(record.caption || record.description || record.note || record.subLabel),
+    tone: toMetricTone(record.tone || record.status || record.level),
+  };
+}
+
+function extractMetricItems(data: Record<string, unknown>): WidgetMetricItem[] {
+  const candidates = [
+    data.secondaryMetrics,
+    data.metrics,
+    data.kpis,
+    data.stats,
+    data.highlights,
+    data.items,
+  ];
+  for (const candidate of candidates) {
+    if (!Array.isArray(candidate)) continue;
+    const metrics = candidate
+      .map((item, index) => normalizeMetricItem(item, index))
+      .filter((item): item is WidgetMetricItem => item !== null);
+    if (metrics.length > 0) return metrics;
+  }
+  return [];
+}
+
+function extractHeadline(data: Record<string, unknown>, widgetTitle: string): WidgetAdaptiveHeadline {
+  const raw = toRecord(data.headline);
+  const subtitle = toStringValue(data.subtitle || data.summary || data.description || data.caption);
+  return {
+    eyebrow: toStringValue(raw?.eyebrow || data.eyebrow || data.category || data.domain),
+    title: toStringValue(raw?.title || data.title || widgetTitle),
+    subtitle: toStringValue(raw?.subtitle || subtitle),
+    status: toStringValue(raw?.status || data.statusLabel || data.status),
+    tone: toMetricTone(raw?.tone || data.tone || data.level),
+  };
+}
+
+function normalizeAdaptiveSection(section: unknown, index: number): WidgetAdaptiveSection | null {
+  if (section === null || section === undefined) return null;
+  if (typeof section === 'string') {
+    return {
+      type: 'text',
+      title: `区块 ${index + 1}`,
+      content: section.trim(),
+    };
+  }
+
+  const record = toRecord(section);
+  if (!record) return null;
+
+  const type = toStringValue(record.type || record.kind || record.layout) as WidgetAdaptiveSection['type'];
+  const title = toStringValue(record.title || record.name || record.label);
+  const description = toStringValue(record.description || record.summary || record.caption);
+  const content = toStringValue(record.content || record.text || record.markdown || record.body);
+  const metrics = Array.isArray(record.metrics)
+    ? record.metrics.map((item, metricIndex) => normalizeMetricItem(item, metricIndex)).filter((item): item is WidgetMetricItem => item !== null)
+    : [];
+
+  const itemsRaw = Array.isArray(record.items)
+    ? record.items
+    : Array.isArray(record.list)
+      ? record.list
+      : Array.isArray(record.entries)
+        ? record.entries
+        : [];
+
+  const rowsRaw = Array.isArray(record.rows)
+    ? record.rows
+    : Array.isArray(record.data)
+      ? record.data
+      : Array.isArray(record.records)
+        ? record.records
+        : [];
+
+  return {
+    type: type || (
+      metrics.length > 0 ? 'metrics' :
+      rowsRaw.length > 0 ? 'table' :
+      itemsRaw.length > 0 ? 'list' :
+      content ? 'text' :
+      'highlights'
+    ),
+    title,
+    description,
+    content,
+    metrics,
+    items: itemsRaw,
+    columns: Array.isArray(record.columns) ? record.columns.map(String) : undefined,
+    rows: rowsRaw as Array<string[] | Record<string, unknown>>,
+  };
+}
+
+function extractAdaptiveSections(data: Record<string, unknown>): WidgetAdaptiveSection[] {
+  const candidates = [data.sections, data.blocks, data.cards];
+  for (const candidate of candidates) {
+    if (!Array.isArray(candidate)) continue;
+    const sections = candidate
+      .map((item, index) => normalizeAdaptiveSection(item, index))
+      .filter((item): item is WidgetAdaptiveSection => item !== null);
+    if (sections.length > 0) return sections;
+  }
+
+  const fallbackSections: WidgetAdaptiveSection[] = [];
+  const metricItems = extractMetricItems(data);
+  if (metricItems.length > 0) {
+    fallbackSections.push({ type: 'metrics', title: '关键指标', metrics: metricItems.slice(0, 4) });
+  }
+  const textContent = toStringValue(data.content || data.text || data.markdown || data.body || data.summary);
+  if (textContent) {
+    fallbackSections.push({ type: 'text', title: '摘要', content: textContent });
+  }
+  const items = Array.isArray(data.items) ? data.items : Array.isArray(data.list) ? data.list : [];
+  if (items.length > 0) {
+    fallbackSections.push({ type: 'list', title: '要点', items });
+  }
+  const rows = Array.isArray(data.rows) ? data.rows : Array.isArray(data.records) ? data.records : [];
+  if (rows.length > 0) {
+    fallbackSections.push({ type: 'table', title: '明细', rows: rows as Array<string[] | Record<string, unknown>>, columns: Array.isArray(data.columns) ? data.columns.map(String) : undefined });
+  }
+  return fallbackSections;
+}
+
+function normalizeUniversalContent(rawContent: string) {
+  const hasHtmlTags = /<[a-z][\s\S]*?>/i.test(rawContent);
+  const content = hasHtmlTags ? rawContent.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim() : rawContent;
+  const lines = content
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line, index, arr) => !(line === '' && arr[index - 1] === ''));
+
+  const headings: string[] = [];
+  const bullets: string[] = [];
+  const ordered: string[] = [];
+  const paragraphs: string[] = [];
+
+  for (const line of lines) {
+    if (!line) continue;
+    if (line.startsWith('# ')) {
+      headings.push(line.slice(2).trim());
+      continue;
+    }
+    if (line.startsWith('## ')) {
+      headings.push(line.slice(3).trim());
+      continue;
+    }
+    if (line.startsWith('- ') || line.startsWith('* ')) {
+      bullets.push(line.slice(2).trim());
+      continue;
+    }
+    if (/^\d+\.\s/.test(line)) {
+      ordered.push(line.replace(/^\d+\.\s*/, ''));
+      continue;
+    }
+    paragraphs.push(line);
+  }
+
+  return {
+    text: content,
+    headings,
+    bullets,
+    ordered,
+    paragraphs,
+  };
+}
+
+function renderMetricChip(metric: WidgetMetricItem, index: number) {
+  const tone = toneClasses(metric.tone);
+  const trendText = metric.change || (metric.trend === 'up' ? '上升' : metric.trend === 'down' ? '下降' : '');
+  return (
+    <div key={`${metric.label}-${index}`} className="rounded-xl border border-app-border-subtle/70 bg-app-surface-subtle/70 px-3 py-2.5">
+      <div className="flex items-start justify-between gap-2">
+        <span className="text-[10px] uppercase tracking-[0.16em] text-app-text-subtle">{metric.label}</span>
+        {metric.trend && (
+          <span className={`inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[9px] font-medium ${tone.chip}`}>
+            <span className={`h-1.5 w-1.5 rounded-full ${tone.dot}`} />
+            {metric.trend === 'up' ? '上升' : metric.trend === 'down' ? '下降' : '持平'}
+          </span>
+        )}
+      </div>
+      <div className={`mt-1 text-sm font-semibold tabular-nums ${tone.text}`}>{metric.value}</div>
+      {trendText && <div className="mt-1 text-[10px] text-app-text-subtle">{trendText}</div>}
+      {metric.caption && <div className="mt-1 line-clamp-2 text-[10px] text-app-text-subtle/80">{metric.caption}</div>}
+    </div>
+  );
+}
+
+function renderAdaptiveSection(section: WidgetAdaptiveSection, gridSize: { w: number; h: number }, sectionIndex: number) {
+  const title = section.title || `区块 ${sectionIndex + 1}`;
+  const maxMetrics = gridSize.w <= 3 ? 2 : gridSize.w >= 6 ? 4 : 3;
+  const maxItems = gridSize.h <= 2 ? 2 : gridSize.h <= 3 ? 3 : 4;
+
+  return (
+    <div key={`${title}-${sectionIndex}`} className="rounded-2xl border border-app-border-subtle/70 bg-app-surface-subtle/60 p-3">
+      {(section.title || section.description) && (
+        <div className="mb-2.5">
+          {section.title && <div className="text-[11px] font-semibold text-app-text-secondary">{section.title}</div>}
+          {section.description && <div className="mt-1 text-[10px] text-app-text-subtle leading-relaxed">{section.description}</div>}
+        </div>
+      )}
+
+      {section.type === 'metrics' && section.metrics && section.metrics.length > 0 && (
+        <div className={`grid gap-2 ${gridSize.w >= 5 ? 'grid-cols-2' : 'grid-cols-1'}`}>
+          {section.metrics.slice(0, maxMetrics).map((metric, index) => renderMetricChip(metric, index))}
+        </div>
+      )}
+
+      {section.type === 'list' && Array.isArray(section.items) && section.items.length > 0 && (
+        <div className="space-y-1.5">
+          {section.items.slice(0, maxItems).map((item, index) => {
+            const record = toRecord(item);
+            const text = record
+              ? toStringValue(record.label || record.title || record.name || record.description || record.value)
+              : toStringValue(item);
+            return (
+              <div key={`${text}-${index}`} className="flex items-start gap-2 rounded-xl bg-widget-bg/65 px-2.5 py-2">
+                <div className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary/65" />
+                <span className="text-[11px] leading-relaxed text-app-text-secondary">{text}</span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {section.type === 'table' && Array.isArray(section.rows) && section.rows.length > 0 && (
+        <div className="space-y-1.5">
+          {Array.isArray(section.columns) && section.columns.length > 0 && (
+            <div className="flex items-center gap-2 border-b border-app-border-subtle/60 px-2 pb-1.5">
+              {section.columns.slice(0, gridSize.w <= 3 ? 2 : 3).map((column, index) => (
+                <span key={`${column}-${index}`} className="flex-1 truncate text-[10px] font-semibold uppercase tracking-[0.14em] text-app-text-subtle">
+                  {column}
+                </span>
+              ))}
+            </div>
+          )}
+          {section.rows.slice(0, maxItems).map((row, index) => {
+            const cells = Array.isArray(row)
+              ? row.map(String)
+              : (() => {
+                  const record = toRecord(row);
+                  if (!record) return [];
+                  const keys = section.columns && section.columns.length > 0 ? section.columns : Object.keys(record);
+                  return keys.slice(0, gridSize.w <= 3 ? 2 : 3).map((key) => toStringValue(record[key]) || '—');
+                })();
+            return (
+              <div key={`row-${index}`} className="flex items-center gap-2 rounded-xl bg-widget-bg/65 px-2.5 py-2">
+                {cells.slice(0, gridSize.w <= 3 ? 2 : 3).map((cell, cellIndex) => (
+                  <span key={`${cell}-${cellIndex}`} className={`flex-1 truncate text-[11px] ${cellIndex === 0 ? 'font-medium text-app-text-secondary' : 'text-app-text-muted'}`}>
+                    {cell}
+                  </span>
+                ))}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {(section.type === 'text' || section.type === 'highlights' || section.type === 'status' || section.type === 'timeline') && (
+        <>
+          {section.content && (
+            <p className={`text-[11px] leading-relaxed text-app-text-secondary ${gridSize.h <= 2 ? 'line-clamp-3' : 'line-clamp-5'}`}>
+              {section.content}
+            </p>
+          )}
+          {!section.content && Array.isArray(section.items) && section.items.length > 0 && (
+            <div className="space-y-1.5">
+              {section.items.slice(0, maxItems).map((item, index) => {
+                const record = toRecord(item);
+                const label = record
+                  ? toStringValue(record.label || record.title || record.name || record.status || record.value)
+                  : toStringValue(item);
+                const detail = record ? toStringValue(record.description || record.caption || record.note) : '';
+                return (
+                  <div key={`${label}-${index}`} className="rounded-xl bg-widget-bg/65 px-2.5 py-2">
+                    <div className="text-[11px] font-medium text-app-text-secondary">{label}</div>
+                    {detail && <div className="mt-1 text-[10px] text-app-text-subtle">{detail}</div>}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onDrillDown, filterContext, onRuntimeDataChange }: { workspaceId: string; widget: Widget; useDemoDataFallback?: boolean; gridSize: { w: number; h: number }; onDrillDown?: (context: Record<string, unknown>, dimension: string) => void; filterContext?: Record<string, unknown>; onRuntimeDataChange?: (snapshot: RuntimeWidgetSnapshot | null) => void }) {
+  const { data: liveData, loading, error, source } = useWidgetData(workspaceId, widget, useDemoDataFallback, filterContext);
 
   // 使用动态数据（如果存在），否则回退到 widget.data
   const displayData = liveData || widget.data || {};
+  const runtimeDataRecord = liveData
+    && liveData !== widget.data
+    && typeof liveData === 'object'
+    && !Array.isArray(liveData)
+    ? liveData as Record<string, unknown>
+    : null;
+
+  useEffect(() => {
+    if (!onRuntimeDataChange) return;
+    if (runtimeDataRecord && Object.keys(runtimeDataRecord).length > 0) {
+      onRuntimeDataChange({
+        widgetId: widget.id,
+        title: widget.title,
+        data: runtimeDataRecord,
+      });
+      return;
+    }
+    onRuntimeDataChange(null);
+  }, [onRuntimeDataChange, runtimeDataRecord, widget.id, widget.title, source]);
+
   const dataSource = (displayData as Record<string, unknown> | undefined)?.__source as string | undefined;
+
+  // 检测 LLM 初始化失败状态（由后端在 initializeWorkspaceWithLLM 失败时写入）
+  const displayRecord = displayData && typeof displayData === 'object' && !Array.isArray(displayData)
+    ? displayData as Record<string, unknown>
+    : undefined;
+  const initStatus = displayRecord?.__initStatus as string | undefined;
+  const initError = displayRecord?.__initError as string | undefined;
+  const hasRenderableData = displayRecord
+    ? Object.entries(displayRecord).some(([key, value]) => !key.startsWith('__') && !isEmptyValue(value))
+    : false;
+  if (initStatus === 'failed' && !hasRenderableData) {
+    return <EmptyWidgetState title={widget.title} initError={initError || 'LLM 初始化失败，请检查连接配置'} />;
+  }
 
   if (loading) {
     return (
@@ -1032,8 +1538,16 @@ function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onD
   switch (effectiveType) {
     case 'metric': {
       const d = (displayData || {}) as Record<string, unknown>;
+      const metricItems = extractMetricItems(d);
+      const primaryMetric = normalizeMetricItem(d.primaryMetric || d.metric, 0);
+      const fallbackPrimary = primaryMetric || (metricItems.length > 0 ? metricItems[0] : null);
+      const rawPrimaryValue = d.value ?? fallbackPrimary?.value;
+      const rawPrimaryChange = d.change ?? fallbackPrimary?.change;
+      const rawPrimaryTrend = d.trend ?? fallbackPrimary?.trend;
+      const rawPrimaryCaption = d.caption ?? fallbackPrimary?.caption;
+
       // 兼容：yonclaw 可能把报告内容误存为 metric 类型（data.content 有值但 value 为空）
-      if (isEmptyValue(d.value as string | undefined) && typeof d.content === 'string') {
+      if (isEmptyValue(rawPrimaryValue) && typeof d.content === 'string') {
         const contentText = d.content.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
         return (
           <div className="h-full flex flex-col">
@@ -1045,16 +1559,38 @@ function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onD
           </div>
         );
       }
-      if (isEmptyValue(d.value as string | undefined)) {
+      if (isEmptyValue(rawPrimaryValue)) {
         return <EmptyWidgetState title={widget.title} source={dataSource} error={error} />;
       }
 
-      const valueStr = String(d.value ?? '');
-      const trend = String(d.trend || '');
-      const changeStr = String(d.change || '');
-      const caption = String(d.caption || '');
+      const valueStr = String(rawPrimaryValue ?? '');
+      const trend = String(rawPrimaryTrend || '');
+      const changeStr = String(rawPrimaryChange || '');
+      const caption = String(rawPrimaryCaption || '');
       const variant = String(d.variant || ''); // 'accent' | 'status' | 'compare' | 'mini'
       const isPositive = trend === 'up';
+      const isNegative = trend === 'down';
+      const compareValue = String(d.compareValue || d.previous || d.target || '—');
+      const compareLabel = String(d.compareLabel || d.previousLabel || d.targetLabel || '对比');
+      const consumeFirstMetricAsPrimary = isEmptyValue(d.value) && !primaryMetric && metricItems.length > 0;
+      const secondaryMetrics = consumeFirstMetricAsPrimary && fallbackPrimary && metricItems[0] === fallbackPrimary
+        ? metricItems.slice(1)
+        : metricItems;
+      const summaryRows = [d.summaryRows, d.insights, d.notes, d.annotations, d.highlights]
+        .find(Array.isArray) as unknown[] | undefined;
+      const normalizedSummaries = Array.isArray(summaryRows)
+        ? summaryRows
+            .map((item) => {
+              if (typeof item === 'string') return { label: item, detail: '' };
+              const record = toRecord(item);
+              if (!record) return null;
+              return {
+                label: toStringValue(record.label || record.title || record.name || record.key || record.metric),
+                detail: toStringValue(record.value || record.description || record.caption || record.note),
+              };
+            })
+            .filter((item): item is { label: string; detail: string } => item !== null && !!item.label)
+        : [];
 
       // ── 变体：迷你卡 ──
       if (variant === 'mini' || gridSize.h <= 1) {
@@ -1063,8 +1599,8 @@ function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onD
             <span className="text-[10px] text-app-text-subtle uppercase tracking-wider">{widget.title}</span>
             <span className="text-lg font-bold text-app-text tracking-tight tabular-nums mt-0.5">{valueStr}</span>
             {!isEmptyValue(changeStr) && (
-              <span className={`text-[10px] mt-0.5 ${isPositive ? 'text-emerald-500' : trend === 'down' ? 'text-red-500' : 'text-app-text-subtle'}`}>
-                {isPositive ? '▲' : trend === 'down' ? '▼' : '—'} {changeStr}
+              <span className={`text-[10px] mt-0.5 ${isPositive ? 'text-emerald-500' : isNegative ? 'text-red-500' : 'text-app-text-subtle'}`}>
+                {isPositive ? '▲' : isNegative ? '▼' : '—'} {changeStr}
               </span>
             )}
           </div>
@@ -1109,18 +1645,16 @@ function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onD
 
       // ── 变体：对比卡（双列数值）─
       if (variant === 'compare') {
-        const compareValue = String(d.compareValue || d.previous || d.target || '—');
-        const compareLabel = String(d.compareLabel || '对比值');
         return (
           <div className="h-full flex flex-col justify-center rounded-xl border border-app-border-subtle bg-app-surface-subtle p-4">
             <span className="text-[10px] text-app-text-subtle uppercase tracking-wider">{widget.title}</span>
             <div className="flex items-baseline gap-3 mt-2">
               <span className="text-2xl font-bold text-app-text tracking-tight tabular-nums">{valueStr}</span>
-              <span className="text-xs text-app-text-subtle">vs</span>
+              <span className="text-xs text-app-text-subtle">{compareLabel}</span>
               <span className="text-lg font-medium text-app-text-muted tabular-nums">{compareValue}</span>
             </div>
             {!isEmptyValue(changeStr) && (
-              <span className={`text-xs mt-1 ${isPositive ? 'text-emerald-500' : trend === 'down' ? 'text-red-500' : 'text-app-text-subtle'}`}>
+              <span className={`text-xs mt-1 ${isPositive ? 'text-emerald-500' : isNegative ? 'text-red-500' : 'text-app-text-subtle'}`}>
                 {changeStr}
               </span>
             )}
@@ -1134,44 +1668,86 @@ function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onD
         ? (gridSize.w <= 2 ? 'text-xl' : 'text-2xl')
         : (gridSize.w <= 2 ? 'text-2xl' : gridSize.w >= 6 ? 'text-4xl' : 'text-3xl');
       const showChange = gridSize.h > 1 && !isEmptyValue(changeStr);
-      const trendColor = isPositive ? 'text-emerald-500' : trend === 'down' ? 'text-red-500' : 'text-app-text-subtle';
-      const trendIconBg = isPositive ? 'bg-emerald-500/8' : trend === 'down' ? 'bg-red-500/8' : 'bg-app-surface-subtle';
+      const trendColor = isPositive ? 'text-emerald-500' : isNegative ? 'text-red-500' : 'text-app-text-subtle';
+      const trendIconBg = isPositive ? 'bg-emerald-500/8' : isNegative ? 'bg-red-500/8' : 'bg-app-surface-subtle';
       const sparkline = d.sparkline as { labels?: string[]; values?: number[] } | undefined;
       const hasSparkline = sparkline && Array.isArray(sparkline.values) && sparkline.values.length > 1;
-      const numericValue = Number(valueStr.replace(/,/g, '').replace(/%/g, ''));
+      const numericValue = parseNumericValue(rawPrimaryValue);
       const valueMax = Number(d.max ?? d.target ?? 100);
       const thresholds = extractThresholds(d);
-      const thresholdColor = !isNaN(numericValue) && isFinite(numericValue)
+      const thresholdColor = numericValue !== null
         ? getThresholdColor(numericValue, valueMax, thresholds)
         : null;
+      const showComparison = !isEmptyValue(compareValue) && compareValue !== '—' && gridSize.w >= 4;
+      const showSecondaryMetrics = secondaryMetrics.length > 0 && (gridSize.w >= 4 || gridSize.h >= 3);
+      const showSummary = normalizedSummaries.length > 0 && gridSize.h >= 3;
+      const maxSecondaryMetrics = gridSize.w >= 6 ? 4 : gridSize.w >= 4 ? 3 : 2;
 
       return (
-        <div className="h-full flex flex-col justify-center gap-1">
-          <div className="flex items-end justify-between gap-2">
-            <div
-              className={`${valueSize} font-bold tracking-tight tabular-nums leading-none ${thresholdColor ? thresholdColor.text : 'text-app-text'} cursor-pointer hover:opacity-80 transition-opacity`}
-              onClick={(e) => {
-                e.stopPropagation();
-                onDrillDown?.({ metric: widget.title, value: numericValue }, `${widget.title}: ${valueStr}`);
-              }}
-              title="点击查看详情"
-            >{valueStr}</div>
+        <div className="h-full flex flex-col gap-3">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <div
+                className={`${valueSize} font-bold tracking-tight tabular-nums leading-none ${thresholdColor ? thresholdColor.text : 'text-app-text'} cursor-pointer hover:opacity-80 transition-opacity`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDrillDown?.({ metric: widget.title, value: numericValue ?? valueStr }, `${widget.title}: ${valueStr}`);
+                }}
+                title="点击查看详情"
+              >
+                {valueStr}
+              </div>
+              {caption && (
+                <span className={`mt-1.5 block text-[11px] text-app-text-subtle/80 ${isCompact ? '' : ''}`}>{caption}</span>
+              )}
+            </div>
             {hasSparkline && gridSize.w >= 3 && (
-              <div className={`shrink-0 ${isCompact ? 'w-16 h-8' : 'w-24 h-10'}`}>
-                <Sparkline values={sparkline.values!} color={isPositive ? 'hsl(var(--success))' : trend === 'down' ? 'hsl(var(--destructive))' : 'hsl(var(--info))'} />
+              <div className={`shrink-0 rounded-2xl border border-app-border-subtle/70 bg-app-surface-subtle/70 px-2.5 py-2 ${isCompact ? 'w-20' : 'w-28'}`}>
+                <Sparkline values={sparkline.values!} color={isPositive ? 'hsl(var(--success))' : trend === 'down' ? 'hsl(var(--destructive))' : 'hsl(var(--info))'} height={isCompact ? 26 : 32} />
               </div>
             )}
           </div>
+
           {showChange && (
-            <div className={`flex items-center gap-1.5 mt-1 ${isCompact ? 'text-[11px]' : 'text-xs'}`}>
+            <div className={`flex items-center gap-1.5 ${isCompact ? 'text-[11px]' : 'text-xs'}`}>
               <span className={`inline-flex items-center justify-center w-5 h-5 rounded-md ${trendIconBg}`}>
-                {isPositive ? <TrendingUp className="w-3 h-3 text-emerald-500" /> : <TrendingDown className="w-3 h-3 text-red-500" />}
+                {isPositive ? <TrendingUp className="w-3 h-3 text-emerald-500" /> : isNegative ? <TrendingDown className="w-3 h-3 text-red-500" /> : <ArrowRight className="w-3 h-3 text-app-text-subtle" />}
               </span>
               <span className={`font-semibold ${trendColor}`}>{changeStr}</span>
             </div>
           )}
-          {caption && (
-            <span className={`text-[11px] text-app-text-subtle/80 ${isCompact ? 'mt-0.5' : 'mt-1'}`}>{caption}</span>
+
+          {showComparison && (
+            <div className="grid grid-cols-2 gap-2">
+              <div className="rounded-2xl border border-app-border-subtle/70 bg-app-surface-subtle/65 px-3 py-2.5">
+                <div className="text-[10px] uppercase tracking-[0.15em] text-app-text-subtle">当前</div>
+                <div className="mt-1 text-sm font-semibold tabular-nums text-app-text-secondary">{valueStr}</div>
+              </div>
+              <div className="rounded-2xl border border-app-border-subtle/70 bg-app-surface-subtle/65 px-3 py-2.5">
+                <div className="text-[10px] uppercase tracking-[0.15em] text-app-text-subtle">{compareLabel}</div>
+                <div className="mt-1 text-sm font-semibold tabular-nums text-app-text-secondary">{compareValue}</div>
+              </div>
+            </div>
+          )}
+
+          {showSecondaryMetrics && (
+            <div className={`grid gap-2 ${gridSize.w >= 6 ? 'grid-cols-2' : 'grid-cols-1'}`}>
+              {secondaryMetrics.slice(0, maxSecondaryMetrics).map((metric, index) => renderMetricChip(metric, index))}
+            </div>
+          )}
+
+          {showSummary && (
+            <div className="space-y-1.5 mt-auto">
+              {normalizedSummaries.slice(0, gridSize.h >= 4 ? 3 : 2).map((item, index) => (
+                <div key={`${item.label}-${index}`} className="flex items-start gap-2 rounded-xl bg-widget-bg/60 px-2.5 py-2">
+                  <div className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary/60" />
+                  <div className="min-w-0">
+                    <div className="text-[11px] text-app-text-secondary">{item.label}</div>
+                    {item.detail && <div className="mt-0.5 text-[10px] text-app-text-subtle">{item.detail}</div>}
+                  </div>
+                </div>
+              ))}
+            </div>
           )}
         </div>
       );
@@ -1195,16 +1771,6 @@ function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onD
 
       // 数据点≤5且grid足够大时，用环形图；否则用条形图
       const useDonut = slicedLabels.length <= 5 && gridSize.w >= 4 && gridSize.h >= 3 && total > 0;
-
-      // 多色序列
-      const colorStops = [
-        ['from-indigo-500', 'to-blue-400'],
-        ['from-emerald-500', 'to-teal-400'],
-        ['from-amber-500', 'to-orange-400'],
-        ['from-rose-500', 'to-pink-400'],
-        ['from-violet-500', 'to-fuchsia-400'],
-        ['from-cyan-500', 'to-sky-400'],
-      ];
 
       if (useDonut) {
         // 构建 conic-gradient
@@ -1418,14 +1984,25 @@ function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onD
           )}
           {gridSize.w >= 4 && highlights && highlights.length > 0 && (
             <div className="space-y-2">
-              {(highlights as unknown[]).filter(h => h != null && typeof h === 'object').slice(0, 3).map((h, i) => (
-                <div key={i} className="flex items-start gap-2 p-2 rounded-lg bg-app-surface-subtle/60">
-                  <div className="w-4 h-4 rounded bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
-                    <span className="text-[10px] font-bold text-primary">{i + 1}</span>
-                  </div>
-                  <span className="text-[11px] text-app-text-secondary leading-snug">{(h as Record<string, unknown>).label || (h as Record<string, unknown>).name || (h as Record<string, unknown>).title || (h as Record<string, unknown>).key || ''}{(h as Record<string, unknown>).label || (h as Record<string, unknown>).name || (h as Record<string, unknown>).title || (h as Record<string, unknown>).key ? '：' : ''}{(h as Record<string, unknown>).value || (h as Record<string, unknown>).val || (h as Record<string, unknown>).num || '—'}</span>
-                </div>
-              ))}
+              {(highlights as unknown[])
+                .filter((h): h is Record<string, unknown> => h != null && typeof h === 'object')
+                .slice(0, 3)
+                .map((h, i) => {
+                  const label = String(h.label || h.name || h.title || h.key || '');
+                  const value = String(h.value || h.val || h.num || '—');
+                  return (
+                    <div key={i} className="flex items-start gap-2 p-2 rounded-lg bg-app-surface-subtle/60">
+                      <div className="w-4 h-4 rounded bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
+                        <span className="text-[10px] font-bold text-primary">{i + 1}</span>
+                      </div>
+                      <span className="text-[11px] text-app-text-secondary leading-snug">
+                        {label}
+                        {label ? '：' : ''}
+                        {value}
+                      </span>
+                    </div>
+                  );
+                })}
             </div>
           )}
           <div className="flex items-center gap-1.5 text-[10px] text-app-text-subtle mt-auto">
@@ -1580,65 +2157,164 @@ function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onD
           {visibleItems.map((item, i) => {
             const st = String(item.status || item.state || item.type || 'unknown');
             const cfg = statusConfig[st.toLowerCase()] || statusConfig.unknown;
+            const label = String(item.label || item.name || item.title || '');
+            const value = String(item.value || item.val || item.desc || '—');
             return (
               <div key={i} className={`flex items-center justify-between p-2.5 rounded-xl ${cfg.bg} border border-transparent hover:border-app-border-subtle transition-colors`}>
                 <div className="flex items-center gap-2.5">
                   <div className={`w-2 h-2 rounded-full ${cfg.dot} ${st === 'danger' || st === 'critical' || st === 'error' ? 'animate-pulse' : ''}`} />
-                  <span className="text-xs text-app-text-secondary font-medium">{item.label || item.name || item.title || ''}</span>
+                  <span className="text-xs text-app-text-secondary font-medium">{label}</span>
                 </div>
-                <span className={`text-[11px] font-semibold ${cfg.text} tabular-nums`}>{item.value || item.val || item.desc || '—'}</span>
+                <span className={`text-[11px] font-semibold ${cfg.text} tabular-nums`}>{value}</span>
               </div>
             );
           })}
         </div>
       );
     }
-    case 'universal': {
+    case 'adaptive': {
       const d = (displayData || {}) as Record<string, unknown>;
-      const rawContent = (d.content || d.text || d.markdown || d.body || d.html || '') as string;
-      if (isEmptyValue(rawContent)) {
+      const headline = extractHeadline(d, widget.title);
+      const sections = extractAdaptiveSections(d);
+      const showHeadline = !isEmptyValue(headline.eyebrow) || !isEmptyValue(headline.title) || !isEmptyValue(headline.subtitle) || !isEmptyValue(headline.status);
+      const tone = toneClasses(headline.tone);
+
+      if (sections.length === 0 && !showHeadline) {
         return <EmptyWidgetState title={widget.title} source={dataSource} error={error} />;
       }
-      // 如果内容包含 HTML 标签，提取纯文本预览
-      const hasHtmlTags = /<[a-z][\s\S]*?>/i.test(rawContent);
-      const content = hasHtmlTags ? rawContent.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim() : rawContent;
-      // 简单 markdown 渲染：支持标题、列表、粗体
-      const lines = content.split('\n');
-      const clampClass = gridSize.h <= 2 ? 'line-clamp-2' : gridSize.h === 3 ? 'line-clamp-3' : 'line-clamp-6';
+
       return (
-        <div className={`space-y-2 h-full text-xs text-app-text-secondary leading-relaxed overflow-hidden ${clampClass}`}>
-          {lines.map((line, i) => {
-            const trimmed = line.trim();
-            if (trimmed.startsWith('# ')) {
-              return <h3 key={i} className="text-sm font-semibold text-app-text mt-2">{trimmed.slice(2)}</h3>;
-            }
-            if (trimmed.startsWith('## ')) {
-              return <h4 key={i} className="text-xs font-semibold text-app-text-muted mt-1.5">{trimmed.slice(3)}</h4>;
-            }
-            if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
-              return (
-                <div key={i} className="flex items-start gap-2">
-                  <div className="w-1.5 h-1.5 rounded-full mt-1.5 shrink-0 bg-primary/50" />
-                  <span>{trimmed.slice(2)}</span>
+        <div className="h-full flex flex-col gap-3">
+          {showHeadline && (
+            <div className="rounded-2xl border border-app-border-subtle/70 bg-gradient-to-br from-app-surface-subtle/80 via-widget-bg to-widget-bg px-3.5 py-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  {headline.eyebrow && (
+                    <div className="text-[10px] uppercase tracking-[0.18em] text-app-text-subtle">{headline.eyebrow}</div>
+                  )}
+                  {headline.title && (
+                    <div className="mt-1 text-sm font-semibold text-app-text-secondary">{headline.title}</div>
+                  )}
+                  {headline.subtitle && (
+                    <p className={`mt-1.5 text-[11px] leading-relaxed text-app-text-secondary ${gridSize.h <= 2 ? 'line-clamp-2' : 'line-clamp-3'}`}>
+                      {headline.subtitle}
+                    </p>
+                  )}
                 </div>
-              );
-            }
-            if (trimmed.match(/^\d+\.\s/)) {
-              return (
-                <div key={i} className="flex items-start gap-2">
-                  <span className="text-[10px] text-app-text-subtle mt-0.5">{trimmed.match(/^\d+/)?.[0]}.</span>
-                  <span>{trimmed.replace(/^\d+\.\s*/, '')}</span>
+                {headline.status && (
+                  <span className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-1 text-[10px] font-medium ${tone.chip}`}>
+                    <span className={`h-1.5 w-1.5 rounded-full ${tone.dot}`} />
+                    {headline.status}
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+
+          {sections.length > 0 && (
+            <div className="flex-1 space-y-2.5 overflow-hidden">
+              {sections.slice(0, gridSize.h <= 2 ? 1 : gridSize.h <= 3 ? 2 : 3).map((section, index) => renderAdaptiveSection(section, gridSize, index))}
+            </div>
+          )}
+        </div>
+      );
+    }
+    case 'universal': {
+      const d = (displayData || {}) as Record<string, unknown>;
+      const rawContent = (d.content || d.text || d.markdown || d.body || d.html || d.summary || '') as string;
+      const normalized = rawContent ? normalizeUniversalContent(rawContent) : null;
+      const metricItems = extractMetricItems(d);
+      const sections = extractAdaptiveSections(d);
+      const htmlPreview = typeof d.html === 'string' && d.html ? extractHtmlPreview(d.html) : null;
+      const showStructuredSections = sections.length > 0 && (Array.isArray(d.sections) || Array.isArray(d.blocks) || Array.isArray(d.cards));
+
+      if (isEmptyValue(rawContent) && metricItems.length === 0 && sections.length === 0) {
+        return <EmptyWidgetState title={widget.title} source={dataSource} error={error} />;
+      }
+
+      if (showStructuredSections) {
+        return (
+          <div className="h-full flex flex-col gap-2.5">
+            {metricItems.length > 0 && (
+              <div className={`grid gap-2 ${gridSize.w >= 5 ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                {metricItems.slice(0, gridSize.w >= 6 ? 4 : 2).map((metric, index) => renderMetricChip(metric, index))}
+              </div>
+            )}
+            <div className="flex-1 space-y-2.5">
+              {sections.slice(0, gridSize.h <= 2 ? 1 : 2).map((section, index) => renderAdaptiveSection(section, gridSize, index))}
+            </div>
+          </div>
+        );
+      }
+
+      const clampClass = gridSize.h <= 2 ? 'line-clamp-2' : gridSize.h === 3 ? 'line-clamp-3' : 'line-clamp-5';
+      return (
+        <div className="h-full flex flex-col gap-3 overflow-hidden">
+          {metricItems.length > 0 && (
+            <div className={`grid gap-2 ${gridSize.w >= 5 ? 'grid-cols-2' : 'grid-cols-1'}`}>
+              {metricItems.slice(0, gridSize.w >= 6 ? 4 : 2).map((metric, index) => renderMetricChip(metric, index))}
+            </div>
+          )}
+
+          {htmlPreview && (htmlPreview.metrics.length > 0 || htmlPreview.headings.length > 0 || htmlPreview.listItems.length > 0) && (
+            <div className="space-y-2">
+              {htmlPreview.metrics.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {htmlPreview.metrics.slice(0, gridSize.w <= 3 ? 2 : 4).map((metric, index) => (
+                    <span key={`${metric}-${index}`} className="rounded-full border border-primary/15 bg-primary/8 px-2 py-1 text-[10px] font-medium text-primary">
+                      {metric}
+                    </span>
+                  ))}
                 </div>
-              );
-            }
-            if (trimmed === '') {
-              return <div key={i} className="h-1" />;
-            }
-            // 粗体 **text** — 使用 DOMPurify 消毒
-            const bolded = trimmed.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-            const sanitized = DOMPurify.sanitize(bolded, { ALLOWED_TAGS: ['strong', 'em', 'code', 'br'] });
-            return <p key={i} className="text-xs text-app-text-secondary" dangerouslySetInnerHTML={{ __html: sanitized }} />;
-          })}
+              )}
+              {htmlPreview.headings.length > 0 && (
+                <div className="text-[11px] font-semibold text-app-text-secondary">{htmlPreview.headings[0]}</div>
+              )}
+            </div>
+          )}
+
+          {normalized && (
+            <div className="space-y-2 overflow-hidden">
+              {normalized.headings.slice(0, 2).map((heading, index) => (
+                <h4 key={`${heading}-${index}`} className={index === 0 ? 'text-sm font-semibold text-app-text-secondary' : 'text-[11px] font-semibold text-app-text-muted'}>
+                  {heading}
+                </h4>
+              ))}
+
+              {normalized.paragraphs.length > 0 && (
+                <div className={`text-xs leading-relaxed text-app-text-secondary ${clampClass}`}>
+                  {normalized.paragraphs.slice(0, 2).map((paragraph, index) => {
+                    const bolded = paragraph.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                    const sanitized = DOMPurify.sanitize(bolded, { ALLOWED_TAGS: ['strong', 'em', 'code', 'br'] });
+                    return <p key={`${paragraph}-${index}`} className={index > 0 ? 'mt-1.5' : ''} dangerouslySetInnerHTML={{ __html: sanitized }} />;
+                  })}
+                </div>
+              )}
+
+              {(normalized.bullets.length > 0 || normalized.ordered.length > 0) && (
+                <div className="space-y-1.5">
+                  {normalized.bullets.slice(0, gridSize.h <= 2 ? 2 : 3).map((item, index) => (
+                    <div key={`${item}-${index}`} className="flex items-start gap-2 rounded-xl bg-app-surface-subtle/60 px-2.5 py-2">
+                      <div className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary/55" />
+                      <span className="text-[11px] leading-relaxed text-app-text-secondary">{item}</span>
+                    </div>
+                  ))}
+                  {normalized.ordered.slice(0, Math.max(0, (gridSize.h <= 2 ? 2 : 3) - normalized.bullets.length)).map((item, index) => (
+                    <div key={`${item}-${index}`} className="flex items-start gap-2 rounded-xl bg-app-surface-subtle/60 px-2.5 py-2">
+                      <span className="mt-0.5 text-[10px] font-semibold text-app-text-subtle">{index + 1}.</span>
+                      <span className="text-[11px] leading-relaxed text-app-text-secondary">{item}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {!normalized && sections.length > 0 && (
+            <div className="space-y-2.5">
+              {sections.slice(0, 2).map((section, index) => renderAdaptiveSection(section, gridSize, index))}
+            </div>
+          )}
         </div>
       );
     }
@@ -1901,7 +2577,6 @@ function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onD
         <div className="space-y-1.5">
           {visible.map((alert, i) => {
             const cfg = levelConfig[alert.level] || levelConfig.info;
-            const Icon = cfg.icon;
             return (
               <div key={i} className={`flex items-start gap-2 p-2 rounded-lg border ${cfg.bg} ${cfg.border}`}>
                 <div className={`w-2 h-2 rounded-full mt-1 shrink-0 ${cfg.dot}`} />

@@ -3,8 +3,8 @@
 
 import { Router } from 'express';
 import { cockpitAgent } from '../agent/cockpit-agent';
-import * as workspaceStore from '../data/workspaceStore';
-import { contextBuilder } from '../services/context-builder';
+import type { WorkspaceData } from '../data/workspacesData';
+import { buildWorkspacePromptContext } from '../services/workspace-context';
 
 const router = Router();
 
@@ -23,14 +23,19 @@ router.post('/chat', async (req, res, next) => {
     }
 
     // 加载当前驾驶舱数据并构建上下文
-    let workspace: workspaceStore.Workspace | undefined;
+    let workspace: WorkspaceData | undefined;
     let promptContext = '';
     if (workspaceId) {
       try {
-        workspace = await workspaceStore.getWorkspace(workspaceId);
-        if (workspace) {
-          const ctx = workspace.context || await contextBuilder.build(workspace as any);
-          promptContext = contextBuilder.buildPromptContext(workspace as any, ctx);
+        const built = await buildWorkspacePromptContext(workspaceId, {
+          runtimeWidgetData: Array.isArray(req.body.runtimeWidgetData) ? req.body.runtimeWidgetData : undefined,
+          viewContext: req.body.viewContext && typeof req.body.viewContext === 'object'
+            ? req.body.viewContext
+            : undefined,
+        });
+        if (built) {
+          workspace = built.workspace as WorkspaceData;
+          promptContext = built.promptContext;
         }
       } catch (err: any) {
         console.warn(`[AgentRoute] Failed to load workspace ${workspaceId}:`, err.message);
@@ -54,6 +59,9 @@ router.post('/chat', async (req, res, next) => {
         sessionId: result.sessionId,
         plan: result.plan,
         results: result.results,
+        workspace: result.workspace,
+        initializing: result.initializing,
+        initializationMode: result.initializationMode,
       });
       return;
     }
@@ -66,7 +74,18 @@ router.post('/chat', async (req, res, next) => {
 
     try {
       const generator = cockpitAgent.handleCommandStream(command, context);
-      let finalResult: { done: true; message?: string; card?: any; suggestedCommands?: string[]; results?: any[]; sessionId?: string; usedLLM?: boolean } | undefined;
+      let finalResult: {
+        done: true;
+        message?: string;
+        card?: any;
+        suggestedCommands?: string[];
+        results?: any[];
+        sessionId?: string;
+        usedLLM?: boolean;
+        workspace?: WorkspaceData;
+        initializing?: boolean;
+        initializationMode?: 'llm' | 'real-data';
+      } | undefined;
 
       // 使用 for await 遍历 AsyncGenerator
       for await (const chunk of generator as any) {
@@ -86,6 +105,9 @@ router.post('/chat', async (req, res, next) => {
         sessionId: finalResult?.sessionId || context.sessionId,
         results: finalResult?.results,
         usedLLM: finalResult?.usedLLM,
+        workspace: finalResult?.workspace,
+        initializing: finalResult?.initializing,
+        initializationMode: finalResult?.initializationMode,
       })}\n\n`);
 
       res.write(`data: [DONE]\n\n`);

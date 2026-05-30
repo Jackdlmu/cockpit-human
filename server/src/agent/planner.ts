@@ -56,43 +56,16 @@ export function buildDefaultCockpitSpec(
     });
   }
 
-  // 最终兜底：提供一组带演示数据的通用基础组件
+  // 最终兜底：不再使用硬编码的通用演示数据。
+  // 当模板系统未匹配到任何模板时，返回空组件列表，依赖 planByLLM 生成合适的组件。
+  // 如果 LLM 也不可用，前端会展示空状态，而不是无关的演示数据。
   return {
     name,
     description: `由驾驶舱智能体自动创建的${name}`,
     icon: 'Layers',
     color: '#8b5cf6',
-    useDemoDataFallback: true,
-    widgets: [
-      {
-        id: 'w-metric-1',
-        type: 'metric',
-        title: '核心指标',
-        position: { x: 0, y: 0, w: 3, h: 2 },
-        data: { value: '1,248', change: '+12.5%', trend: 'up', caption: '较上月' },
-      },
-      {
-        id: 'w-chart-1',
-        type: 'chart',
-        title: '趋势分析',
-        position: { x: 3, y: 0, w: 6, h: 4 },
-        data: { labels: ['1月', '2月', '3月', '4月', '5月', '6月'], values: [65, 78, 90, 81, 95, 110] },
-      },
-      {
-        id: 'w-list-1',
-        type: 'list',
-        title: '关键事项',
-        position: { x: 9, y: 0, w: 3, h: 4 },
-        data: { items: ['完成Q3目标设定', '启动客户满意度调研', '更新产品路线图', '组织团队培训'] },
-      },
-      {
-        id: 'w-status-1',
-        type: 'status',
-        title: '运行状态',
-        position: { x: 0, y: 2, w: 3, h: 2 },
-        data: { items: [{ label: '系统服务', value: '正常', status: 'green' }, { label: '数据同步', value: '运行中', status: 'green' }] },
-      },
-    ],
+    useDemoDataFallback: false,
+    widgets: [],
     agentIds: [],
     primaryAgentId: '',
   };
@@ -307,8 +280,11 @@ export async function planTasks(
   }
 
   // ── Step 2: LLM 增强（单意图时可选，~300-500ms） ──
-  // 多意图时跳过 LLM 增强（LLM 目前不支持多意图增强）
-  if (intents.length === 1 && llmConnector && llmConnector.chat) {
+  // 主意图为 create_cockpit/plan_cockpit 时，即使多意图也尝试 LLM 增强，
+  // 因为 LLM 生成完整驾驶舱配置不依赖次要意图的细节
+  const isCreateIntent = primaryIntent.type === 'create_cockpit' || primaryIntent.type === 'plan_cockpit';
+  const shouldUseLLM = llmConnector && llmConnector.chat && (intents.length === 1 || isCreateIntent);
+  if (shouldUseLLM) {
     try {
       plan = await planByLLM(plan, primaryIntent, context, llmConnector);
     } catch (err: any) {

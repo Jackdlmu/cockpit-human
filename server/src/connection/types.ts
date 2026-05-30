@@ -29,35 +29,52 @@ export type ConnectionCapability =
 export interface HttpConfig {
   endpoint: string;
   apiKey?: string;
+  token?: string;
+  pat?: string;
+  authType?: string;
   protocol: 'http';
   timeout?: number;
+  organizationId?: string;
 }
 
 /** gRPC 配置 */
 export interface GrpcConfig {
   endpoint: string;
   apiKey?: string;
+  token?: string;
+  pat?: string;
+  authType?: string;
   protocol: 'grpc';
   timeout?: number;
+  organizationId?: string;
 }
 
 /** WebSocket 配置 */
 export interface WsConfig {
   endpoint: string;
+  apiKey?: string;
+  token?: string;
+  pat?: string;
+  authType?: string;
   protocol: 'websocket';
   topicPrefix?: string;
   timeout?: number;
+  organizationId?: string;
 }
 
 /** 通用大模型配置 */
 export interface LLMConfig {
   endpoint: string;
   apiKey?: string;
+  token?: string;
+  pat?: string;
+  authType?: string;
   protocol: 'http';
   model?: string;
   temperature?: number;
   maxTokens?: number;
   timeout?: number;
+  organizationId?: string;
 }
 
 /** 连接配置联合类型 */
@@ -69,6 +86,7 @@ export interface Connection {
   name: string;
   type: ConnectionType;
   config: ConnectionConfig;
+  hasSecret?: boolean;
   status: ConnectionStatus;
   capabilities: ConnectionCapability[];
   priority: number;        // 路由优先级，数值越小优先级越高
@@ -96,14 +114,40 @@ export interface UpdateConnectionInput {
   priority?: number;
   enabled?: boolean;
   status?: ConnectionStatus;
+  lastHealthCheck?: string | null;
 }
 
 // ── 连接器接口 ──
 
 /** 聊天消息 */
 export interface ChatMessage {
-  role: 'system' | 'user' | 'assistant';
+  role: 'system' | 'user' | 'assistant' | 'tool';
   content: string;
+  /** Tool calls from assistant (when role='assistant') */
+  tool_calls?: Array<{
+    id: string;
+    type: 'function';
+    function: { name: string; arguments: string };
+  }>;
+  /** Tool call id for tool response (when role='tool') */
+  tool_call_id?: string;
+  name?: string;
+  /** Kimi reasoning content (must be preserved during multi-turn tool calling) */
+  reasoning_content?: string;
+}
+
+/** 工具定义（OpenAI 兼容格式） */
+export interface LLMToolDefinition {
+  type: 'function';
+  function: {
+    name: string;
+    description: string;
+    parameters: {
+      type: 'object';
+      properties: Record<string, { type: string; description: string }>;
+      required?: string[];
+    };
+  };
 }
 
 /** LLM 选项 */
@@ -112,6 +156,8 @@ export interface LLMOptions {
   temperature?: number;
   maxTokens?: number;
   stream?: boolean;
+  /** 工具定义列表，启用 Tool Calling */
+  tools?: LLMToolDefinition[];
 }
 
 /** 智能体调用输入 */

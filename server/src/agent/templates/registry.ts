@@ -75,13 +75,14 @@ function buildEmptyWidgetData(type: string): Record<string, unknown> {
     case 'status': return { items: [] };
     case 'html': return { html: '', title: '' };
     case 'universal': return {};
+    case 'adaptive': return { sections: [] };
     case 'gauge': return { value: 0, min: 0, max: 100, unit: '%' };
-    case 'funnel': return { stages: [{ name: '阶段1', value: 100, rate: 100 }, { name: '阶段2', value: 50, rate: 50 }] };
-    case 'radar': return { labels: ['维度A', '维度B', '维度C'], values: [50, 50, 50] };
-    case 'heatmap': return { rows: [{ x: 'X1', y: 'Y1', value: 0 }] };
+    case 'funnel': return { stages: [] };
+    case 'radar': return { labels: [], values: [] };
+    case 'heatmap': return { rows: [] };
     case 'bullet': return { value: 0, target: 0, max: 100, label: '' };
-    case 'alert': return { alerts: [{ level: 'info', message: '暂无告警', time: '--:--' }] };
-    case 'map': return { points: [{ name: '示例', value: 0 }] };
+    case 'alert': return { alerts: [] };
+    case 'map': return { points: [] };
     default: return {};
   }
 }
@@ -128,6 +129,8 @@ export function personalizeTemplate(
   primaryAgentId: string;
   widgets: any[];
   useDemoDataFallback: boolean;
+  initPrompt?: string;
+  templateName?: string;
 } {
   const ts = Date.now();
   let counter = 0;
@@ -139,8 +142,8 @@ export function personalizeTemplate(
     .replace(/\{\{domain\}\}/g, template.domain);
 
   // 深拷贝 widgets 并重新生成 ID
-  // 默认保留模板的演示数据，让用户创建后立即看到内容
-  // 仅当模板显式设置 useDemoDataFallback=false 时才清空数据
+  // 保留模板静态数据作为可见兜底，真正是否回退由 workspace.useDemoDataFallback 控制。
+  // 这样当真实数据初始化失败时，用户仍能看到模板演示数据，而不是空白占位。
   const useFallback = template.useDemoDataFallback ?? true;
   const widgets = template.widgets.map((w) => ({
     ...w,
@@ -156,7 +159,9 @@ export function personalizeTemplate(
     agentIds: [...template.agentIds],
     primaryAgentId: template.primaryAgentId,
     widgets,
-    useDemoDataFallback: template.useDemoDataFallback ?? true,
+    useDemoDataFallback: useFallback,
+    initPrompt: context.initPrompt || template.initPrompt,
+    templateName: template.name,
   };
 }
 

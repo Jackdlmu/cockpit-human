@@ -54,6 +54,9 @@ export interface CockpitAgentResponse {
   results?: SubTaskResult[]; // 各子任务结果
   card?: any;                // 动态卡片数据
   suggestedCommands?: string[];
+  workspace?: WorkspaceData;
+  initializing?: boolean;
+  initializationMode?: 'llm' | 'real-data';
   sessionId: string;
 }
 
@@ -68,6 +71,9 @@ export interface CockpitAgentChunk {
   suggestedCommands?: string[];
   results?: SubTaskResult[];
   usedLLM?: boolean;
+  workspace?: WorkspaceData;
+  initializing?: boolean;
+  initializationMode?: 'llm' | 'real-data';
 }
 
 /** Widget 数据源配置 */

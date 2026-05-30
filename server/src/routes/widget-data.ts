@@ -7,6 +7,7 @@ import * as workspaceStore from '../data/workspaceStore';
 import { resolveWidgetData } from '../services/widget-data';
 import type { ConnectionManager } from '../connection/manager';
 import type { Widget } from '../types';
+import { contextBuilder } from '../services/context-builder';
 
 export function createWidgetDataRouter(connectionManager: ConnectionManager) {
   const router = Router({ mergeParams: true });
@@ -36,6 +37,25 @@ export function createWidgetDataRouter(connectionManager: ConnectionManager) {
         req.body?.context,
         workspace.useDemoDataFallback
       );
+
+      const shouldPersistData = req.body?.persist === true;
+
+      if (shouldPersistData && result.data && typeof result.data === 'object' && !Array.isArray(result.data)) {
+        const nextWidgets = (workspace.widgets || []).map((item: Widget) => {
+          if (item.id !== widget.id) return item;
+          return {
+            ...item,
+            data: {
+              ...(item.data || {}),
+              ...(result.data as Record<string, unknown>),
+            },
+          };
+        });
+        const updatedWorkspace = await workspaceStore.updateWorkspace(req.params.id, { widgets: nextWidgets as any });
+        if (updatedWorkspace) {
+          await contextBuilder.build(updatedWorkspace);
+        }
+      }
 
       res.json({
         data: result.data,

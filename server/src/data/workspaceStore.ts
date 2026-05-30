@@ -8,6 +8,7 @@ import { fileURLToPath } from 'url';
 import { randomUUID } from 'crypto';
 import type { WorkspaceData } from './workspacesData';
 import { workspacesData } from './workspacesData';
+import { normalizeWidgets } from '../services/widget-normalizer';
 
 // 使用 import.meta.url 确保路径不依赖 process.cwd()
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -90,16 +91,24 @@ function writeStore(data: { workspaces: WorkspaceData[] }): void {
   });
 }
 
+function normalizeWorkspaceForRead(workspace: WorkspaceData): WorkspaceData {
+  return {
+    ...workspace,
+    widgets: normalizeWidgets(workspace.widgets, { idPrefix: 'w' }) as WorkspaceData['widgets'],
+  };
+}
+
 // ── CRUD ──
 
 export async function listWorkspaces(): Promise<WorkspaceData[]> {
   const store = ensureStore();
-  return store.workspaces;
+  return store.workspaces.map(normalizeWorkspaceForRead);
 }
 
 export async function getWorkspace(id: string): Promise<WorkspaceData | undefined> {
   const store = ensureStore();
-  return store.workspaces.find((w) => w.id === id);
+  const workspace = store.workspaces.find((w) => w.id === id);
+  return workspace ? normalizeWorkspaceForRead(workspace) : undefined;
 }
 
 export interface CreateWorkspaceSpec {
@@ -112,6 +121,10 @@ export interface CreateWorkspaceSpec {
   agentMode?: import('./workspacesData').AgentMode;
   widgets?: any[];
   useDemoDataFallback?: boolean;
+  executionOwner?: 'cockpit' | 'external';
+  externalProvider?: 'yonclaw' | 'openclaw' | 'generic-llm' | 'other';
+  externalWorkspaceId?: string;
+  externalConnectionId?: string;
 }
 
 const MAX_WORKSPACES = 30;
@@ -122,6 +135,7 @@ export async function createWorkspace(spec: CreateWorkspaceSpec): Promise<Worksp
     if (store.workspaces.length >= MAX_WORKSPACES) {
       throw new Error(`驾驶舱数量已达上限（${MAX_WORKSPACES}个），请先删除部分驾驶舱后再创建`);
     }
+    const normalizedWidgets = normalizeWidgets(spec.widgets, { idPrefix: 'w' });
     const now = new Date().toISOString().slice(0, 10);
     const ws: WorkspaceData = {
       id: `ws-${Date.now()}-${randomUUID().slice(0, 5)}`,
@@ -136,8 +150,12 @@ export async function createWorkspace(spec: CreateWorkspaceSpec): Promise<Worksp
       primaryAgentId: spec.primaryAgentId || (spec.agentIds?.[0] || ''),
       agentMode: spec.agentMode || 'single',
       agentBindings: spec.agentIds?.map((id) => ({ agentId: id, status: 'pending' as const })),
-      widgets: spec.widgets || [],
+      widgets: normalizedWidgets,
       useDemoDataFallback: spec.useDemoDataFallback ?? true,
+      executionOwner: spec.executionOwner || 'cockpit',
+      externalProvider: spec.externalProvider,
+      externalWorkspaceId: spec.externalWorkspaceId,
+      externalConnectionId: spec.externalConnectionId,
     };
     store.workspaces.push(ws);
     writeStore(store);
@@ -158,9 +176,12 @@ export async function updateWorkspace(
   if (idx === -1) return undefined;
 
   const existing = store.workspaces[idx];
+  const normalizedUpdates = 'widgets' in updates
+    ? { ...updates, widgets: normalizeWidgets(updates.widgets, { idPrefix: 'w' }) }
+    : updates;
   const updated: WorkspaceData = {
     ...existing,
-    ...updates,
+    ...normalizedUpdates,
     updatedAt: new Date().toISOString().slice(0, 10),
   };
   store.workspaces[idx] = updated;

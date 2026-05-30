@@ -5,6 +5,8 @@ import { Router } from 'express';
 import { connectionManager } from '../connection/manager';
 import type { CreateConnectionInput, UpdateConnectionInput } from '../connection/types';
 import type { Request, Response, NextFunction } from 'express';
+import { requireAdmin, resolveRequestActor } from '../security/admin-auth';
+import { recordAuditEvent } from '../services/audit-log';
 
 const router = Router();
 
@@ -19,7 +21,7 @@ router.get('/', async (_req: Request, res: Response, next: NextFunction) => {
 });
 
 // POST /api/connections → 创建连接
-router.post('/', async (req: Request, res: Response, next: NextFunction) => {
+router.post('/', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const input = req.body as CreateConnectionInput;
     if (!input.name || !input.type || !input.config?.endpoint) {
@@ -27,6 +29,15 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
       return;
     }
     const connection = await connectionManager.create(input);
+    recordAuditEvent({
+      actor: resolveRequestActor(req),
+      source: 'api.connections',
+      action: 'connection.create',
+      targetType: 'connection',
+      targetId: connection.id,
+      status: 'success',
+      details: { name: connection.name, type: connection.type },
+    });
     res.status(201).json({ connection });
   } catch (err) {
     next(err);
@@ -48,7 +59,7 @@ router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
 });
 
 // PUT /api/connections/:id → 更新连接
-router.put('/:id', async (req: Request, res: Response, next: NextFunction) => {
+router.put('/:id', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const input = req.body as UpdateConnectionInput;
     const connection = await connectionManager.update(req.params.id, input);
@@ -56,6 +67,15 @@ router.put('/:id', async (req: Request, res: Response, next: NextFunction) => {
       res.status(404).json({ error: 'Connection not found', code: 'NOT_FOUND', status: 404 });
       return;
     }
+    recordAuditEvent({
+      actor: resolveRequestActor(req),
+      source: 'api.connections',
+      action: 'connection.update',
+      targetType: 'connection',
+      targetId: connection.id,
+      status: 'success',
+      details: { name: connection.name, type: connection.type },
+    });
     res.json({ connection });
   } catch (err) {
     next(err);
@@ -63,13 +83,21 @@ router.put('/:id', async (req: Request, res: Response, next: NextFunction) => {
 });
 
 // DELETE /api/connections/:id → 删除连接
-router.delete('/:id', async (req: Request, res: Response, next: NextFunction) => {
+router.delete('/:id', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const success = await connectionManager.remove(req.params.id);
     if (!success) {
       res.status(404).json({ error: 'Connection not found', code: 'NOT_FOUND', status: 404 });
       return;
     }
+    recordAuditEvent({
+      actor: resolveRequestActor(req),
+      source: 'api.connections',
+      action: 'connection.delete',
+      targetType: 'connection',
+      targetId: req.params.id,
+      status: 'success',
+    });
     res.json({ success: true });
   } catch (err) {
     next(err);
@@ -77,7 +105,7 @@ router.delete('/:id', async (req: Request, res: Response, next: NextFunction) =>
 });
 
 // POST /api/connections/test → 测试连接配置（不创建持久化连接）
-router.post('/test', async (req: Request, res: Response, next: NextFunction) => {
+router.post('/test', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { type, config } = req.body;
     if (!type || !config?.endpoint) {
@@ -92,7 +120,7 @@ router.post('/test', async (req: Request, res: Response, next: NextFunction) => 
 });
 
 // POST /api/connections/:id/test → 测试已有连接（不修改状态）
-router.post('/:id/test', async (req: Request, res: Response, next: NextFunction) => {
+router.post('/:id/test', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const result = await connectionManager.test(req.params.id);
     res.json(result);
@@ -102,10 +130,18 @@ router.post('/:id/test', async (req: Request, res: Response, next: NextFunction)
 });
 
 // POST /api/connections/:id/connect → 手动连接
-router.post('/:id/connect', async (req: Request, res: Response, next: NextFunction) => {
+router.post('/:id/connect', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
   try {
     await connectionManager.connect(req.params.id);
     const connection = await connectionManager.get(req.params.id);
+    recordAuditEvent({
+      actor: resolveRequestActor(req),
+      source: 'api.connections',
+      action: 'connection.connect',
+      targetType: 'connection',
+      targetId: req.params.id,
+      status: 'success',
+    });
     res.json({ success: true, connection });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -114,10 +150,18 @@ router.post('/:id/connect', async (req: Request, res: Response, next: NextFuncti
 });
 
 // POST /api/connections/:id/disconnect → 手动断开
-router.post('/:id/disconnect', async (req: Request, res: Response, next: NextFunction) => {
+router.post('/:id/disconnect', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
   try {
     await connectionManager.disconnect(req.params.id);
     const connection = await connectionManager.get(req.params.id);
+    recordAuditEvent({
+      actor: resolveRequestActor(req),
+      source: 'api.connections',
+      action: 'connection.disconnect',
+      targetType: 'connection',
+      targetId: req.params.id,
+      status: 'success',
+    });
     res.json({ success: true, connection });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);

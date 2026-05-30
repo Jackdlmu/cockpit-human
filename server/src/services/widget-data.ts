@@ -5,6 +5,7 @@
 import type { ConnectionManager } from '../connection/manager';
 import { applyTransform } from './transform';
 import { getAgentRouter } from './agent-router';
+import { executeTool } from '../tools/registry';
 
 // 最小化类型定义（兼容模板、存储和前端格式）
 interface WidgetDataSource {
@@ -93,6 +94,26 @@ async function resolveSkill(
   context?: Record<string, unknown>,
   useDemoDataFallback?: boolean
 ): Promise<WidgetDataResult> {
+  if (ds.skillId === 'weather_query') {
+    const args = { ...(ds.input || {}), ...(context || {}) };
+    const toolResult = await executeTool('weather_query', args);
+    if (!toolResult.success) {
+      return fallback(widget, start, useDemoDataFallback, toolResult.error || '天气工具执行失败');
+    }
+
+    const adapted = adaptToolResultForWidget(widget, toolResult.data);
+    return {
+      data: adapted,
+      source: 'skill',
+      latency: Date.now() - start,
+      routingInfo: {
+        strategy: 'builtin-tool',
+        connectionType: 'generic-llm',
+        reason: '使用内置 weather_query 工具',
+      },
+    };
+  }
+
   const router = getAgentRouter();
 
   // 如果有 AgentRouter，尝试精确路由
@@ -158,7 +179,7 @@ async function resolveSkill(
   // C. 无 AgentRouter 或路由失败：兼容旧逻辑
   const connector = cm.getConnectorByCapability('agent-invoke');
   if (!connector || !connector.invokeAgent) {
-    return fallback(widget, start, 'No connector supports agent-invoke');
+    return fallback(widget, start, useDemoDataFallback, 'No connector supports agent-invoke');
   }
 
   const command = ds.skillId
@@ -256,8 +277,15 @@ function fallback(
     };
   }
 
-  // Workspace 级别禁用 demo 数据 fallback → 返回空数据结构
+  // Workspace 级别禁用 demo 数据 fallback → 优先保留已有的静态数据，仅在无数据时返回空结构
   if (useDemoDataFallback === false) {
+    if (widget.data && typeof widget.data === 'object' && !Array.isArray(widget.data) && Object.keys(widget.data).length > 0) {
+      return {
+        data: widget.data,
+        source: 'fallback',
+        latency: Date.now() - start,
+      };
+    }
     return {
       data: buildEmptyData(widget.type),
       source: 'fallback',
@@ -315,8 +343,91 @@ function buildEmptyData(widgetType: string): Record<string, unknown> {
       return { points: [] };
     case 'universal':
       return {};
+    case 'adaptive':
+      return { sections: [] };
     default:
       return {};
+  }
+}
+
+function adaptToolResultForWidget(widget: Widget, rawData: unknown): unknown {
+  if (!rawData || typeof rawData !== 'object' || Array.isArray(rawData)) {
+    return rawData;
+  }
+
+  const weather = rawData as Record<string, unknown>;
+  const current = weather.current && typeof weather.current === 'object'
+    ? weather.current as Record<string, unknown>
+    : {};
+  const forecast = Array.isArray(weather.forecast)
+    ? weather.forecast.filter((item): item is Record<string, unknown> => !!item && typeof item === 'object')
+    : [];
+  const city = String(weather.city || widget.title || '');
+
+  switch (widget.type) {
+    case 'metric':
+      return {
+        value: String(current.tempHigh || current.temp || current.tempLow || '—'),
+        change: String(current.weather || current.wind || ''),
+        trend: 'flat',
+        caption: city,
+      };
+    case 'chart':
+      return {
+        labels: forecast.map((item) => String(item.date || item.dayOfWeek || '')),
+        values: forecast.map((item) => {
+          const raw = String(item.tempHigh || item.temp || item.tempLow || '0');
+          const numeric = Number(raw.replace(/[^\d.-]/g, ''));
+          return Number.isFinite(numeric) ? numeric : 0;
+        }),
+      };
+    case 'table':
+      return {
+        columns: ['日期', '天气', '高温', '低温', '湿度', '风力'],
+        rows: forecast.map((item) => [
+          String(item.date || item.dayOfWeek || ''),
+          String(item.weather || ''),
+          String(item.tempHigh || ''),
+          String(item.tempLow || ''),
+          String(item.humidity || ''),
+          String(item.wind || ''),
+        ]),
+      };
+    case 'list':
+      return {
+        items: forecast.map((item) => {
+          const date = String(item.date || item.dayOfWeek || '');
+          const weatherText = String(item.weather || '');
+          const tempHigh = String(item.tempHigh || '');
+          const tempLow = String(item.tempLow || '');
+          return `${date} ${weatherText} ${tempLow} ~ ${tempHigh}`.trim();
+        }),
+      };
+    case 'status':
+      return {
+        items: forecast.slice(0, 4).map((item) => ({
+          label: String(item.date || item.dayOfWeek || ''),
+          status: 'ok',
+          value: String(item.weather || item.tempHigh || ''),
+        })),
+      };
+    case 'map':
+      return {
+        points: [{
+          name: city,
+          value: Number(String(current.tempHigh || current.temp || '0').replace(/[^\d.-]/g, '')) || 0,
+        }],
+      };
+    case 'report':
+      return {
+        summary: `${city}未来${forecast.length || 1}天天气概览`,
+        highlights: forecast.slice(0, 3).map((item) => ({
+          label: String(item.date || item.dayOfWeek || ''),
+          value: `${String(item.weather || '')} ${String(item.tempLow || '')} ~ ${String(item.tempHigh || '')}`.trim(),
+        })),
+      };
+    default:
+      return rawData;
   }
 }
 

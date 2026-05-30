@@ -16,9 +16,14 @@ import type {
 import { recognizeIntent, recognizeIntents, recognizeByLLM, recognizeByRule, extractEntities } from './intent';
 import type { RecognizeResult } from './engine';
 import { planTasks, planByRule, buildDefaultCockpitSpec, sanitizeCockpitName } from './planner';
+import { generateCockpitSpec } from './engine/llm-enhancer';
 import * as workspaceStore from '../data/workspaceStore';
+import type { WorkspaceData } from '../data/workspacesData';
 import { eventBus } from '../services/event-bus';
 import { getAgentRouter } from '../services/agent-router';
+import { normalizeWidgets } from '../services/widget-normalizer';
+import { createWorkspaceWithLifecycle } from '../services/workspace-creation';
+import { contextBuilder } from '../services/context-builder';
 
 export class CockpitAgent {
   // 会话缓存：保存每个 session 的 planning 结果（用于 create 时复用 spec）
@@ -30,6 +35,7 @@ export class CockpitAgent {
 
   private buildSystemPrompt(context: ExecutionContext, basePrompt: string): string {
     const parts: string[] = [basePrompt];
+    parts.push('\n\n回答要求：如果用户询问当前驾驶舱中的具体组件、具体数值、排行、趋势、摘要，请优先引用当前驾驶舱上下文和组件数据回答；没有明确数据时要明确说明，不要编造。');
     if (context.promptContext) {
       parts.push('\n\n' + context.promptContext);
     } else if (context.workspace) {
@@ -54,8 +60,11 @@ ${widgetSummary ? '组件列表：\n' + widgetSummary : ''}
 
   private getLLMConnector(): Connector | undefined {
     const connectors = this.connectionManager.getAllConnectorsByCapability('llm-chat');
-    // 优先使用平台型 Connector（openclaw/yonclaw 支持 tool calling 和智能体编排）
-    return connectors.find(c => c.type === 'openclaw' || c.type === 'yonclaw') || connectors[0];
+    // 优先使用 generic-llm（OpenAI 兼容格式，支持最广泛，包括 Kimi / OpenAI / 本地模型）
+    // openclaw/yonclaw 是平台特定协议，仅在明确配置且 generic-llm 不可用时使用
+    return connectors.find(c => c.type === 'generic-llm')
+      || connectors.find(c => c.type === 'openclaw' || c.type === 'yonclaw')
+      || connectors[0];
   }
 
   // ── 流式处理入口 ──
@@ -189,7 +198,7 @@ ${widgetSummary ? '组件列表：\n' + widgetSummary : ''}
           console.log(`[CockpitAgent] External plan result from ${planConnector.connectionId}:`, JSON.stringify(planResult).slice(0, 300));
 
           // 从外部规划结果中提取 spec
-          const externalSpec = (planResult as any)?.spec || planResult;
+          const externalSpec = (planResult as any)?.cockpitSpec || (planResult as any)?.spec || planResult;
           if (externalSpec && typeof externalSpec === 'object') {
             // 补全缺失字段
             const enrichedEntities = { ...extractEntities(intent.raw), ...intent.entities };
@@ -201,6 +210,7 @@ ${widgetSummary ? '组件列表：\n' + widgetSummary : ''}
             const mergedSpec = { ...baseSpec, ...externalSpec };
 
             plan = {
+              intent,
               tasks: [{
                 id: `external-plan-${Date.now()}`,
                 description: `创建驾驶舱：${mergedSpec.name}`,
@@ -282,6 +292,17 @@ ${widgetSummary ? '组件列表：\n' + widgetSummary : ''}
     yield { chunk: '📝 整理结果...\n', stage: 'summarizing', done: false };
 
     const response = await this.aggregateResponse(plan, results, context, llmConnector);
+    const createResult = results.find((result) => {
+      if (!result.success || !result.data || typeof result.data !== 'object' || Array.isArray(result.data)) {
+        return false;
+      }
+      const task = plan.tasks.find((item) => item.id === result.taskId);
+      return task?.capability === 'cockpit-create';
+    });
+    const createdWorkspace = createResult?.data as (WorkspaceData & {
+      initializing?: boolean;
+      initializationMode?: 'llm' | 'real-data';
+    }) | undefined;
 
     // 最终 chunk 包含完整响应数据（SSE 通过 yield 传递，return 值无法被 for await 捕获）
     const usedLLM = plan.usedLLM ?? false;
@@ -297,12 +318,18 @@ ${widgetSummary ? '组件列表：\n' + widgetSummary : ''}
       suggestedCommands: response.suggestedCommands,
       results,
       usedLLM,
+      workspace: createdWorkspace,
+      initializing: createdWorkspace?.initializing,
+      initializationMode: createdWorkspace?.initializationMode,
     };
 
     return {
       ...response,
       plan,
       results,
+      workspace: createdWorkspace,
+      initializing: createdWorkspace?.initializing,
+      initializationMode: createdWorkspace?.initializationMode,
       sessionId: context.sessionId,
     };
   }
@@ -315,6 +342,7 @@ ${widgetSummary ? '组件列表：\n' + widgetSummary : ''}
   ): Promise<CockpitAgentResponse> {
     // 直接内联执行，避免重复执行（generator 遍历一次 + 重新执行一次）
     const llmConnector = this.getLLMConnector();
+    context.command = command;
 
     let intent = await recognizeIntent(command, llmConnector);
 
@@ -333,7 +361,7 @@ ${widgetSummary ? '组件列表：\n' + widgetSummary : ''}
       if (planConnector && planConnector.planCockpit) {
         try {
           const planResult = await planConnector.planCockpit({ goal: command, constraints: [] });
-          const externalSpec = (planResult as any)?.spec || planResult;
+          const externalSpec = (planResult as any)?.cockpitSpec || (planResult as any)?.spec || planResult;
           if (externalSpec && typeof externalSpec === 'object') {
             const enrichedEntities = { ...extractEntities(intent.raw), ...intent.entities };
             const baseSpec = buildDefaultCockpitSpec(
@@ -343,13 +371,14 @@ ${widgetSummary ? '组件列表：\n' + widgetSummary : ''}
             );
             const mergedSpec = { ...baseSpec, ...externalSpec };
             plan = {
+              intent,
               tasks: [{
                 id: `external-plan-${Date.now()}`,
                 description: `创建驾驶舱：${mergedSpec.name}`,
                 capability: 'cockpit-create',
                 params: { spec: mergedSpec },
               }],
-              reasoning: `外部平台规划（${planConnector.connectionId}）`,
+              reasoning: `外部规划完成（${planConnector.connectionId}）`,
               usedLLM: true,
             };
           } else {
@@ -378,10 +407,24 @@ ${widgetSummary ? '组件列表：\n' + widgetSummary : ''}
     }
 
     const response = await this.aggregateResponse(plan, results, context, llmConnector);
+    const createResult = results.find((result) => {
+      if (!result.success || !result.data || typeof result.data !== 'object' || Array.isArray(result.data)) {
+        return false;
+      }
+      const task = plan.tasks.find((item) => item.id === result.taskId);
+      return task?.capability === 'cockpit-create';
+    });
+    const createdWorkspace = createResult?.data as (WorkspaceData & {
+      initializing?: boolean;
+      initializationMode?: 'llm' | 'real-data';
+    }) | undefined;
     return {
       ...response,
       plan,
       results,
+      workspace: createdWorkspace,
+      initializing: createdWorkspace?.initializing,
+      initializationMode: createdWorkspace?.initializationMode,
       sessionId: context.sessionId,
     };
   }
@@ -431,11 +474,33 @@ ${widgetSummary ? '组件列表：\n' + widgetSummary : ''}
       if (!spec.name || spec.name.length < 2 || /^[在从对往向于的]/.test(spec.name)) {
         spec.name = '新驾驶舱';
       }
-      // 如果 spec 缺少 widgets（如外部平台 planCockpit 未返回完整配置），用默认模板补全
+      // 如果 spec 缺少 widgets，先尝试用 LLM 生成合适的组件
       if (!spec.widgets || spec.widgets.length === 0) {
-        const defaultSpec = buildDefaultCockpitSpec(spec.name, task.description || '', {});
-        spec = { ...defaultSpec, ...spec, widgets: defaultSpec.widgets };
+        const llm = this.getLLMConnector();
+        if (llm && llm.chat) {
+          try {
+            console.log(`[CockpitAgent] Spec has no widgets, trying LLM generation for "${spec.name}"`);
+            const { spec: generatedSpec, usedLLM } = await generateCockpitSpec(
+              context.command || task.description || '',
+              spec,
+              llm
+            );
+            if (usedLLM && generatedSpec.widgets && (generatedSpec.widgets as any[]).length > 0) {
+              spec = { ...spec, ...generatedSpec };
+              console.log(`[CockpitAgent] LLM generated ${(generatedSpec.widgets as any[]).length} widgets`);
+            }
+          } catch (err: any) {
+            console.warn('[CockpitAgent] LLM widget generation failed:', err.message);
+          }
+        }
+        // 如果 LLM 生成后仍然为空，保留空 widgets（不再 fallback 到演示数据）
+        if (!spec.widgets || spec.widgets.length === 0) {
+          console.warn('[CockpitAgent] No widgets available after all attempts, creating empty cockpit');
+        }
       }
+
+      spec.widgets = normalizeWidgets(spec.widgets, { idPrefix: 'w' });
+      spec = this.enrichWeatherWidgets(spec, context.command || task.description || '');
 
       // ── 多智能体适配：根据实际可用连接调整 agentIds ──
       const router = getAgentRouter();
@@ -502,6 +567,8 @@ ${widgetSummary ? '组件列表：\n' + widgetSummary : ''}
             if ((planResult as any).description) spec.description = (planResult as any).description;
             if ((planResult as any).widgets) spec.widgets = (planResult as any).widgets;
             if ((planResult as any).agents) spec.agentIds = (planResult as any).agents;
+            spec.widgets = normalizeWidgets(spec.widgets, { idPrefix: 'w' });
+            spec = this.enrichWeatherWidgets(spec, context.command || task.description || '');
             console.log(`[CockpitAgent] External plan merged: ${JSON.stringify(planResult).slice(0, 200)}`);
           }
         } catch (err: any) {
@@ -524,16 +591,33 @@ ${widgetSummary ? '组件列表：\n' + widgetSummary : ''}
       }
 
       if (context.sessionId) this.sessionCache.delete(context.sessionId);
-      const ws = await workspaceStore.createWorkspace(spec);
-      eventBus.publish({
-        id: `evt-${Date.now()}`,
-        source: 'cockpit-agent',
-        sourceType: 'yonclaw',
-        type: 'workspace.created',
-        payload: { workspaceId: ws.id, name: ws.name },
-        timestamp: new Date().toISOString(),
-      });
-      return ws;
+      const initPrompt = typeof spec.initPrompt === 'string' && spec.initPrompt.trim()
+        ? spec.initPrompt.trim()
+        : (context.command || '').trim();
+      const creation = await createWorkspaceWithLifecycle(
+        {
+          ...spec,
+          initPrompt,
+          templateName: spec.templateName || spec.name,
+          useDemoDataFallback: spec.useDemoDataFallback ?? false,
+        },
+        {
+          source: 'cockpit-agent',
+          connectionManager: this.connectionManager,
+          initSourceType: 'agent',
+          resetAgentsWithoutConnection: true,
+        }
+      );
+
+      if (creation.initializationMode !== undefined) {
+        return {
+          ...creation.workspace,
+          initializing: creation.initializing,
+          initializationMode: creation.initializationMode,
+        };
+      }
+
+      return creation.workspace;
     }
 
     let connector = task.targetConnection
@@ -606,7 +690,18 @@ ${widgetSummary ? '组件列表：\n' + widgetSummary : ''}
                     return w;
                   });
                   await workspaceStore.updateWorkspace(ws.id, { widgets: updatedWidgets });
-                  eventBus.emit('workspace:updated', { workspaceId: ws.id, source: 'cockpit-agent-query' });
+                  const refreshed = await workspaceStore.getWorkspace(ws.id);
+                  if (refreshed) {
+                    await contextBuilder.build(refreshed);
+                  }
+                  eventBus.publish({
+                    id: `evt-${Date.now()}`,
+                    source: 'cockpit-agent-query',
+                    sourceType: 'yonclaw',
+                    type: 'workspace.updated',
+                    payload: { workspaceId: ws.id, name: ws.name },
+                    timestamp: new Date().toISOString(),
+                  });
                 }
               } catch (e) {
                 // 解析失败不影响正常回复
@@ -834,6 +929,78 @@ ${widgetSummary ? '组件列表：\n' + widgetSummary : ''}
       chat: ['继续对话', '查看帮助', '执行任务'],
     };
     return suggestions[intentType] || ['继续对话'];
+  }
+
+  private enrichWeatherWidgets(spec: any, command: string): any {
+    if (!spec || !Array.isArray(spec.widgets)) return spec;
+    const text = String(command || '');
+    if (!/(天气|气温|降雨|预报|weather)/i.test(text)) {
+      return spec;
+    }
+
+    const city = this.extractWeatherCity(text);
+    const days = this.extractWeatherDays(text);
+    if (!city) {
+      return spec;
+    }
+
+    const widgets = spec.widgets.map((widget: any) => {
+      if (!widget || typeof widget !== 'object') return widget;
+      if (widget.dataSource?.type === 'skill' && widget.dataSource.skillId) {
+        return widget;
+      }
+
+      const weatherCapableTypes = new Set(['metric', 'chart', 'table', 'list', 'status', 'map', 'report']);
+      if (!weatherCapableTypes.has(widget.type)) {
+        return widget;
+      }
+
+      return {
+        ...widget,
+        dataSource: {
+          type: 'skill',
+          skillId: 'weather_query',
+          input: { city, days },
+          fallbackToStatic: true,
+        },
+      };
+    });
+
+    return {
+      ...spec,
+      widgets,
+      useDemoDataFallback: false,
+    };
+  }
+
+  private extractWeatherCity(command: string): string | null {
+    const patterns = [
+      /(?:查询|查看|获取|展示|显示|分析)?([\u4e00-\u9fa5]{2,8})(?:七日|7日|未来七天|未来7天|天气|气温|天气预报)/,
+      /([\u4e00-\u9fa5]{2,8})(?:天气|气温|天气预报)/,
+      /(?:weather|forecast)\s+for\s+([a-zA-Z\s-]+)/i,
+    ];
+
+    for (const pattern of patterns) {
+      const match = command.match(pattern);
+      const value = match?.[1]?.trim();
+      if (value) {
+        return value.replace(/^(关于|有关|一下|一下子)/, '').trim();
+      }
+    }
+
+    return null;
+  }
+
+  private extractWeatherDays(command: string): number {
+    const match = command.match(/(\d+)\s*(?:日|天|day|days)/i);
+    const raw = match ? Number(match[1]) : NaN;
+    if (Number.isFinite(raw) && raw > 0) {
+      return Math.min(14, raw);
+    }
+    if (/(七日|7日|七天|7天|一周)/.test(command)) {
+      return 7;
+    }
+    return 7;
   }
 
   // ── 辅助：从 LLM 回复中提取 widget 数据更新 ──

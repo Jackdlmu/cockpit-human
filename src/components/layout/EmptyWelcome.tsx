@@ -1,7 +1,3 @@
-// ─── EmptyWelcome ───
-// Tabs / Sidebar 模式下无选中驾驶舱时的空状态
-// 同时提供驾驶舱列表供快速选择
-
 import { FolderKanban, Plus } from 'lucide-react';
 import WorkspaceIcon from '@/components/WorkspaceIcon';
 
@@ -21,56 +17,60 @@ interface Props {
 
 export default function EmptyWelcome({ onCreate, workspaces, onSelectWorkspace }: Props) {
   return (
-    <div className="h-full flex flex-col items-center justify-center text-app-text-subtle gap-4 px-4">
-      <div className="w-16 h-16 rounded-2xl bg-app-surface-subtle border border-app-border-subtle flex items-center justify-center">
-        <FolderKanban className="w-8 h-8 text-app-text-muted" />
-      </div>
-      <div className="text-center space-y-1">
-        <h3 className="text-sm font-medium text-app-text">还没有打开驾驶舱</h3>
-        <p className="text-xs text-app-text-subtle">
-          {workspaces && workspaces.length > 0
-            ? `当前共有 ${workspaces.length} 个驾驶舱，点击下方列表打开`
-            : '点击上方 + 号新建，或从列表中选择驾驶舱'}
-        </p>
-      </div>
-      <button
-        onClick={onCreate}
-        className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs bg-gradient-to-r from-red-500 to-orange-500 text-white hover:from-red-400 hover:to-orange-400 transition-all"
-      >
-        <Plus className="w-3.5 h-3.5" />
-        新建驾驶舱
-      </button>
-
-      {/* 驾驶舱列表（当 workspaces 有数据时显示） */}
-      {workspaces && workspaces.length > 0 && onSelectWorkspace && (
-        <div className="w-full max-w-md mt-2">
-          <div className="text-[11px] text-app-text-subtle uppercase tracking-wider mb-2 text-center">
-            可用驾驶舱
-          </div>
-          <div className="space-y-1.5 max-h-[280px] overflow-y-auto scrollbar-hide px-1">
-            {workspaces.map((ws) => (
+    <div className="h-full overflow-y-auto bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.95),rgba(248,245,244,1)_42%,rgba(243,241,239,1))] px-6 py-8">
+      <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
+        <section className="rounded-[28px] border border-app-border-subtle bg-app-surface p-8 shadow-[0_14px_40px_rgba(0,0,0,0.05)]">
+          <div className="max-w-3xl">
+            <div className="text-[11px] uppercase tracking-[0.18em] text-app-text-subtle">Enterprise Cockpit</div>
+            <h2 className="mt-3 text-3xl font-semibold tracking-tight text-app-text">
+              欢迎进入企业智能驾驶舱
+            </h2>
+            <p className="mt-3 text-sm leading-7 text-app-text-muted">
+              面向企业级客户的智能驾驶舱入口，支持从业务目标快速创建驾驶舱，并持续完成分析、调整与协作。
+            </p>
+            <div className="mt-6 flex flex-wrap gap-3">
               <button
-                key={ws.id}
-                onClick={() => onSelectWorkspace(ws.id)}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg bg-app-surface border border-app-border-subtle hover:bg-app-surface-hover hover:border-app-border transition-colors text-left"
+                onClick={onCreate}
+                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-500 to-orange-500 px-4 py-2 text-sm font-medium text-white transition-all hover:from-red-400 hover:to-orange-400"
               >
-                <span
-                  className="w-8 h-8 flex items-center justify-center rounded-md shrink-0"
-                  style={{ backgroundColor: `${ws.color}18` }}
-                >
-                  <WorkspaceIcon icon={ws.icon} color={ws.color} className="w-4 h-4" />
-                </span>
-                <div className="flex-1 min-w-0">
-                  <div className="text-xs font-medium text-app-text-secondary truncate">{ws.name}</div>
-                  {ws.description && (
-                    <div className="text-[10px] text-app-text-subtle truncate">{ws.description}</div>
-                  )}
-                </div>
+                <Plus className="h-4 w-4" />
+                新建驾驶舱
               </button>
-            ))}
+            </div>
           </div>
-        </div>
-      )}
+        </section>
+
+        {workspaces && workspaces.length > 0 && onSelectWorkspace && (
+          <section className="rounded-[28px] border border-app-border-subtle bg-app-surface p-5 shadow-[0_14px_40px_rgba(0,0,0,0.05)]">
+            <div className="mb-4 flex items-center gap-2">
+              <FolderKanban className="h-4 w-4 text-primary" />
+              <h3 className="text-base font-semibold text-app-text-secondary">已有驾驶舱</h3>
+            </div>
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              {workspaces.map((ws) => (
+                <button
+                  key={ws.id}
+                  onClick={() => onSelectWorkspace(ws.id)}
+                  className="flex items-start gap-3 rounded-2xl border border-app-border-subtle bg-app-surface-subtle/35 px-4 py-4 text-left transition-colors hover:border-app-border hover:bg-app-surface-subtle"
+                >
+                  <span
+                    className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
+                    style={{ backgroundColor: `${ws.color}18` }}
+                  >
+                    <WorkspaceIcon icon={ws.icon} color={ws.color} className="h-4 w-4" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-medium text-app-text-secondary">{ws.name}</span>
+                    <span className="mt-1 block text-[11px] leading-5 text-app-text-subtle">
+                      {ws.description || '进入该驾驶舱继续查看与调整'}
+                    </span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
+      </div>
     </div>
   );
 }

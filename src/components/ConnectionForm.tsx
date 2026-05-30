@@ -41,6 +41,7 @@ export default function ConnectionForm({ connection, onSubmit, onCancel, onTest 
   const [enabled, setEnabled] = useState(connection?.enabled ?? true);
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<string | null>(null);
+  const hasStoredSecret = Boolean(connection?.hasSecret);
 
   const isLLM = type === 'generic-llm';
   const isHermes = type === 'hermes';
@@ -148,9 +149,14 @@ export default function ConnectionForm({ connection, onSubmit, onCancel, onTest 
           type="password"
           value={apiKey}
           onChange={(e) => setApiKey(e.target.value)}
-          placeholder="sk-..."
+          placeholder={hasStoredSecret ? '已配置密钥，留空则保持不变' : 'sk-...'}
           className="mt-1 h-9 text-xs bg-app-surface border-app-border-subtle text-app-text-secondary placeholder:text-app-text-subtle"
         />
+        {hasStoredSecret && (
+          <p className="mt-1 text-[11px] text-app-text-subtle">
+            当前连接已保存密钥；如果不需要更换，保持留空即可。
+          </p>
+        )}
       </div>
 
       {isLLM && (

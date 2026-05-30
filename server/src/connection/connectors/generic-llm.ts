@@ -4,6 +4,7 @@
 
 import { BaseConnector } from './base';
 import type { Connection, ChatMessage, LLMOptions, CockpitPlanRequest, CockpitPlanResult } from '../types';
+import { executeTool } from '../../tools/registry';
 
 export class GenericLLMConnector extends BaseConnector {
   constructor(connection: Connection) {
@@ -73,7 +74,7 @@ export class GenericLLMConnector extends BaseConnector {
     }
   }
 
-  // ── LLM 对话 ──
+  // ── LLM 对话（支持 Tool Calling） ──
 
   async chat(messages: ChatMessage[], options?: LLMOptions): Promise<string> {
     const ep = this.getEndpoint();
@@ -83,21 +84,91 @@ export class GenericLLMConnector extends BaseConnector {
       throw new Error('未配置 model — 请在连接设置中填写模型名称（如 moonshot-v1-8k、gpt-4o）');
     }
 
-    const res = await this.fetchJson<{ choices: Array<{ message: { content: string } }> }>(
-      `${ep}/chat/completions`,
-      {
-        method: 'POST',
-        body: JSON.stringify({
-          model,
-          messages,
-          temperature: options?.temperature ?? config.temperature ?? 0.7,
-          max_tokens: options?.maxTokens ?? config.maxTokens ?? 2048,
-          stream: false,
-        }),
-      }
-    );
+    // Tool Calling 循环：最多 5 轮，避免无限循环
+    const MAX_TOOL_ROUNDS = 5;
+    let currentMessages = [...messages];
 
-    return res.choices?.[0]?.message?.content ?? '';
+    for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
+      const body: Record<string, unknown> = {
+        model,
+        messages: currentMessages,
+        temperature: options?.temperature ?? config.temperature ?? 0.7,
+        max_tokens: options?.maxTokens ?? config.maxTokens ?? 2048,
+        stream: false,
+      };
+
+      // 如果有工具定义，传递给 LLM
+      if (options?.tools && options.tools.length > 0) {
+        body.tools = options.tools;
+        body.tool_choice = 'auto';
+      }
+
+      const res = await this.fetchJson<{
+        choices: Array<{
+          message: {
+            content: string | null;
+            reasoning_content?: string;
+            tool_calls?: Array<{
+              id: string;
+              type: 'function';
+              function: { name: string; arguments: string };
+            }>;
+          };
+        }>;
+      }>(`${ep}/chat/completions`, {
+        method: 'POST',
+        body: JSON.stringify(body),
+      });
+
+      const choice = res.choices?.[0]?.message;
+      if (!choice) {
+        return '';
+      }
+
+      // 如果没有 tool_calls，直接返回 content
+      if (!choice.tool_calls || choice.tool_calls.length === 0) {
+        return choice.content ?? '';
+      }
+
+      // 有 tool_calls：将 assistant 的消息加入对话，然后执行工具
+      // 注意：Kimi 等多轮 reasoning 模型需要保留 reasoning_content，否则后续请求会 400
+      const assistantMsg: ChatMessage = {
+        role: 'assistant',
+        content: choice.content || '',
+        tool_calls: choice.tool_calls,
+      };
+      if (choice.reasoning_content) {
+        assistantMsg.reasoning_content = choice.reasoning_content;
+      }
+      currentMessages.push(assistantMsg);
+
+      // 执行每个工具调用，并将结果加入对话
+      for (const call of choice.tool_calls) {
+        let args: Record<string, unknown> = {};
+        try {
+          args = JSON.parse(call.function.arguments);
+        } catch {
+          console.warn(`[GenericLLM] Failed to parse tool arguments for ${call.function.name}`);
+        }
+
+        console.log(`[GenericLLM] Tool call: ${call.function.name}(${JSON.stringify(args).slice(0, 200)})`);
+        const result = await executeTool(call.function.name, args);
+        console.log(`[GenericLLM] Tool result: ${result.success ? 'success' : 'failed'} — ${String(result.error || '').slice(0, 100)}`);
+
+        currentMessages.push({
+          role: 'tool',
+          tool_call_id: call.id,
+          name: call.function.name,
+          content: JSON.stringify(result.success ? result.data : { error: result.error }),
+        });
+      }
+
+      // 继续循环，让 LLM 基于工具结果生成最终回复
+    }
+
+    // 达到最大轮数，返回最后一轮的内容
+    const lastAssistant = currentMessages.filter((m) => m.role === 'assistant').pop();
+    return lastAssistant?.content ?? '';
   }
 
   async *streamChat(messages: ChatMessage[], options?: LLMOptions): AsyncGenerator<string> {

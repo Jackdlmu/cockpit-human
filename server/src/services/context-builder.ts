@@ -7,20 +7,28 @@ import * as workspaceStore from '../data/workspaceStore';
 export class ContextBuilder {
   /** 为指定 workspace 构建/刷新上下文 */
   async build(workspace: WorkspaceData): Promise<CockpitContext> {
+    const context = this.composeContext(workspace);
+    // 持久化
+    await workspaceStore.updateWorkspace(workspace.id, { context });
+    return context;
+  }
+
+  /** 构建临时上下文，不写回持久层 */
+  buildTransient(workspace: WorkspaceData): CockpitContext {
+    return this.composeContext(workspace);
+  }
+
+  private composeContext(workspace: WorkspaceData): CockpitContext {
     const existing = workspace.context;
     const version = (existing?.version || 0) + 1;
 
-    const context: CockpitContext = {
+    return {
       version,
       summary: this.buildSummary(workspace),
       agents: this.buildAgentsContext(workspace),
       widgets: this.buildWidgetsContext(workspace),
       recentActions: this.mergeRecentActions(workspace, existing),
     };
-
-    // 持久化
-    await workspaceStore.updateWorkspace(workspace.id, { context });
-    return context;
   }
 
   /** 批量构建所有 workspace */
@@ -120,6 +128,27 @@ export class ContextBuilder {
       if (type === 'chart' && w.data?.values?.length > 0) {
         const last = w.data.values[w.data.values.length - 1];
         highlights.push(`${w.title}: 最新值 ${last}`);
+      }
+      if (type === 'table' && Array.isArray(w.data?.rows) && w.data.rows.length > 0) {
+        const firstRow = Array.isArray(w.data.rows[0])
+          ? w.data.rows[0].join(' / ')
+          : JSON.stringify(w.data.rows[0]);
+        highlights.push(`${w.title}: 首行 ${firstRow}`);
+      }
+      if (type === 'list' && Array.isArray(w.data?.items) && w.data.items.length > 0) {
+        const firstItem = typeof w.data.items[0] === 'string'
+          ? w.data.items[0]
+          : JSON.stringify(w.data.items[0]);
+        highlights.push(`${w.title}: 首项 ${firstItem}`);
+      }
+      if (type === 'report' && typeof w.data?.summary === 'string' && w.data.summary.trim()) {
+        highlights.push(`${w.title}: ${w.data.summary.trim().slice(0, 80)}`);
+      }
+      if (type === 'status' && Array.isArray(w.data?.items) && w.data.items.length > 0) {
+        const firstStatus = w.data.items[0] as Record<string, unknown>;
+        if (firstStatus?.label || firstStatus?.name) {
+          highlights.push(`${w.title}: ${String(firstStatus.label || firstStatus.name)}=${String(firstStatus.value || firstStatus.status || '')}`);
+        }
       }
     }
 

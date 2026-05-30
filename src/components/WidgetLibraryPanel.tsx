@@ -5,7 +5,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import {
   BarChart3, Table, List, Kanban, Clock, FileText, Activity,
   TrendingUp, CheckCircle, Layers, Plus, Gauge, Funnel, Radar,
-  Grid3X3, Crosshair, AlertTriangle, Map, Search, Sparkles
+  Grid3X3, Crosshair, AlertTriangle, Map, Search, Sparkles, PanelTop
 } from 'lucide-react';
 // 快速创建入口暂时隐藏，如需恢复请参考 git 历史
 
@@ -19,6 +19,7 @@ const typeIcons: Record<string, React.ElementType> = {
   chart: BarChart3, table: Table, list: List, kanban: Kanban,
   timeline: Clock, report: FileText, metric: TrendingUp,
   status: Activity, progress: CheckCircle, universal: Layers,
+  adaptive: PanelTop,
   gauge: Gauge, funnel: Funnel, radar: Radar,
   heatmap: Grid3X3, bullet: Crosshair, alert: AlertTriangle, map: Map,
 };
@@ -27,6 +28,7 @@ const typeLabels: Record<string, string> = {
   chart: '图表', table: '表格', list: '列表', kanban: '看板',
   timeline: '时间线', report: '报告', metric: '指标',
   status: '状态', progress: '进度', universal: '通用',
+  adaptive: '智能容器',
   gauge: '仪表盘', funnel: '漏斗', radar: '雷达',
   heatmap: '热力', bullet: '子弹', alert: '告警', map: '地图',
 };

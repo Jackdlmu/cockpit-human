@@ -4,36 +4,26 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { createJsonFileStore } from '../utils/json-file-store';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.resolve(__dirname, '../../data');
 const STORE_FILE = path.join(DATA_DIR, 'templates.json');
 const BUILTIN_FILE = path.join(DATA_DIR, 'builtin-templates.json');
 
-let cache: any[] | null = null;
 let builtinCache: any[] | null = null;
+const customStore = createJsonFileStore<any[]>({
+  filePath: STORE_FILE,
+  defaultValue: [],
+  label: 'TemplateStore',
+});
 
 function readStore(): any[] {
-  if (cache) return cache;
-  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-  if (!fs.existsSync(STORE_FILE)) {
-    fs.writeFileSync(STORE_FILE, JSON.stringify([], null, 2), 'utf-8');
-  }
-  const raw = fs.readFileSync(STORE_FILE, 'utf-8');
-  try {
-    cache = JSON.parse(raw);
-    return cache;
-  } catch {
-    cache = [];
-    return cache;
-  }
+  return customStore.read();
 }
 
 function writeStore(data: any[]): void {
-  cache = data;
-  const tmp = STORE_FILE + '.tmp';
-  fs.writeFileSync(tmp, JSON.stringify(data, null, 2), 'utf-8');
-  fs.renameSync(tmp, STORE_FILE);
+  customStore.write(data);
 }
 
 function readBuiltinStore(): any[] {

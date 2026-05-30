@@ -1,0 +1,617 @@
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { createJsonFileStore } from '../utils/json-file-store';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const DATA_DIR = path.resolve(__dirname, '../../data');
+const STORE_FILE = path.join(DATA_DIR, 'widget-catalog.json');
+
+const customStore = createJsonFileStore<any[]>({
+  filePath: STORE_FILE,
+  defaultValue: [],
+  label: 'WidgetCatalogStore',
+});
+
+const BUILTIN_WIDGETS = [
+  {
+    id: 'builtin-metric',
+    name: '指标卡',
+    type: 'metric',
+    category: '指标',
+    icon: 'TrendingUp',
+    color: '#ef4444',
+    description: '用于展示核心单值指标，支持数值、趋势、变化率及多指标补充说明。',
+    agentDescription: '当数据以少量核心指标为主，需要突出当前值、变化趋势、同比环比或补充几个次级指标时，优先选择 metric 组件。',
+    useCases: ['营收达成率', '现金流净额', '订单准时率', '客户留存率'],
+    tags: ['kpi', 'single-value', 'trend'],
+    schemaHint: {
+      recommendedDataShape: {
+        value: 'string | number',
+        change: 'string',
+        trend: 'up | down | flat',
+        items: '可选，多指标时使用数组',
+      },
+      layoutAdvice: '适合宽度 3-4、高度 2-3，优先放在首屏顶部。',
+    },
+    template: {
+      type: 'metric',
+      title: '核心指标',
+      position: { x: 0, y: 0, w: 4, h: 2 },
+      data: { value: '—', change: '+0%', trend: 'flat' },
+    },
+    isBuiltin: true,
+  },
+  {
+    id: 'builtin-chart',
+    name: '趋势图表',
+    type: 'chart',
+    category: '图表',
+    icon: 'BarChart3',
+    color: '#2563eb',
+    description: '适合展示时间趋势、分类对比、结构占比等可视化数据。',
+    agentDescription: '当数据存在时间序列、分类对比或需要图形化表达趋势与占比时，优先选择 chart 组件。',
+    useCases: ['月度营收趋势', '事业部收入对比', '费用结构分布'],
+    tags: ['trend', 'compare', 'series'],
+    schemaHint: {
+      recommendedDataShape: {
+        labels: 'string[]',
+        values: 'number[]',
+        series: '可选，多序列图表使用',
+      },
+      layoutAdvice: '适合宽度 4-6、高度 3-4，避免过窄影响可读性。',
+    },
+    template: {
+      type: 'chart',
+      title: '趋势分析',
+      position: { x: 0, y: 0, w: 6, h: 4 },
+      data: { labels: [], values: [] },
+    },
+    isBuiltin: true,
+  },
+  {
+    id: 'builtin-table',
+    name: '数据表格',
+    type: 'table',
+    category: '明细',
+    icon: 'Table2',
+    color: '#0f766e',
+    description: '适合展示结构化明细、排行、清单类数据。',
+    agentDescription: '当数据以多行明细、排行或结构化列表为主，且用户需要逐项查看时，优先选择 table 组件。',
+    useCases: ['客户排行', '应收应付明细', '告警清单'],
+    tags: ['detail', 'rank', 'list'],
+    schemaHint: {
+      recommendedDataShape: {
+        columns: 'string[] | { key, label }[]',
+        rows: 'string[][] | Record<string, unknown>[]',
+      },
+      layoutAdvice: '适合宽度 4-6、高度 3-5，明细较多时优先独占一行。',
+    },
+    template: {
+      type: 'table',
+      title: '明细表',
+      position: { x: 0, y: 0, w: 6, h: 4 },
+      data: { columns: [], rows: [] },
+    },
+    isBuiltin: true,
+  },
+  {
+    id: 'builtin-list',
+    name: '列表',
+    type: 'list',
+    category: '明细',
+    icon: 'List',
+    color: '#0ea5e9',
+    description: '适合展示简洁事项列表、要点清单、摘要条目。',
+    agentDescription: '当数据适合用短条目或清单形式表达，不需要复杂表格结构时，优先选择 list 组件。',
+    useCases: ['重点事项', '行动建议', '关键风险清单'],
+    tags: ['items', 'summary', 'todo'],
+    schemaHint: {
+      recommendedDataShape: {
+        items: 'string[] | Record<string, unknown>[]',
+      },
+      layoutAdvice: '适合宽度 3-5、高度 3-4，适合作为信息补充区块。',
+    },
+    template: {
+      type: 'list',
+      title: '重点清单',
+      position: { x: 0, y: 0, w: 4, h: 3 },
+      data: { items: [] },
+    },
+    isBuiltin: true,
+  },
+  {
+    id: 'builtin-kanban',
+    name: '状态看板',
+    type: 'kanban',
+    category: '流程',
+    icon: 'Kanban',
+    color: '#8b5cf6',
+    description: '用于展示流程阶段、状态分布和任务推进情况。',
+    agentDescription: '当数据天然分成多个阶段、状态列或流程节点时，优先选择 kanban 组件。',
+    useCases: ['商机漏斗', '项目状态分布', '工单处理阶段'],
+    tags: ['pipeline', 'status', 'workflow'],
+    schemaHint: {
+      recommendedDataShape: {
+        stages: 'string[] | Record<string, unknown>[]',
+        columns: '可选，与 stages 二选一',
+      },
+      layoutAdvice: '适合宽度 5-6、高度 4，尽量横向展示。',
+    },
+    template: {
+      type: 'kanban',
+      title: '流程看板',
+      position: { x: 0, y: 0, w: 6, h: 4 },
+      data: { stages: [] },
+    },
+    isBuiltin: true,
+  },
+  {
+    id: 'builtin-timeline',
+    name: '时间线',
+    type: 'timeline',
+    category: '流程',
+    icon: 'Clock',
+    color: '#f59e0b',
+    description: '用于展示时间顺序、阶段进展、里程碑计划。',
+    agentDescription: '当数据强调先后顺序、进展步骤或事件时间轴时，优先选择 timeline 组件。',
+    useCases: ['项目里程碑', '入职流程', '处置进展'],
+    tags: ['time', 'milestone', 'steps'],
+    schemaHint: {
+      recommendedDataShape: {
+        steps: 'string[] | Record<string, unknown>[]',
+      },
+      layoutAdvice: '适合宽度 5-6、高度 4，适合横向或纵向步骤表达。',
+    },
+    template: {
+      type: 'timeline',
+      title: '进展时间线',
+      position: { x: 0, y: 0, w: 6, h: 4 },
+      data: { steps: [] },
+    },
+    isBuiltin: true,
+  },
+  {
+    id: 'builtin-report',
+    name: '报告摘要',
+    type: 'report',
+    category: '分析',
+    icon: 'FileText',
+    color: '#64748b',
+    description: '适合承载摘要性结论、分析说明、重点洞察。',
+    agentDescription: '当结果以文字摘要、分析结论、重点洞察为主，且不适合完全结构化时，优先选择 report 组件。',
+    useCases: ['经营总结', '风险分析摘要', '周报洞察'],
+    tags: ['summary', 'insight', 'text'],
+    schemaHint: {
+      recommendedDataShape: {
+        summary: 'string',
+        highlights: '可选，string[]',
+      },
+      layoutAdvice: '适合宽度 5-8、高度 3-4，可与指标或图表组合。',
+    },
+    template: {
+      type: 'report',
+      title: '分析摘要',
+      position: { x: 0, y: 0, w: 8, h: 4 },
+      data: { summary: '' },
+    },
+    isBuiltin: true,
+  },
+  {
+    id: 'builtin-progress',
+    name: '进度条',
+    type: 'progress',
+    category: '指标',
+    icon: 'CheckCircle',
+    color: '#22c55e',
+    description: '适合展示目标完成率、预算使用率、任务完成度。',
+    agentDescription: '当核心信息是 0-100 的完成率、进度或占比达成情况时，优先选择 progress 组件。',
+    useCases: ['预算执行率', '销售目标完成率', '项目完成进度'],
+    tags: ['progress', 'completion', 'rate'],
+    schemaHint: {
+      recommendedDataShape: {
+        value: 'number',
+        target: '可选，number',
+        label: '可选，string',
+      },
+      layoutAdvice: '适合宽度 3-4、高度 2，作为辅助指标区块使用。',
+    },
+    template: {
+      type: 'progress',
+      title: '完成进度',
+      position: { x: 0, y: 0, w: 4, h: 2 },
+      data: { value: 0, target: 100 },
+    },
+    isBuiltin: true,
+  },
+  {
+    id: 'builtin-status',
+    name: '状态面板',
+    type: 'status',
+    category: '监控',
+    icon: 'Activity',
+    color: '#14b8a6',
+    description: '适合展示多个对象的运行状态、健康度和简要说明。',
+    agentDescription: '当结果是多个对象的状态集合，如健康、异常、处理中等，优先选择 status 组件。',
+    useCases: ['系统健康状态', '服务运行监控', '事项状态列表'],
+    tags: ['status', 'health', 'monitoring'],
+    schemaHint: {
+      recommendedDataShape: {
+        items: 'Array<{ name, status, value? }>',
+      },
+      layoutAdvice: '适合宽度 4-5、高度 3，适合监控和状态概览场景。',
+    },
+    template: {
+      type: 'status',
+      title: '状态总览',
+      position: { x: 0, y: 0, w: 4, h: 3 },
+      data: { items: [] },
+    },
+    isBuiltin: true,
+  },
+  {
+    id: 'builtin-html',
+    name: 'HTML 报告',
+    type: 'html',
+    category: '分析',
+    icon: 'Code2',
+    color: '#475569',
+    description: '适合承载富文本、HTML 结构化分析结果和复杂版式内容。',
+    agentDescription: '当结果天然是 HTML、富文本片段或复杂排版内容，且需要保留结构化呈现时，优先选择 html 组件。',
+    useCases: ['自动生成报告', '富文本摘要', '嵌入式分析说明'],
+    tags: ['html', 'rich-text', 'report'],
+    schemaHint: {
+      recommendedDataShape: {
+        html: 'string',
+        content: '可选，string',
+      },
+      layoutAdvice: '适合宽度 6-8、高度 4 以上，适合复杂内容展示。',
+    },
+    template: {
+      type: 'html',
+      title: '富文本报告',
+      position: { x: 0, y: 0, w: 8, h: 4 },
+      data: { html: '<p>请填充 HTML 报告内容</p>' },
+    },
+    isBuiltin: true,
+  },
+  {
+    id: 'builtin-gauge',
+    name: '仪表盘',
+    type: 'gauge',
+    category: '指标',
+    icon: 'Gauge',
+    color: '#dc2626',
+    description: '适合展示目标达成率、健康分、完成度等单值仪表型指标。',
+    agentDescription: '当需要用仪表盘方式强调当前值在目标区间中的位置时，优先选择 gauge 组件。',
+    useCases: ['预算执行健康度', '设备负载', '综合评分'],
+    tags: ['gauge', 'score', 'target'],
+    schemaHint: {
+      recommendedDataShape: {
+        value: 'number',
+        min: 'number',
+        max: 'number',
+      },
+      layoutAdvice: '适合宽度 4、高度 3，可与其他指标卡搭配。',
+    },
+    template: {
+      type: 'gauge',
+      title: '目标达成',
+      position: { x: 0, y: 0, w: 4, h: 3 },
+      data: { value: 68, min: 0, max: 100 },
+    },
+    isBuiltin: true,
+  },
+  {
+    id: 'builtin-funnel',
+    name: '漏斗图',
+    type: 'funnel',
+    category: '图表',
+    icon: 'Filter',
+    color: '#7c3aed',
+    description: '适合展示流程转化、阶段流失和逐层收敛过程。',
+    agentDescription: '当数据存在明显的多阶段转化关系，需要展示每层数量变化时，优先选择 funnel 组件。',
+    useCases: ['销售漏斗', '投放转化漏斗', '流程转化分析'],
+    tags: ['funnel', 'conversion', 'pipeline'],
+    schemaHint: {
+      recommendedDataShape: {
+        stages: 'Array<{ label, value }>',
+      },
+      layoutAdvice: '适合宽度 5-6、高度 4，适合展示阶段式转化。',
+    },
+    template: {
+      type: 'funnel',
+      title: '转化漏斗',
+      position: { x: 0, y: 0, w: 6, h: 4 },
+      data: { stages: [] },
+    },
+    isBuiltin: true,
+  },
+  {
+    id: 'builtin-radar',
+    name: '雷达图',
+    type: 'radar',
+    category: '图表',
+    icon: 'Radar',
+    color: '#0891b2',
+    description: '适合展示多维能力、综合评分和维度对比。',
+    agentDescription: '当结果是多个维度的评分、能力或成熟度对比时，优先选择 radar 组件。',
+    useCases: ['经营能力评估', '部门成熟度分析', '供应商对比'],
+    tags: ['radar', 'multi-dimension', 'score'],
+    schemaHint: {
+      recommendedDataShape: {
+        labels: 'string[]',
+        values: 'number[]',
+      },
+      layoutAdvice: '适合宽度 5、高度 4，用于多维对比。',
+    },
+    template: {
+      type: 'radar',
+      title: '多维评估',
+      position: { x: 0, y: 0, w: 5, h: 4 },
+      data: { labels: [], values: [] },
+    },
+    isBuiltin: true,
+  },
+  {
+    id: 'builtin-heatmap',
+    name: '热力图',
+    type: 'heatmap',
+    category: '图表',
+    icon: 'Grid3X3',
+    color: '#ea580c',
+    description: '适合展示二维矩阵密度、时段分布和热点模式。',
+    agentDescription: '当数据天然是二维矩阵、热点分布或时间 x 类别交叉分析时，优先选择 heatmap 组件。',
+    useCases: ['区域热度分布', '时段活跃度', '问题密度矩阵'],
+    tags: ['heatmap', 'matrix', 'density'],
+    schemaHint: {
+      recommendedDataShape: {
+        rows: 'string[] | Record<string, unknown>[]',
+        cells: '可选，二维数值矩阵',
+      },
+      layoutAdvice: '适合宽度 6、高度 4，适合矩阵型分析。',
+    },
+    template: {
+      type: 'heatmap',
+      title: '热点分布',
+      position: { x: 0, y: 0, w: 6, h: 4 },
+      data: { rows: [], cells: [] },
+    },
+    isBuiltin: true,
+  },
+  {
+    id: 'builtin-bullet',
+    name: '子弹图',
+    type: 'bullet',
+    category: '指标',
+    icon: 'Target',
+    color: '#2563eb',
+    description: '适合紧凑表达实际值、目标值与阈值区间。',
+    agentDescription: '当需要同时展示当前值、目标值和区间阈值，并希望比普通进度条更丰富时，优先选择 bullet 组件。',
+    useCases: ['预算执行对标', 'KPI 对比', '目标完成差距'],
+    tags: ['bullet', 'target', 'compare'],
+    schemaHint: {
+      recommendedDataShape: {
+        value: 'number',
+        target: 'number',
+        thresholds: '可选，数组',
+      },
+      layoutAdvice: '适合宽度 5-6、高度 2，适合横向对标。',
+    },
+    template: {
+      type: 'bullet',
+      title: '目标对标',
+      position: { x: 0, y: 0, w: 6, h: 2 },
+      data: { value: 0, target: 100 },
+    },
+    isBuiltin: true,
+  },
+  {
+    id: 'builtin-alert',
+    name: '告警列表',
+    type: 'alert',
+    category: '监控',
+    icon: 'AlertTriangle',
+    color: '#dc2626',
+    description: '适合展示带级别的事件、异常和告警日志。',
+    agentDescription: '当结果是异常、事件、风险或告警清单，且需要突出严重等级时，优先选择 alert 组件。',
+    useCases: ['系统告警', '财务异常提醒', '风险事件列表'],
+    tags: ['alert', 'risk', 'event'],
+    schemaHint: {
+      recommendedDataShape: {
+        alerts: 'Array<{ level, message, time? }>',
+      },
+      layoutAdvice: '适合宽度 4-5、高度 3，适合监控与异常总览。',
+    },
+    template: {
+      type: 'alert',
+      title: '异常告警',
+      position: { x: 0, y: 0, w: 5, h: 3 },
+      data: { alerts: [] },
+    },
+    isBuiltin: true,
+  },
+  {
+    id: 'builtin-map',
+    name: '地图',
+    type: 'map',
+    category: '图表',
+    icon: 'Map',
+    color: '#16a34a',
+    description: '适合展示地理位置、区域分布和空间热点。',
+    agentDescription: '当数据带有城市、区域、经纬度等地理维度，需要地图式呈现时，优先选择 map 组件。',
+    useCases: ['区域销售分布', '门店覆盖', '物流节点分布'],
+    tags: ['map', 'geo', 'location'],
+    schemaHint: {
+      recommendedDataShape: {
+        points: 'Array<{ name, lat, lng, value? }>',
+        locations: '可选，区域列表',
+      },
+      layoutAdvice: '适合宽度 6、高度 4，适合作为区域总览主组件。',
+    },
+    template: {
+      type: 'map',
+      title: '区域分布',
+      position: { x: 0, y: 0, w: 6, h: 4 },
+      data: { points: [] },
+    },
+    isBuiltin: true,
+  },
+  {
+    id: 'builtin-universal',
+    name: '通用容器',
+    type: 'universal',
+    category: '通用',
+    icon: 'Layers',
+    color: '#7c3aed',
+    description: '用于承载暂时无法被标准组件完美表达的数据，作为智能兜底容器。',
+    agentDescription: '当数据结构复杂、内容混合、无法稳定映射到标准组件时，选择 universal 作为兜底容器，让系统完成灵活渲染。',
+    useCases: ['复杂经营摘要', '特殊格式混合内容', '中间态分析结果'],
+    tags: ['fallback', 'mixed', 'adaptive'],
+    schemaHint: {
+      recommendedDataShape: {
+        content: 'markdown | rich text',
+        sections: '可选，复杂内容可拆分段落',
+      },
+      layoutAdvice: '适合宽度 4-6、高度 3-5；极端情况下可扩展为全宽内容容器。',
+    },
+    template: {
+      type: 'universal',
+      title: '通用分析容器',
+      position: { x: 0, y: 0, w: 6, h: 4 },
+      data: { content: '请在此填充复杂内容。' },
+    },
+    isBuiltin: true,
+  },
+  {
+    id: 'builtin-adaptive',
+    name: '智能自适应容器',
+    type: 'adaptive',
+    category: '通用',
+    icon: 'Sparkles',
+    color: '#d97706',
+    description: '支持 headline、sections、metrics、list、text、table 等混合内容的高级通用容器。',
+    agentDescription: '当需要一个更强的通用组件来同时呈现摘要、指标、列表、表格和解释性内容时，优先选择 adaptive 组件。',
+    useCases: ['经营总览摘要', '风险与机会联合分析', '跨域业务诊断'],
+    tags: ['adaptive', 'summary', 'mixed-layout'],
+    schemaHint: {
+      recommendedDataShape: {
+        headline: 'title/subtitle/status',
+        sections: 'metrics | list | text | table | highlights[]',
+      },
+      layoutAdvice: '适合宽度 5-6、高度 4-6，可作为复杂场景的主容器。',
+    },
+    template: {
+      type: 'adaptive',
+      title: '智能分析容器',
+      position: { x: 0, y: 0, w: 6, h: 4 },
+      data: { sections: [] },
+    },
+    isBuiltin: true,
+  },
+];
+
+function ensureStoreFile() {
+  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+  if (!fs.existsSync(STORE_FILE)) {
+    fs.writeFileSync(STORE_FILE, JSON.stringify([], null, 2), 'utf-8');
+  }
+}
+
+function readStore(): any[] {
+  ensureStoreFile();
+  return customStore.read();
+}
+
+function writeStore(data: any[]) {
+  customStore.write(data);
+}
+
+export function listBuiltinWidgetDefs() {
+  return BUILTIN_WIDGETS.map((item) => ({ ...item, isBuiltin: true }));
+}
+
+export function listCustomWidgetDefs() {
+  return readStore().map((item) => ({ ...item, isBuiltin: false }));
+}
+
+export function listAllWidgetDefs() {
+  const customs = listCustomWidgetDefs();
+  const customIds = new Set(customs.map((item) => item.id));
+  return [
+    ...listBuiltinWidgetDefs().filter((item) => !customIds.has(item.id)),
+    ...customs,
+  ];
+}
+
+export function getWidgetDef(id: string) {
+  const custom = readStore().find((item) => item.id === id);
+  if (custom) return { ...custom, isBuiltin: false };
+  const builtin = BUILTIN_WIDGETS.find((item) => item.id === id);
+  if (builtin) return { ...builtin, isBuiltin: true };
+  return undefined;
+}
+
+export function createWidgetDef(data: any) {
+  const store = readStore();
+  if (store.some((item) => item.id === data.id) || BUILTIN_WIDGETS.some((item) => item.id === data.id)) {
+    throw new Error(`Widget ID "${data.id}" already exists`);
+  }
+  const now = new Date().toISOString();
+  const entry = {
+    ...data,
+    isBuiltin: false,
+    createdAt: now,
+    updatedAt: now,
+  };
+  store.push(entry);
+  writeStore(store);
+  return { ...entry, isBuiltin: false };
+}
+
+export function updateWidgetDef(id: string, patch: any) {
+  const store = readStore();
+  const idx = store.findIndex((item) => item.id === id);
+  if (idx !== -1) {
+    const nextId = patch?.id ?? id;
+    if (nextId !== id && (store.some((item, index) => index !== idx && item.id === nextId) || BUILTIN_WIDGETS.some((item) => item.id === nextId))) {
+      throw new Error(`Widget ID "${nextId}" already exists`);
+    }
+    store[idx] = {
+      ...store[idx],
+      ...patch,
+      isBuiltin: false,
+      updatedAt: new Date().toISOString(),
+    };
+    writeStore(store);
+    return { ...store[idx], isBuiltin: false };
+  }
+
+  const builtin = BUILTIN_WIDGETS.find((item) => item.id === id);
+  if (!builtin) return undefined;
+
+  const now = new Date().toISOString();
+  const nextId = patch?.id ?? id;
+  if (nextId !== id && (store.some((item) => item.id === nextId) || BUILTIN_WIDGETS.some((item) => item.id === nextId))) {
+    throw new Error(`Widget ID "${nextId}" already exists`);
+  }
+  const entry = {
+    ...builtin,
+    ...patch,
+    isBuiltin: false,
+    createdAt: now,
+    updatedAt: now,
+  };
+  store.push(entry);
+  writeStore(store);
+  return { ...entry, isBuiltin: false };
+}
+
+export function deleteWidgetDef(id: string) {
+  const store = readStore();
+  const idx = store.findIndex((item) => item.id === id);
+  if (idx === -1) return false;
+  store.splice(idx, 1);
+  writeStore(store);
+  return true;
+}

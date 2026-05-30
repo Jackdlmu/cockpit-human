@@ -7,6 +7,7 @@ import { Plus } from 'lucide-react';
 import ConnectionCard from './ConnectionCard';
 import ConnectionForm from './ConnectionForm';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 
 interface Props {
   connections: Connection[];
@@ -31,6 +32,13 @@ export default function ConnectionList({
 }: Props) {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Connection | null>(null);
+  const [adminKey, setAdminKey] = useState(() => {
+    try {
+      return localStorage.getItem('adminKey') || '';
+    } catch {
+      return '';
+    }
+  });
 
   const handleCreate = async (data: CreateConnectionInput) => {
     await onCreate(data);
@@ -45,8 +53,40 @@ export default function ConnectionList({
 
   const activeConnections = connections.filter((c) => c.status === 'connected');
 
+  const handleSaveAdminKey = () => {
+    try {
+      localStorage.setItem('adminKey', adminKey.trim());
+    } catch {
+      // ignore localStorage failures
+    }
+  };
+
   return (
     <div className="space-y-4">
+      <div className="rounded-xl bg-white/[0.02] border border-white/[0.06] p-3 space-y-2">
+        <div className="text-[11px] text-white/45">
+          连接配置属于管理员操作。若服务端已启用 `ADMIN_KEY`，请先在这里填写管理员密钥。
+        </div>
+        <div className="flex items-center gap-2">
+          <Input
+            type="password"
+            value={adminKey}
+            onChange={(e) => setAdminKey(e.target.value)}
+            placeholder="输入管理员密钥"
+            className="h-8 text-xs bg-app-surface border-app-border-subtle text-app-text-secondary placeholder:text-app-text-subtle"
+          />
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={handleSaveAdminKey}
+            className="h-8 text-xs border-app-border-subtle text-app-text-muted hover:bg-app-surface-hover hover:text-app-text-secondary"
+          >
+            保存密钥
+          </Button>
+        </div>
+      </div>
+
       {/* 统计 */}
       <div className="flex items-center justify-between">
         <div className="text-xs text-white/30">

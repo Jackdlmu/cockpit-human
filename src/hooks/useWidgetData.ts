@@ -29,7 +29,8 @@ export function useWidgetData(workspaceId: string, widget: Widget, useDemoDataFa
     setState((s) => ({ ...s, loading: true, error: null }));
 
     try {
-      const result = await api.refreshWidgetData(workspaceId, widget.id, filterContext);
+      const shouldPersist = !filterContext || Object.keys(filterContext).length === 0;
+      const result = await api.refreshWidgetData(workspaceId, widget.id, filterContext, { persist: shouldPersist });
       setState({
         data: result.data as Record<string, unknown> | null,
         loading: false,
@@ -39,10 +40,11 @@ export function useWidgetData(workspaceId: string, widget: Widget, useDemoDataFa
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       console.warn(`[useWidgetData] Refresh failed for "${widget.title}":`, msg);
-      // 失败时根据 useDemoDataFallback 决定回退行为
-      const fallbackData = useDemoDataFallback !== false
-        ? (widget.data ?? null)
-        : (buildEmptyData(widget.type) as Record<string, unknown> | null);
+      // 失败时优先保留已有的静态数据，仅在无数据时才构建空结构
+      const hasStaticData = widget.data && typeof widget.data === 'object' && !Array.isArray(widget.data) && Object.keys(widget.data).length > 0;
+      const fallbackData = hasStaticData
+        ? (widget.data as Record<string, unknown>)
+        : (buildEmptyData(widget.type) as Record<string, unknown>);
       setState((s) => ({
         ...s,
         loading: false,
@@ -143,6 +145,8 @@ function buildEmptyData(widgetType: string): Record<string, unknown> {
       return { points: [] };
     case 'universal':
       return {};
+    case 'adaptive':
+      return { sections: [] };
     default:
       return {};
   }

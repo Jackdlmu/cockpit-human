@@ -10,6 +10,9 @@ import * as workspaceStore from '../data/workspaceStore';
 import { eventBus } from './event-bus';
 import { inferWidgetType } from './widget-type-inferer';
 import type { Connection } from '../connection/types';
+import { createWorkspaceWithLifecycle } from './workspace-creation';
+import { normalizeWidgets } from './widget-normalizer';
+import { contextBuilder } from './context-builder';
 
 // ── 工具定义 ──
 
@@ -65,6 +68,24 @@ export interface AgentInvokeResult {
   sessionId: string;
 }
 
+interface ExternalSyncWidgetPatch {
+  id?: string;
+  title?: string;
+  type?: string;
+  data?: Record<string, unknown>;
+  position?: { x: number; y: number; w: number; h: number };
+  dataSource?: Record<string, unknown>;
+  detail?: Record<string, unknown>;
+  link?: Record<string, unknown>;
+}
+
+interface ExternalSyncPayload {
+  summary?: string;
+  widgets?: ExternalSyncWidgetPatch[];
+  workspacePatch?: Record<string, unknown>;
+  appendWidgets?: ExternalSyncWidgetPatch[];
+}
+
 // ── 驾驶舱工具定义 ──
 
 const COCKPIT_TOOLS: ToolDefinition[] = [
@@ -78,18 +99,24 @@ const COCKPIT_TOOLS: ToolDefinition[] = [
   },
   {
     name: 'cockpit_create',
-    description: '创建智能驾驶舱',
+    description: '创建智能驾驶舱。面向外部智能体调用时，默认采用外部主控模式：外部智能体负责规划、取数、补组件和写数据，本地驾驶舱仅负责落库、渲染与兜底。',
     parameters: {
       name: { type: 'string', description: '驾驶舱名称', required: true },
       description: { type: 'string', description: '驾驶舱描述', required: false },
       icon: { type: 'string', description: '图标标识', required: false },
       color: { type: 'string', description: '主题色', required: false },
       agentIds: { type: 'string', description: '关联智能体ID列表，逗号分隔', required: false },
+      widgets: { type: 'string', description: '可选，完整组件列表（JSON 字符串或数组）。如果外部智能体已经完成规划或取数，建议直接传入组件及其 data。', required: false },
+      connectionId: { type: 'string', description: '外部平台连接ID。传入后会记录为该驾驶舱的外部主控来源。', required: false },
+      provider: { type: 'string', description: '外部平台类型，如 yonclaw / openclaw。', required: false },
+      executionOwner: { type: 'string', description: '执行主导方：external 或 cockpit。外部集成默认推荐 external。', required: false, enum: ['external', 'cockpit'] },
+      externalWorkspaceId: { type: 'string', description: '外部平台中的驾驶舱/任务ID，可选，用于建立双向映射。', required: false },
+      useDemoDataFallback: { type: 'string', description: '是否允许演示数据兜底。外部主控场景默认 false。', required: false },
     },
   },
   {
     name: 'cockpit_execute',
-    description: '在指定驾驶舱中执行命令（查询数据、对话、简单操作）。注意：此工具不会创建新驾驶舱，只操作已有驾驶舱。',
+    description: '在指定驾驶舱中执行命令（查询数据、对话、简单操作）。注意：此工具不会创建新驾驶舱，只操作已有驾驶舱。对于 YonClaw / OpenClaw 外部主控场景，应优先由外部智能体自己完成取数与分析，再使用 cockpit_update 写回组件与数据；本工具更适合本地兜底或显式刷新。',
     parameters: {
       workspaceId: { type: 'string', description: '驾驶舱ID', required: true },
       command: { type: 'string', description: '要执行的命令，例如：查看KPI、分析趋势、刷新数据', required: true },
@@ -97,11 +124,11 @@ const COCKPIT_TOOLS: ToolDefinition[] = [
   },
   {
     name: 'cockpit_update',
-    description: '更新已有驾驶舱：添加组件、删除组件、修改组件数据、修改驾驶舱配置（名称、描述、颜色等）',
+    description: '更新已有驾驶舱：添加组件、删除组件、修改组件数据、修改驾驶舱配置（名称、描述、颜色等）。如果外部智能体已经拿到真实数据，应该优先通过此工具直接写回组件和 data，而不是依赖本地驾驶舱再次去外部取数。',
     parameters: {
       workspaceId: { type: 'string', description: '驾驶舱ID', required: true },
       action: { type: 'string', description: '操作类型：add_widget(添加组件) | remove_widget(删除组件) | update_widget(修改组件) | update_config(修改配置)', required: true, enum: ['add_widget', 'remove_widget', 'update_widget', 'update_config'] },
-      widget: { type: 'string', description: '组件数据（JSON字符串），add_widget/update_widget时使用', required: false },
+      widget: { type: 'string', description: '组件数据（JSON字符串），add_widget/update_widget时使用。建议将真实数据写入 widget.data；如果误写在顶层字段，系统会自动尝试归并。', required: false },
       widgetId: { type: 'string', description: '组件ID，remove_widget/update_widget时使用', required: false },
       config: { type: 'string', description: '配置数据（JSON字符串），update_config时使用，如 {"name":"新名称","color":"#ff0000"}', required: false },
     },
@@ -198,6 +225,16 @@ export class CockpitMetaAgent {
 
   getTool(name: string): ToolDefinition | undefined {
     return this.meta.tools.find((t) => t.name === name);
+  }
+
+  private async rebuildWorkspaceContextIfPresent(workspace: unknown): Promise<void> {
+    if (!workspace || typeof workspace !== 'object') return;
+    const candidate = workspace as { id?: string };
+    if (!candidate.id) return;
+    const refreshed = await workspaceStore.getWorkspace(String(candidate.id));
+    if (refreshed) {
+      await contextBuilder.build(refreshed);
+    }
   }
 
   // ── 工具调用 ──
@@ -392,25 +429,31 @@ export class CockpitMetaAgent {
         const primaryAgentId = params.primaryAgentId
           ? String(params.primaryAgentId)
           : (agentIds[0] || '');
+        const externalManaged = this.isExternalManagedCreate(params);
+        const externalConnectionId = params.connectionId ? String(params.connectionId) : undefined;
+        const externalProvider = this.resolveExternalProvider(externalConnectionId, params.provider);
+        const widgets = this.parseWidgetsInput(params.widgets);
         const spec = {
           name: String(params.name || ''),
           description: String(params.description || ''),
           icon: String(params.icon || 'Layers'),
           color: String(params.color || '#6366f1'),
-          widgets: (params.widgets as any[]) || [],
+          widgets,
           agentIds,
           primaryAgentId,
+          useDemoDataFallback: this.parseBoolean(params.useDemoDataFallback, externalManaged ? false : undefined),
+          executionOwner: externalManaged ? 'external' as const : 'cockpit' as const,
+          externalProvider,
+          externalWorkspaceId: params.externalWorkspaceId ? String(params.externalWorkspaceId) : undefined,
+          externalConnectionId,
         };
-        const ws = await workspaceStore.createWorkspace(spec);
-        eventBus.publish({
-          id: `evt-${Date.now()}`,
+        const creation = await createWorkspaceWithLifecycle(spec, {
           source: 'meta-agent',
-          sourceType: 'yonclaw',
-          type: 'workspace.created',
-          payload: { workspaceId: ws.id, name: ws.name },
-          timestamp: new Date().toISOString(),
+          connectionManager: this.connectionManager,
+          resetAgentsWithoutConnection: true,
+          skipLocalInitialization: externalManaged,
         });
-        return ws;
+        return creation.workspace;
       }
 
       case 'cockpit_execute': {
@@ -421,6 +464,11 @@ export class CockpitMetaAgent {
         const ws = await workspaceStore.getWorkspace(wsId);
         if (!ws) {
           return { message: `驾驶舱 ${wsId} 不存在`, error: 'Workspace not found' };
+        }
+
+        const externalExecution = await this.tryExecuteOnExternalWorkspace(ws, cmd, params, sessionId);
+        if (externalExecution) {
+          return externalExecution;
         }
 
         // 命令意图解析：在已有驾驶舱上下文中，避免触发 create_cockpit
@@ -463,20 +511,23 @@ ${existingWidgets || '  (无)'}
 - bullet（子弹图/目标进度）
 - alert（告警列表/事件通知）
 - map（地图/地理分布）
+- adaptive（智能自适应容器/智能摘要面板）
 - sparkline（迷你趋势图）
 
 布局规则（网格 12 列宽）：
-- metric/progress/status/bullet/sparkline: w=3 h=2
-- chart/table/kanban/timeline/list/funnel/radar/heatmap/alert/map: w=6 h=4
-- gauge: w=3 h=3
-- report/html: w=9 h=4
+- metric/progress: w=4 h=2
+- status/list/alert: w=4-5 h=3
+- chart/table/kanban/timeline/funnel/heatmap/map/adaptive: w=6 h=4
+- radar: w=5 h=4
+- gauge: w=4 h=3
+- report/html: w=8 h=4
 - 位置需避免与现有组件重叠，y 坐标优先放在最下方空行
 
 用户指令："""${cmd}"""
 
-请只输出 JSON 数组，不要其他内容。确保 type 只能是上述 18 种标准值（含 universal）：
+请只输出 JSON 数组，不要其他内容。确保 type 只能是上述标准值（含 universal、adaptive）：
 [
-  {"type":"metric|chart|table|kanban|timeline|list|report|progress|status|html|gauge|funnel|radar|heatmap|bullet|alert|map|sparkline|universal","title":"组件标题","position":{"x":0,"y":0,"w":3,"h":2},"data":{}},
+  {"type":"metric|chart|table|kanban|timeline|list|report|progress|status|html|gauge|funnel|radar|heatmap|bullet|alert|map|sparkline|universal|adaptive","title":"组件标题","position":{"x":0,"y":0,"w":4,"h":2},"data":{}},
   ...
 ]`;
 
@@ -577,8 +628,14 @@ ${widgetDesc}
 
 用户问题：${cmd}
 
-请基于驾驶舱上下文回答。如果用户要求查看数据，请说明当前是静态演示数据。
+请基于驾驶舱上下文回答。
 
+【数据回答原则】
+- 如果组件配置了 dataSource（数据源），请基于驾驶舱当前数据状态回答
+- 如果组件是静态数据且用户要求获取真实/最新数据，请基于你的知识生成尽可能真实合理的数据，并说明数据来源
+- 不要默认告知用户"当前是静态演示数据"，除非确实无法提供任何相关信息
+
+【数据回填】
 如果用户的查询结果可以填充到某个组件中（如查询天气、销售额等），请在回答末尾附加一个JSON代码块，格式如下，系统会自动将数据回填到对应组件：
 \`\`\`json
 {
@@ -598,13 +655,16 @@ ${widgetDesc}
             const updatedWidgets = (ws.widgets || []).map((w: any) => {
               const patch = dataUpdate.find((u: any) => u.title === w.title);
               if (patch && patch.data && typeof patch.data === 'object') {
-                return { ...w, data: { ...(w.data || {}), ...patch.data } };
+                return {
+                  ...w,
+                  data: this.normalizeWidgetData({ ...(w.data || {}), ...patch.data }, w.type),
+                };
               }
               return w;
             });
-            await workspaceStore.updateWorkspace(ws.id, { widgets: updatedWidgets });
-            // 触发前端刷新
-            eventBus.emit('workspace:updated', { workspaceId: ws.id, source: 'meta-agent-query' });
+            const updatedWorkspace = await workspaceStore.updateWorkspace(ws.id, { widgets: updatedWidgets });
+            await this.rebuildWorkspaceContextIfPresent(updatedWorkspace);
+            this.publishWorkspaceUpdated(ws.id, ws.name, 'meta-agent-query');
           }
 
           return { message: reply };
@@ -650,19 +710,22 @@ ${widgetDesc}
             // 支持传入单个 widget 或 widget 数组
             const inputWidgets = Array.isArray(raw) ? raw : [raw];
             const newWidgets = inputWidgets.map((w: any, i: number) => {
-              const normType = this.normalizeWidgetType(w.type, w.data);
+              const lifted = this.liftWidgetPayload(w);
+              const normType = this.normalizeWidgetType(lifted.type, lifted.data);
               return {
-                ...w,
-                id: w.id || `w-${Date.now()}-${i}`,
+                ...lifted,
+                id: lifted.id || `w-${Date.now()}-${i}`,
                 type: normType,
-                title: String(w.title || '新组件'),
-                position: w.position || this.calcWidgetPosition(normType, ws.widgets || [], [], i),
-                data: this.normalizeWidgetData(w.data || this.defaultWidgetData(normType), normType),
+                title: String(lifted.title || '新组件'),
+                position: lifted.position || this.calcWidgetPosition(normType, ws.widgets || [], [], i),
+                data: this.normalizeWidgetData(lifted.data || this.defaultWidgetData(normType), normType),
               };
             });
             const updated = await workspaceStore.updateWorkspace(wsId, {
               widgets: [...(ws.widgets || []), ...newWidgets],
             });
+            await this.rebuildWorkspaceContextIfPresent(updated);
+            this.publishWorkspaceUpdated(wsId, ws.name, 'meta-agent-update');
             if (newWidgets.length === 1) {
               return { message: `已添加组件「${newWidgets[0].title}」`, data: updated };
             }
@@ -672,6 +735,8 @@ ${widgetDesc}
             const widgetId = String(params.widgetId || '');
             const widgets = (ws.widgets || []).filter((w: any) => w.id !== widgetId);
             const updated = await workspaceStore.updateWorkspace(wsId, { widgets });
+            await this.rebuildWorkspaceContextIfPresent(updated);
+            this.publishWorkspaceUpdated(wsId, ws.name, 'meta-agent-update');
             return { message: `已删除组件 ${widgetId}`, data: updated };
           }
           case 'update_widget': {
@@ -687,12 +752,12 @@ ${widgetDesc}
               'steps', 'milestones', 'events', 'nodes',
               'items', 'tasks', 'todos',
               'summary', 'highlights', 'keyPoints', 'metrics', 'stats', 'overview', 'detail', 'fullContent', 'content', 'html',
-              'label', 'color',
+              'label', 'color', 'colors', 'metric', 'primaryMetric', 'headline', 'sections', 'blocks', 'cards',
               'min', 'max', 'unit', 'thresholds', 'percentage', 'percent', 'current',
               'indicators', 'dimensions', 'scores',
               'cells', 'cellData',
               'target', 'ranges', 'goal',
-              'alerts', 'notifications',
+              'alerts', 'notifications', 'message', 'severity', 'level', 'time', 'timestamp',
               'points', 'locations', 'regions', 'cities',
               'sparkline', 'compareValue', 'compareLabel', 'previous',
               'subtitle', 'title', 'body',
@@ -710,7 +775,10 @@ ${widgetDesc}
             const widgets = (ws.widgets || []).map((w: any) => {
               if (w.id !== widgetId) return w;
               // 合并 data：patch.data 优先，其次是自动提取的 dataPatch
-              const mergedData = { ...(w.data || {}), ...dataPatch, ...(patch.data || {}) };
+              const mergedData = this.normalizeWidgetData(
+                { ...(w.data || {}), ...dataPatch, ...(patch.data || {}) },
+                w.type
+              );
               const result = { ...w, ...topPatch };
               if (Object.keys(mergedData).length > 0) {
                 result.data = mergedData;
@@ -718,11 +786,15 @@ ${widgetDesc}
               return result;
             });
             const updated = await workspaceStore.updateWorkspace(wsId, { widgets });
+            await this.rebuildWorkspaceContextIfPresent(updated);
+            this.publishWorkspaceUpdated(wsId, ws.name, 'meta-agent-update');
             return { message: `已更新组件 ${widgetId}`, data: updated };
           }
           case 'update_config': {
             const config = params.config ? JSON.parse(String(params.config)) : {};
             const updated = await workspaceStore.updateWorkspace(wsId, config);
+            await this.rebuildWorkspaceContextIfPresent(updated);
+            this.publishWorkspaceUpdated(wsId, ws.name, 'meta-agent-update');
             return { message: `已更新驾驶舱配置`, data: updated };
           }
           default:
@@ -961,11 +1033,405 @@ ${widgetDesc}
     }
   }
 
+  private parseBoolean(value: unknown, fallback?: boolean): boolean | undefined {
+    if (typeof value === 'boolean') return value;
+    if (typeof value === 'string') {
+      const normalized = value.trim().toLowerCase();
+      if (normalized === 'true') return true;
+      if (normalized === 'false') return false;
+    }
+    return fallback;
+  }
+
+  private async tryExecuteOnExternalWorkspace(
+    ws: Awaited<ReturnType<typeof workspaceStore.getWorkspace>>,
+    command: string,
+    params: Record<string, unknown>,
+    sessionId?: string
+  ): Promise<unknown | null> {
+    if (!ws || ws.executionOwner !== 'external') {
+      return null;
+    }
+
+    const externalWorkspaceId = ws.externalWorkspaceId || ws.id;
+    const connector = ws.externalConnectionId
+      ? this.connectionManager.getConnector(ws.externalConnectionId)
+      : this.resolvePreferredExternalConnector(ws.externalProvider);
+
+    if (!connector) {
+      return {
+        message: `驾驶舱「${ws.name}」标记为外部主控，但未找到可用的外部连接，本次未执行本地兜底。`,
+        error: 'External connector not available',
+      };
+    }
+
+    if (connector.executeOnCockpit) {
+      const result = await connector.executeOnCockpit(externalWorkspaceId, command, {
+        ...params,
+        workspaceId: ws.id,
+        externalWorkspaceId,
+        sessionId,
+      });
+
+      const synced = await this.trySyncExternalExecutionResult(ws.id, ws.name, result);
+      return {
+        message: `已将命令优先路由至${this.externalProviderLabel(ws.externalProvider || connector.type)}执行${synced ? '，结果已同步回本地驾驶舱' : ''}。`,
+        data: {
+          route: 'external-cockpit',
+          connectorId: connector.connectionId,
+          connectorType: connector.type,
+          externalWorkspaceId,
+          executionResult: result,
+          synced,
+        },
+      };
+    }
+
+    if (connector.invokeAgent) {
+      const result = await connector.invokeAgent({
+        agentId: ws.primaryAgentId || 'default',
+        command,
+        context: {
+          ...params,
+          workspaceId: ws.id,
+          externalWorkspaceId,
+        },
+        sessionId,
+      });
+
+      const synced = await this.trySyncExternalExecutionResult(ws.id, ws.name, result);
+      return {
+        message: `已将命令优先路由至${this.externalProviderLabel(ws.externalProvider || connector.type)}智能体执行${synced ? '，结果已同步回本地驾驶舱' : ''}。`,
+        data: {
+          route: 'external-agent',
+          connectorId: connector.connectionId,
+          connectorType: connector.type,
+          externalWorkspaceId,
+          executionResult: result,
+          synced,
+        },
+      };
+    }
+
+    return {
+      message: `驾驶舱「${ws.name}」由外部平台主控，但当前连接不支持执行操作。`,
+      error: 'External connector does not support execution',
+    };
+  }
+
+  private resolvePreferredExternalConnector(provider?: string) {
+    if (provider === 'yonclaw' || provider === 'openclaw' || provider === 'generic-llm') {
+      return this.connectionManager.getAllConnectors().find((connector) => connector.type === provider);
+    }
+    return this.connectionManager.getConnectorByCapability('cockpit-execute')
+      || this.connectionManager.getConnectorByCapability('agent-invoke');
+  }
+
+  private async trySyncExternalExecutionResult(workspaceId: string, workspaceName: string, result: unknown): Promise<boolean> {
+    if (!result || typeof result !== 'object' || Array.isArray(result)) {
+      return false;
+    }
+
+    const syncPayload = this.parseExternalSyncPayload(result);
+    if (!syncPayload) {
+      return false;
+    }
+
+    const current = await workspaceStore.getWorkspace(workspaceId);
+    if (!current) return false;
+
+    const widgetsById = new Map((current.widgets || []).map((widget: any) => [widget.id, widget]));
+    const widgetsByTitle = new Map((current.widgets || []).map((widget: any) => [widget.title, widget]));
+
+    const nextWidgets = (current.widgets || []).map((widget: any) => ({ ...widget }));
+    let changed = false;
+
+    for (const raw of syncPayload.widgets || []) {
+      if (!raw || typeof raw !== 'object') continue;
+      const lifted = this.liftWidgetPayload(raw as Record<string, unknown>);
+      const byId = typeof lifted.id === 'string' ? widgetsById.get(lifted.id) : undefined;
+      const byTitle = typeof lifted.title === 'string' ? widgetsByTitle.get(lifted.title) : undefined;
+      const matched = byId || byTitle;
+      if (!matched) continue;
+
+      const targetIndex = nextWidgets.findIndex((widget: any) => widget.id === matched.id);
+      if (targetIndex === -1) continue;
+
+      const normalizedType = this.normalizeWidgetType(String(lifted.type || matched.type || ''), lifted.data || matched.data);
+      const mergedData = this.normalizeWidgetData(
+        { ...(matched.data || {}), ...((lifted.data as Record<string, unknown>) || {}) },
+        normalizedType || matched.type
+      );
+
+      nextWidgets[targetIndex] = {
+        ...matched,
+        ...lifted,
+        id: matched.id,
+        type: normalizedType || matched.type,
+        title: typeof lifted.title === 'string' && lifted.title.trim() ? lifted.title : matched.title,
+        data: mergedData,
+      };
+      changed = true;
+    }
+
+    const appendWidgets = Array.isArray(syncPayload.appendWidgets)
+      ? normalizeWidgets(
+          syncPayload.appendWidgets
+            .filter((widget) => widget && typeof widget === 'object')
+            .map((widget) => {
+              const lifted = this.liftWidgetPayload(widget as Record<string, unknown>);
+              const type = this.normalizeWidgetType(String(lifted.type || ''), lifted.data);
+              return {
+                ...lifted,
+                type,
+                title: String(lifted.title || this.widgetTypeLabel(type)),
+                data: this.normalizeWidgetData(lifted.data || this.defaultWidgetData(type), type),
+              };
+            }),
+          { idPrefix: 'w' }
+        )
+      : [];
+
+    if (appendWidgets.length > 0) {
+      for (const widget of appendWidgets) {
+        if (widgetsById.has(widget.id) || widgetsByTitle.has(widget.title)) {
+          continue;
+        }
+        nextWidgets.push(widget);
+        changed = true;
+      }
+    }
+
+    const workspacePatch = syncPayload.workspacePatch && typeof syncPayload.workspacePatch === 'object'
+      ? this.sanitizeWorkspacePatch(syncPayload.workspacePatch)
+      : null;
+
+    if (!changed && !workspacePatch) {
+      return false;
+    }
+
+    await workspaceStore.updateWorkspace(workspaceId, {
+      ...(workspacePatch || {}),
+      widgets: nextWidgets,
+    });
+    const updatedWorkspace = await workspaceStore.getWorkspace(workspaceId);
+    if (updatedWorkspace) {
+      await contextBuilder.build(updatedWorkspace);
+    }
+    this.publishWorkspaceUpdated(workspaceId, workspaceName, 'meta-agent-external-sync');
+    return true;
+  }
+
+  private parseExternalSyncPayload(result: unknown): ExternalSyncPayload | null {
+    if (!result || typeof result !== 'object' || Array.isArray(result)) {
+      return null;
+    }
+
+    const payload = result as Record<string, unknown>;
+
+    // 正式协议：sync
+    const sync = payload.sync;
+    if (sync && typeof sync === 'object' && !Array.isArray(sync)) {
+      const syncRecord = sync as Record<string, unknown>;
+      return {
+        summary: typeof syncRecord.summary === 'string' ? syncRecord.summary : undefined,
+        widgets: Array.isArray(syncRecord.widgets) ? syncRecord.widgets as ExternalSyncWidgetPatch[] : [],
+        workspacePatch: syncRecord.workspacePatch && typeof syncRecord.workspacePatch === 'object'
+          ? syncRecord.workspacePatch as Record<string, unknown>
+          : undefined,
+        appendWidgets: Array.isArray(syncRecord.appendWidgets) ? syncRecord.appendWidgets as ExternalSyncWidgetPatch[] : [],
+      };
+    }
+
+    // 兼容旧格式：顶层 widgets 或 data.widgets
+    const widgets = Array.isArray(payload.widgets)
+      ? payload.widgets as ExternalSyncWidgetPatch[]
+      : (payload.data && typeof payload.data === 'object' && Array.isArray((payload.data as Record<string, unknown>).widgets))
+        ? (payload.data as Record<string, unknown>).widgets as ExternalSyncWidgetPatch[]
+        : [];
+
+    const workspacePatch = payload.workspacePatch && typeof payload.workspacePatch === 'object'
+      ? payload.workspacePatch as Record<string, unknown>
+      : (payload.data && typeof payload.data === 'object' && (payload.data as Record<string, unknown>).workspacePatch && typeof (payload.data as Record<string, unknown>).workspacePatch === 'object')
+        ? (payload.data as Record<string, unknown>).workspacePatch as Record<string, unknown>
+        : undefined;
+
+    const appendWidgets = Array.isArray(payload.appendWidgets)
+      ? payload.appendWidgets as ExternalSyncWidgetPatch[]
+      : (payload.data && typeof payload.data === 'object' && Array.isArray((payload.data as Record<string, unknown>).appendWidgets))
+        ? (payload.data as Record<string, unknown>).appendWidgets as ExternalSyncWidgetPatch[]
+        : [];
+
+    if (widgets.length === 0 && appendWidgets.length === 0 && !workspacePatch) {
+      return null;
+    }
+
+    return {
+      summary: typeof payload.summary === 'string'
+        ? payload.summary
+        : (payload.data && typeof payload.data === 'object' && typeof (payload.data as Record<string, unknown>).summary === 'string')
+          ? String((payload.data as Record<string, unknown>).summary)
+          : undefined,
+      widgets,
+      workspacePatch,
+      appendWidgets,
+    };
+  }
+
+  private sanitizeWorkspacePatch(patch: Record<string, unknown>): Partial<Record<string, unknown>> {
+    const allowedKeys = new Set([
+      'name',
+      'description',
+      'icon',
+      'color',
+      'status',
+      'useDemoDataFallback',
+      'agentIds',
+      'primaryAgentId',
+      'agentMode',
+      'externalWorkspaceId',
+      'externalConnectionId',
+      'externalProvider',
+      'executionOwner',
+    ]);
+
+    const safePatch: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(patch)) {
+      if (!allowedKeys.has(key) || key === 'widgets') continue;
+      safePatch[key] = value;
+    }
+    return safePatch;
+  }
+
+  private externalProviderLabel(provider?: string): string {
+    if (provider === 'yonclaw') return 'YonClaw';
+    if (provider === 'openclaw') return 'OpenClaw';
+    if (provider === 'generic-llm') return '外部智能体平台';
+    return '外部平台';
+  }
+
+  private isExternalManagedCreate(params: Record<string, unknown>): boolean {
+    const executionOwner = typeof params.executionOwner === 'string'
+      ? params.executionOwner.trim().toLowerCase()
+      : '';
+    if (executionOwner === 'cockpit') return false;
+    if (executionOwner === 'external') return true;
+
+    const managedBy = typeof params.managedBy === 'string'
+      ? params.managedBy.trim().toLowerCase()
+      : '';
+    if (managedBy === 'cockpit' || managedBy === 'local' || managedBy === 'internal') return false;
+    if (managedBy === 'yonclaw' || managedBy === 'openclaw' || managedBy === 'external') return true;
+
+    if (params.externalWorkspaceId || params.externalDataProvided || params.skipLocalInitialization || params.connectionId || params.provider) {
+      return true;
+    }
+
+    // Meta-Agent 本身主要面向外部平台调用。未显式声明时，默认采用外部主控模式。
+    return true;
+  }
+
+  private resolveExternalProvider(connectionId?: string, provider?: unknown): 'yonclaw' | 'openclaw' | 'generic-llm' | 'other' | undefined {
+    if (typeof provider === 'string') {
+      const normalized = provider.trim().toLowerCase();
+      if (normalized === 'yonclaw' || normalized === 'openclaw' || normalized === 'generic-llm') {
+        return normalized;
+      }
+      if (normalized) return 'other';
+    }
+
+    if (!connectionId) return undefined;
+    const connection = this.connectionManager.getConnector(connectionId as string);
+    if (!connection) return undefined;
+    if (connection.type === 'yonclaw' || connection.type === 'openclaw' || connection.type === 'generic-llm') {
+      return connection.type;
+    }
+    return 'other';
+  }
+
+  private parseWidgetsInput(rawWidgets: unknown): any[] {
+    if (!rawWidgets) return [];
+
+    let parsed = rawWidgets;
+    if (typeof rawWidgets === 'string') {
+      try {
+        parsed = JSON.parse(rawWidgets);
+      } catch {
+        return [];
+      }
+    }
+
+    const list = Array.isArray(parsed) ? parsed : [parsed];
+    const normalized = list
+      .filter((item) => item && typeof item === 'object')
+      .map((item) => {
+        const lifted = this.liftWidgetPayload(item as Record<string, unknown>);
+        const type = this.normalizeWidgetType(String(lifted.type || ''), lifted.data);
+        return {
+          ...lifted,
+          type,
+          title: String(lifted.title || this.widgetTypeLabel(type)),
+          data: this.normalizeWidgetData(lifted.data || this.defaultWidgetData(type), type),
+        };
+      });
+
+    return normalizeWidgets(normalized, { idPrefix: 'w' });
+  }
+
+  private liftWidgetPayload(widget: Record<string, unknown>): Record<string, unknown> {
+    const cloned = { ...widget };
+    const existingData = cloned.data && typeof cloned.data === 'object' && !Array.isArray(cloned.data)
+      ? { ...(cloned.data as Record<string, unknown>) }
+      : {};
+
+    const knownDataFields = new Set([
+      'value', 'change', 'trend', 'caption', 'variant', 'accentColor', 'status',
+      'labels', 'values', 'categories', 'series', 'datasets', 'names', 'xaxis', 'xAxis', 'yaxis', 'yAxis',
+      'rows', 'columns', 'records', 'entries',
+      'stages', 'statuses', 'phases',
+      'steps', 'milestones', 'events', 'nodes',
+      'items', 'tasks', 'todos',
+      'summary', 'highlights', 'keyPoints', 'metrics', 'stats', 'overview', 'detail', 'fullContent', 'content', 'html',
+      'label', 'color', 'colors', 'metric', 'primaryMetric', 'headline', 'sections', 'blocks', 'cards',
+      'min', 'max', 'unit', 'thresholds', 'percentage', 'percent', 'current',
+      'indicators', 'dimensions', 'scores',
+      'cells', 'cellData',
+      'target', 'ranges', 'goal', 'maximum', 'limit',
+      'alerts', 'notifications', 'message', 'severity', 'level', 'time', 'timestamp',
+      'points', 'locations', 'regions', 'cities',
+      'sparkline', 'compareValue', 'compareLabel', 'previous', 'previousLabel', 'targetLabel',
+      'subtitle', 'body',
+    ]);
+
+    for (const [key, value] of Object.entries(cloned)) {
+      if (key === 'data') continue;
+      if (knownDataFields.has(key)) {
+        existingData[key] = value;
+        delete cloned[key];
+      }
+    }
+
+    cloned.data = existingData;
+    return cloned;
+  }
+
+  private publishWorkspaceUpdated(workspaceId: string, name: string, source: string): void {
+    eventBus.publish({
+      id: `evt-${Date.now()}`,
+      source,
+      sourceType: 'yonclaw',
+      type: 'workspace.updated',
+      payload: { workspaceId, name },
+      timestamp: new Date().toISOString(),
+    });
+  }
+
   // ── 辅助：标准化组件类型 ──
   private normalizeWidgetType(raw: string, data?: Record<string, unknown>): string {
     const map: Record<string, string> = {
-      'metric': 'metric', '指标': 'metric', '仪表': 'metric', '数据卡': 'metric',
-      '数字': 'metric', 'kpi': 'metric', '指标卡': 'metric', '数值': 'metric',
+      'data': 'data', 'metric': 'metric', '指标': 'metric', '仪表': 'metric', '数据卡': 'metric',
+      '数字': 'metric', 'kpi': 'metric', '指标卡': 'metric', '数值': 'metric', '指标卡': 'metric',
+      'metric-card': 'data', 'data-card': 'data', 'metriccard': 'data', '指标卡片': 'data',
       'chart': 'chart', '图表': 'chart', '折线图': 'chart', '柱状图': 'chart',
       '饼图': 'chart', '趋势图': 'chart', '统计图': 'chart', '可视化': 'chart',
       'table': 'table', '表格': 'table', '数据表': 'table', '明细表': 'table',
@@ -979,6 +1445,7 @@ ${widgetDesc}
       '汇报': 'report', '概览': 'report',
       'universal': 'universal', '通用': 'universal', '文本': 'universal', '内容': 'universal',
       '容器': 'universal', '富文本': 'universal', 'markdown': 'universal', 'md': 'universal',
+      'adaptive': 'adaptive', '智能容器': 'adaptive', '自适应容器': 'adaptive', '智能摘要': 'adaptive', '摘要面板': 'adaptive',
       'gauge': 'gauge', '仪表盘': 'gauge', '进度盘': 'gauge', '达成率': 'gauge', 'gauge图': 'gauge',
       'funnel': 'funnel', '漏斗': 'funnel', '漏斗图': 'funnel', '转化': 'funnel', '转化漏斗': 'funnel',
       'radar': 'radar', '雷达': 'radar', '雷达图': 'radar', '蛛网图': 'radar', '蜘蛛图': 'radar',
@@ -1001,7 +1468,7 @@ ${widgetDesc}
   private widgetTypeLabel(type: string): string {
     const labels: Record<string, string> = {
       metric: '指标卡', chart: '图表', table: '表格', kanban: '看板',
-      timeline: '时间线', list: '列表', report: '报告', universal: '通用组件',
+      timeline: '时间线', list: '列表', report: '报告', universal: '通用组件', adaptive: '智能容器',
       progress: '进度条', status: '状态面板', html: 'HTML组件',
       gauge: '仪表盘', funnel: '漏斗图', radar: '雷达图', heatmap: '热力图',
       bullet: '子弹图', alert: '告警列表', map: '地图',
@@ -1073,8 +1540,10 @@ ${widgetDesc}
       bullet: { w: 6, h: 2 },
       alert: { w: 6, h: 4 },
       map: { w: 6, h: 4 },
+      adaptive: { w: 6, h: 4 },
       list: { w: 6, h: 4 },
-      report: { w: 9, h: 4 },
+      report: { w: 8, h: 4 },
+      html: { w: 8, h: 4 },
     };
     const { w, h } = sizeMap[type] || { w: 3, h: 2 };
 
@@ -1227,6 +1696,13 @@ ${widgetDesc}
       list: { items: ['事项1', '事项2'] },
       report: { summary: '报告摘要...', highlights: [{ label: '核心指标', value: '—' }] },
       universal: { content: '通用内容容器...' },
+      adaptive: {
+        headline: { title: '智能摘要', subtitle: '用于承载复杂、多形态的数据结果' },
+        sections: [
+          { type: 'metrics', metrics: [{ label: '核心指标', value: '—' }, { label: '趋势', value: '待生成' }] },
+          { type: 'text', content: '当标准组件不适合时，使用该容器进行统一兜底渲染。' },
+        ],
+      },
       gauge: { value: 68, min: 0, max: 100, unit: '%' },
       funnel: { stages: [{ name: '访问', value: 1000, rate: 100 }, { name: '注册', value: 600, rate: 60 }, { name: '付费', value: 200, rate: 20 }] },
       radar: { labels: ['速度', '质量', '成本', '服务', '创新'], values: [85, 70, 90, 75, 80] },

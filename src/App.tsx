@@ -9,6 +9,7 @@ import { useAgents, useWorkspaces } from '@/hooks/useApiData';
 import { useEventStream } from '@/hooks/useEventStream';
 import { useLayoutSettings } from '@/hooks/useLayoutSettings';
 import CreateCockpitDialog from '@/components/CreateCockpitDialog';
+import CreationProgressToast from '@/components/CreationProgressToast';
 import SettingsPanel from '@/components/SettingsPanel';
 import { Toaster } from '@/components/ui/sonner';
 import { toast } from 'sonner';
@@ -34,6 +35,36 @@ import EmptyWelcome from '@/components/layout/EmptyWelcome';
 import './App.css';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
+
+type CreationProgressState = {
+  visible: boolean;
+  mode: 'agent' | 'template';
+  stage: string;
+  message: string;
+  done: boolean;
+  success: boolean;
+  usedLLM: boolean;
+  progressCurrent: number;
+  progressTotal: number;
+  progressLabel: string;
+  initializationMode: 'llm' | 'real-data';
+  workspaceId: string | null;
+};
+
+const initialCreationProgress: CreationProgressState = {
+  visible: false,
+  mode: 'agent',
+  stage: 'thinking',
+  message: '',
+  done: false,
+  success: false,
+  usedLLM: false,
+  progressCurrent: 0,
+  progressTotal: 0,
+  progressLabel: '组件初始化',
+  initializationMode: 'llm',
+  workspaceId: null,
+};
 
 function App() {
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string | null>(() => {
@@ -66,10 +97,6 @@ function App() {
     setOpenTabs,
     syncTabs,
   } = useLayoutSettings();
-
-  // 用于在 workspace.initialized 事件中判断当前查看的 workspace
-  const selectedWorkspaceIdRef = useRef<string | null>(null);
-  selectedWorkspaceIdRef.current = layoutMode === 'tabs' ? activeTabId : selectedWorkspaceId;
 
   // 同步 tabs + 验证 selectedWorkspaceId：当 workspace 被删除时自动清理
   useEffect(() => {
@@ -107,6 +134,16 @@ function App() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [executing, setExecuting] = useState(false);
   const [templates, setTemplates] = useState<any[]>([]);
+  const [initialTemplateId, setInitialTemplateId] = useState<string | null>(null);
+  const [initialName, setInitialName] = useState<string | null>(null);
+  const [initialCommand, setInitialCommand] = useState<string | null>(null);
+  const [creationProgress, setCreationProgress] = useState<CreationProgressState>(initialCreationProgress);
+
+  // 用于在实时事件中读取最新状态，避免闭包拿到旧值
+  const selectedWorkspaceIdRef = useRef<string | null>(null);
+  selectedWorkspaceIdRef.current = layoutMode === 'tabs' ? activeTabId : selectedWorkspaceId;
+  const creationProgressRef = useRef<CreationProgressState>(initialCreationProgress);
+  creationProgressRef.current = creationProgress;
 
   const handleOpenDialog = useCallback(() => {
     if (workspaces.length >= 30) {
@@ -114,6 +151,9 @@ function App() {
       return;
     }
     setDialogOpen(true);
+    setInitialTemplateId(null);
+    setInitialName(null);
+    setInitialCommand(null);
     getTemplates().then((data) => {
       setTemplates(data.templates);
     }).catch(() => {
@@ -122,58 +162,161 @@ function App() {
   }, [workspaces.length]);
 
   const handleCloseDialog = useCallback(() => {
-    if (!executing) setDialogOpen(false);
+    if (!executing) {
+      setDialogOpen(false);
+      setInitialTemplateId(null);
+      setInitialName(null);
+      setInitialCommand(null);
+    }
   }, [executing]);
+
+  const handleCloseCreationProgress = useCallback(() => {
+    setCreationProgress(initialCreationProgress);
+  }, []);
 
   const handleExecute = useCallback((command: string) => {
     setExecuting(true);
     setDialogOpen(false);
+    setInitialTemplateId(null);
+    setInitialName(null);
+    setInitialCommand(null);
+
+    setCreationProgress({
+      ...initialCreationProgress,
+      visible: true,
+      mode: 'agent',
+      stage: 'thinking',
+      message: '正在分析您的需求...',
+    });
+
+    let messageBuffer = '';
 
     cockpitAgentChatStream(
       command,
       undefined,
       undefined,
-      (_chunk, _stage) => {
-        // 简化：不显示详细进度
+      undefined,
+      (chunk, stage) => {
+        messageBuffer += chunk;
+        const lines = messageBuffer.split('\n').filter((l) => l.trim());
+        const lastLine = lines[lines.length - 1] || '';
+        const normalizedMessage = lastLine
+          ? lastLine.replace(/^\s*[💡⚙️📋📝✅❌]\s*/, '').trim() || '处理中...'
+          : '处理中...';
+        setCreationProgress((prev) => ({
+          ...prev,
+          stage: stage || prev.stage,
+          message: normalizedMessage,
+        }));
       },
       (data) => {
         setExecuting(false);
+        setCreationProgress((prev) => ({
+          ...prev,
+          done: true,
+          success: true,
+          usedLLM: data.usedLLM ?? false,
+          message: data.message || '执行完成',
+        }));
+
         if (data.results) {
           const createResult = data.results?.find(
             (r: Record<string, unknown>) => r.success === true && (r.data as Record<string, string>)?.id?.startsWith('ws-')
           );
           if (createResult) {
-            const newId = (createResult.data as Record<string, string>).id;
-            toast.success('驾驶舱创建成功', { description: `ID: ${newId}` });
+            const workspace = (createResult.data as Record<string, unknown>) || {};
+            const newId = String(workspace.id || '');
+            const initializing = data.initializing ?? Boolean(workspace.initializing);
+            const initializationMode = (data.initializationMode || workspace.initializationMode || 'llm') as 'llm' | 'real-data';
+            setCreationProgress((prev) => ({
+              ...prev,
+              mode: 'agent',
+              workspaceId: newId || prev.workspaceId,
+              message: initializing
+                ? (initializationMode === 'real-data' ? '驾驶舱已创建，正在获取真实数据...' : '驾驶舱已创建，正在初始化组件数据...')
+                : '驾驶舱创建成功',
+              done: !initializing,
+              success: !initializing || prev.success,
+              stage: initializing ? 'initializing' : prev.stage,
+              initializationMode,
+              progressLabel: initializationMode === 'real-data' ? '真实数据初始化' : '组件初始化',
+            }));
             refreshWorkspaces();
-            // 自动打开新创建的驾驶舱
             if (layoutMode === 'tabs') {
               openTab(newId);
             } else {
               setSelectedWorkspaceId(newId);
               localStorage.setItem('yoncockpit-selected-ws', newId);
             }
+            if (!initializing) {
+              setTimeout(() => {
+                handleCloseCreationProgress();
+              }, 2000);
+            }
             return;
           }
         }
-        toast.success(data.message || '执行完成');
+        setTimeout(() => {
+          handleCloseCreationProgress();
+        }, 2000);
       },
       (err) => {
         setExecuting(false);
-        toast.error('创建失败', { description: err.message });
+        setCreationProgress((prev) => ({
+          ...prev,
+          done: true,
+          success: false,
+          stage: 'completed',
+          message: `创建失败：${err.message}`,
+        }));
       }
     );
-  }, [layoutMode, openTab, refreshWorkspaces]);
+  }, [layoutMode, openTab, refreshWorkspaces, handleCloseCreationProgress]);
 
   const handleCreateFromTemplate = useCallback(async (templateId: string, name: string, initPrompt: string) => {
     setExecuting(true);
     setDialogOpen(false);
+    setInitialTemplateId(null);
+    setInitialName(null);
+    setInitialCommand(null);
+    setCreationProgress({
+      ...initialCreationProgress,
+      visible: true,
+      mode: 'template',
+      stage: 'executing',
+      message: '正在根据模板创建驾驶舱...',
+    });
+
     try {
       const res = await createCockpitFromTemplate(templateId, name, initPrompt);
-      toast.success(
-        res.initializing ? '驾驶舱创建成功，正在初始化数据...' : '驾驶舱创建成功',
-        { description: `ID: ${res.workspace.id}` }
-      );
+      const initializationMode = res.initializationMode === 'real-data' ? 'real-data' : 'llm';
+
+      if (res.initializing) {
+        setCreationProgress((prev) => ({
+          ...prev,
+          mode: 'template',
+          stage: 'initializing',
+          message: initializationMode === 'real-data'
+            ? '正在尝试获取真实数据，请稍候...'
+            : '正在初始化组件数据，请稍候...',
+          initializationMode,
+          progressLabel: initializationMode === 'real-data' ? '真实数据初始化' : '组件初始化',
+          workspaceId: res.workspace.id,
+        }));
+      } else {
+        setCreationProgress((prev) => ({
+          ...prev,
+          mode: 'template',
+          stage: 'completed',
+          done: true,
+          success: true,
+          message: '驾驶舱创建完成',
+          initializationMode,
+          workspaceId: res.workspace.id,
+        }));
+        setTimeout(() => handleCloseCreationProgress(), 2000);
+      }
+
       await refreshWorkspaces();
       // 自动打开新创建的驾驶舱
       if (layoutMode === 'tabs') {
@@ -183,11 +326,17 @@ function App() {
         localStorage.setItem('yoncockpit-selected-ws', res.workspace.id);
       }
     } catch (err: unknown) {
-      toast.error('创建失败', { description: err instanceof Error ? err.message : String(err) });
+      setCreationProgress((prev) => ({
+        ...prev,
+        done: true,
+        success: false,
+        stage: 'completed',
+        message: `创建失败：${err instanceof Error ? err.message : String(err)}`,
+      }));
     } finally {
       setExecuting(false);
     }
-  }, [layoutMode, openTab, refreshWorkspaces]);
+  }, [layoutMode, openTab, refreshWorkspaces, handleCloseCreationProgress]);
 
   // 事件 toast 通知 + workspace.created 自动刷新
   useEffect(() => {
@@ -197,51 +346,137 @@ function App() {
 
     if (latest.type === 'workspace.created') {
       refreshWorkspaces();
-      const payload = latest.payload as Record<string, unknown>;
-      toast.success('驾驶舱已创建', {
-        description: String(payload?.name || ''),
-        duration: 4000,
-      });
       return;
     }
 
-    // 驾驶舱初始化相关事件：显示友好消息，不暴露原始 JSON
     if (latest.type === 'workspace.initializing') {
       const payload = latest.payload as Record<string, unknown>;
-      toast.info('驾驶舱初始化中...', {
-        description: String(payload?.name || ''),
-        duration: 3000,
-      });
+      const workspaceId = String(payload?.workspaceId || '');
+      const sourceWorkspaceId = creationProgressRef.current.workspaceId;
+      if (sourceWorkspaceId && workspaceId && sourceWorkspaceId !== workspaceId) {
+        return;
+      }
+      const mode = payload?.mode === 'real-data' ? 'real-data' : 'llm';
+      const sourceType = payload?.sourceType === 'template' ? 'template' : 'agent';
+      setCreationProgress((prev) => ({
+        ...prev,
+        visible: true,
+        mode: sourceType,
+        stage: 'initializing',
+        done: false,
+        success: false,
+        initializationMode: mode,
+        message: mode === 'real-data'
+          ? '驾驶舱已创建，正在获取真实数据...'
+          : '驾驶舱已创建，正在初始化组件数据...',
+        progressCurrent: 0,
+        progressTotal: 0,
+        progressLabel: mode === 'real-data' ? '真实数据初始化' : '组件初始化',
+        workspaceId: workspaceId || prev.workspaceId,
+      }));
       return;
     }
+
+    if (latest.type === 'workspace.init_progress') {
+      const payload = latest.payload as Record<string, unknown>;
+      const widgetTitle = String(payload?.widgetTitle || '');
+      const workspaceId = String(payload?.workspaceId || '');
+      const sourceWorkspaceId = creationProgressRef.current.workspaceId;
+      if (sourceWorkspaceId && workspaceId && sourceWorkspaceId !== workspaceId) {
+        return;
+      }
+      setCreationProgress((prev) => ({
+        ...prev,
+        visible: true,
+        done: false,
+        success: false,
+        stage: 'initializing',
+        progressCurrent: (payload?.current as number) ?? 0,
+        progressTotal: (payload?.total as number) ?? 0,
+        message: widgetTitle
+          ? `${prev.initializationMode === 'real-data' ? '正在获取真实数据' : '正在初始化'}：${widgetTitle}`
+          : prev.initializationMode === 'real-data'
+            ? '正在获取真实数据...'
+            : '正在初始化组件数据...',
+        workspaceId: workspaceId || prev.workspaceId,
+      }));
+      return;
+    }
+
     if (latest.type === 'workspace.initialized') {
       const payload = latest.payload as Record<string, unknown>;
       const result = payload?.result as Record<string, unknown>;
+      const mode = result?.mode === 'real-data' ? 'real-data' : 'llm';
+      const updated = typeof result?.updated === 'number' ? result.updated : undefined;
+      const total = typeof result?.total === 'number' ? result.total : undefined;
+      const resultMessage = typeof result?.message === 'string' ? result.message : '';
       const hasError = result && (result.error || (typeof result.message === 'string' && result.message.includes('失败')));
+      const workspaceId = String(payload?.workspaceId || '');
+      const sourceWorkspaceId = creationProgressRef.current.workspaceId;
+      if (sourceWorkspaceId && workspaceId && sourceWorkspaceId !== workspaceId) {
+        return;
+      }
       if (hasError) {
-        toast.warning('驾驶舱初始化完成，但数据可能不完整', {
-          description: String(payload?.name || ''),
-          duration: 4000,
-        });
+        setCreationProgress((prev) => ({
+          ...prev,
+          visible: true,
+          done: true,
+          success: false,
+          stage: 'completed',
+          message: resultMessage ||
+            (mode === 'real-data'
+              ? '真实数据初始化未完全成功，请检查连接与模板数据源配置'
+              : '初始化完成，但部分数据可能不完整'),
+          initializationMode: mode,
+          workspaceId: workspaceId || prev.workspaceId,
+        }));
       } else {
-        toast.success('驾驶舱初始化完成', {
-          description: String(payload?.name || ''),
-          duration: 3000,
-        });
+        setCreationProgress((prev) => ({
+          ...prev,
+          visible: true,
+          done: true,
+          success: true,
+          stage: 'completed',
+          message: resultMessage ||
+            (mode === 'real-data' && updated !== undefined && total !== undefined
+              ? `真实数据初始化完成（${updated}/${total}）`
+              : '驾驶舱初始化完成'),
+          initializationMode: mode,
+          workspaceId: workspaceId || prev.workspaceId,
+        }));
+        setTimeout(() => handleCloseCreationProgress(), 2000);
       }
       refreshWorkspaces();
-      // 如果当前正在查看这个 workspace，强制刷新详情页数据
       if ((payload?.workspaceId as string | undefined) === selectedWorkspaceIdRef.current) {
         setDetailRefreshKey(k => k + 1);
       }
       return;
     }
+
     if (latest.type === 'workspace.init_failed') {
       const payload = latest.payload as Record<string, unknown>;
-      toast.error('驾驶舱初始化失败', {
-        description: `${String(payload?.name || '')} — ${String(payload?.error || '未知错误')}`,
-        duration: 5000,
-      });
+      const result = payload?.result as Record<string, unknown> | undefined;
+      const resultMessage = typeof result?.message === 'string' ? result.message : '';
+      const workspaceId = String(payload?.workspaceId || '');
+      const sourceWorkspaceId = creationProgressRef.current.workspaceId;
+      if (sourceWorkspaceId && workspaceId && sourceWorkspaceId !== workspaceId) {
+        return;
+      }
+      setCreationProgress((prev) => ({
+        ...prev,
+        visible: true,
+        done: true,
+        success: false,
+        stage: 'completed',
+        message: resultMessage
+          ? `${resultMessage}\n${String(payload?.error || '')}`.trim()
+          : `初始化失败：${String(payload?.error || '未知错误')}`,
+        workspaceId: workspaceId || prev.workspaceId,
+      }));
+      refreshWorkspaces();
+      if ((payload?.workspaceId as string | undefined) === selectedWorkspaceIdRef.current) {
+        setDetailRefreshKey(k => k + 1);
+      }
       return;
     }
 
@@ -345,10 +580,40 @@ function App() {
       onClose={handleCloseDialog}
       onExecute={handleExecute}
       onCreateFromTemplate={handleCreateFromTemplate}
-      templates={templates.map((t) => ({ id: t.id, name: t.name, icon: t.icon, color: t.color, initPrompt: t.initPrompt }))}
+      templates={templates.map((t) => ({
+        id: t.id,
+        name: t.name,
+        icon: t.icon,
+        color: t.color,
+        initPrompt: t.initPrompt,
+        description: t.description,
+        domain: t.domain,
+        keywords: t.keywords || [],
+        widgetsCount: t.widgets?.length,
+        useDemoDataFallback: t.useDemoDataFallback,
+      }))}
       executing={executing}
+      initialTemplateId={initialTemplateId}
+      initialName={initialName}
+      initialCommand={initialCommand}
     />
   ) : null;
+
+  const renderCreationProgress = (
+    <CreationProgressToast
+      visible={creationProgress.visible}
+      stage={creationProgress.stage}
+      message={creationProgress.message}
+      done={creationProgress.done}
+      success={creationProgress.success}
+      usedLLM={creationProgress.usedLLM}
+      progressCurrent={creationProgress.progressCurrent}
+      progressTotal={creationProgress.progressTotal}
+      progressLabel={creationProgress.progressLabel}
+      initializationMode={creationProgress.initializationMode}
+      onClose={handleCloseCreationProgress}
+    />
+  );
 
   // 共享的设置面板（sidebar/tabs 模式下需要）
   const renderSettingsSheet = layoutMode !== 'cards' ? (
@@ -412,10 +677,13 @@ function App() {
             workspaces={workspaces}
             onSelectWorkspace={handleSelectWorkspace}
             onDeleteWorkspace={handleDeleteWorkspace}
-            onRefreshWorkspaces={refreshWorkspaces}
+            onExecute={handleExecute}
+            executing={executing}
+            onCreateFromTemplate={handleCreateFromTemplate}
           />
         )}
         {renderDeleteConfirmDialog}
+        {renderCreationProgress}
         <Toaster position="bottom-right" richColors />
       </div>
     );
@@ -448,6 +716,7 @@ function App() {
         {renderCreateDialog}
         {renderSettingsSheet}
         {renderDeleteConfirmDialog}
+        {renderCreationProgress}
         <Toaster position="bottom-right" richColors />
       </SidebarLayout>
     );
@@ -479,6 +748,7 @@ function App() {
         {renderCreateDialog}
         {renderSettingsSheet}
         {renderDeleteConfirmDialog}
+        {renderCreationProgress}
         <Toaster position="bottom-right" richColors />
       </TabsLayout>
     );

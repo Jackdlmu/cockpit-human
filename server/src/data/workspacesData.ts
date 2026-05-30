@@ -73,6 +73,17 @@ export interface WorkspaceData {
   widgets: any[];
   /** 数据获取失败时是否回退到 demo 示例数据 */
   useDemoDataFallback?: boolean;
+  initializing?: boolean;
+  initializationMode?: 'llm' | 'real-data';
+  initializationJobId?: string;
+  initializationError?: string;
+  initializedAt?: string;
+  /** 创建与运行主导方：外部平台主导时，本地智能体仅做兜底 */
+  executionOwner?: 'cockpit' | 'external';
+  /** 外部平台来源信息 */
+  externalProvider?: 'yonclaw' | 'openclaw' | 'generic-llm' | 'other';
+  externalWorkspaceId?: string;
+  externalConnectionId?: string;
 }
 
 export const workspacesData: WorkspaceData[] = [

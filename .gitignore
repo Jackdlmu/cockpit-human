@@ -14,9 +14,16 @@ dist-ssr
 *.pid
 test-results/
 server/data/connections.json
+server/data/connections.json.bak
+server/data/connection-secrets.json
+server/data/connection-secrets.json.bak
 server/data/workspaces.json
 server/data/workspaces.json.bak
+server/data/workspace-init-jobs.json
+server/data/workspace-init-jobs.json.bak
+server/data/audit-log.jsonl
 server/data/templates.json
+server/data/widget-catalog.json
 
 # Editor directories and files
 .vscode/*

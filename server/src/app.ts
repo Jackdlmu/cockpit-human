@@ -9,6 +9,8 @@ import agentRouter from './routes/agent';
 import metaAgentRouter from './routes/meta-agent';
 import { createWidgetDataRouter } from './routes/widget-data';
 import templatesRouter from './routes/templates';
+import widgetCatalogRouter from './routes/widget-catalog';
+import { runtimeStatus } from './services/runtime-status';
 
 export function createApp(): express.Express {
   const app = express();
@@ -41,7 +43,22 @@ export function createApp(): express.Express {
   });
 
   app.get('/api/health', (_req, res) => {
-    res.json({ status: 'ok', timestamp: new Date().toISOString(), version: '1.0.0' });
+    const readiness = runtimeStatus.snapshot();
+    res.json({
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      version: '1.0.0',
+      readiness: {
+        status: readiness.status,
+        ready: readiness.ready,
+      },
+    });
+  });
+
+  app.get('/api/ready', (_req, res) => {
+    const readiness = runtimeStatus.snapshot();
+    const statusCode = readiness.ready ? 200 : readiness.status === 'error' ? 503 : 202;
+    res.status(statusCode).json(readiness);
   });
 
   app.use('/api/agents', agentsRouter);
@@ -51,6 +68,7 @@ export function createApp(): express.Express {
   app.use('/api/meta-agent', metaAgentRouter);
   app.use('/api/workspaces/:id/widgets', createWidgetDataRouter(connectionManager));
   app.use('/api/templates', templatesRouter);
+  app.use('/api/widget-catalog', widgetCatalogRouter);
 
   app.use((_req, res) => {
     res.status(404).json({ error: 'Not found', code: 'NOT_FOUND', status: 404 });

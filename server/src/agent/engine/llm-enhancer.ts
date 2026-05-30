@@ -4,6 +4,7 @@
 
 import type { Connector, ChatMessage } from '../../connection/types';
 import { inferWidgetType, isTypeMismatched } from '../../services/widget-type-inferer';
+import { normalizeWidgets } from '../../services/widget-normalizer';
 
 /**
  * LLM 增强 patch 结构
@@ -45,16 +46,21 @@ export function buildGenerationPrompt(
 
 用户指令："""${userCommand}"""
 
-【任务要求】
-1. 分析用户指令的主题和意图（如天气分析、股票追踪、项目进度、行业研究等）
-2. 设计驾驶舱名称、描述和组件列表
-3. 每个组件必须包含有意义的示例数据，禁止使用占位符
+【核心原则】
+1. **分析用户指令的主题和意图**，生成与之高度相关的组件，禁止使用与主题无关的通用组件
+2. 如果用户要求查询真实数据（如天气、股票、新闻等），请配置 dataSource 让系统知道如何获取数据
+3. 如果无法配置真实数据源，可以生成合理的模拟数据，但数据必须与主题相关
 
-【禁止使用的占位符】
-- value: "—"、"N/A"、"null"
-- 列表项: "步骤1"、"事项1"、"示例数据"
-- 表格行: "示例客户"、"示例渠道"、"—"
-- chart: values 全为 0 或相同的数字
+【主题组件设计示例】
+- 天气查询 → metric(当前温度/湿度/风速)、chart(七日温度趋势)、list(七日天气预报)、map(城市位置)
+- 股票追踪 → metric(股价/涨跌幅)、chart(K线/成交量)、table(持仓明细)、alert(价格预警)
+- 项目进度 → kanban(任务看板)、timeline(里程碑)、progress(完成度)、metric(剩余工时)
+- 销售分析 → metric(销售额/订单数)、chart(月度趋势)、funnel(转化漏斗)、table(Top客户)
+- 系统监控 → gauge(CPU/内存使用率)、status(服务状态)、alert(异常告警)、chart(流量趋势)
+
+【禁止】
+- 禁止生成与主题无关的通用组件（如"核心指标1,248"、"趋势分析1-6月"、"完成Q3目标"等默认数据）
+- 禁止生成占位符数据：value: "—"、"N/A"、"null"、列表项"步骤1"、"事项1"
 
 【组件类型说明】
 - metric: 关键指标数字卡，data = { value: "具体数值", change: "+/-百分比", trend: "up|down|flat" }
@@ -67,34 +73,36 @@ export function buildGenerationPrompt(
 - html: HTML报告（完整网页内容），data = { html: "<完整的HTML报告内容...>", title: "报告标题" }
 - progress: 进度条，data = { value: 65, max: 100, label: "完成度", color: "indigo|emerald|amber|red|blue|purple" }
 - status: 状态面板，data = { items: [{label:"服务A", status:"ok|warning|error", value:"运行中"}] }
-- universal: 通用容器（当无法确定具体类型时使用），data = { content: "markdown文本", contentType: "markdown" }
-- gauge: 仪表盘（目标达成率），data = { value: 68, min: 0, max: 100, unit: "%", thresholds: [{value:70,color:"#f59e0b"},{value:90,color:"#ef4444"}] }
-- funnel: 漏斗图（流程转化），data = { stages: [{name:"曝光",value:10000,rate:100},{name:"点击",value:3500,rate:35},{name:"转化",value:800,rate:23}] }
-- radar: 雷达图（多维评估），data = { labels: ["速度","质量","成本","服务","创新"], values: [80,90,75,85,70] }
-- heatmap: 热力图（二维密度），data = { rows: [{x:"周一",y:"上午",value:30},{x:"周二",y:"下午",value:50}] }
-- bullet: 子弹图（目标进度），data = { value: 75, target: 80, max: 100, label: "目标达成率" }
-- alert: 告警列表（级别+事件），data = { alerts: [{level:"warning",message:"库存不足",time:"10:30"},{level:"critical",message:"服务宕机",time:"10:35"}] }
-- map: 地图（地理分布），data = { points: [{name:"北京",value:120},{name:"上海",value:95},{name:"广州",value:80}] }
+- universal: 通用容器，data = { content: "markdown文本", contentType: "markdown" }
+- adaptive: 智能自适应容器，data = { headline: { title: "概览" }, sections: [{ type: "metrics", metrics: [{ label: "指标", value: "数值" }] }] }
+- gauge: 仪表盘，data = { value: 68, min: 0, max: 100, unit: "%", thresholds: [{value:70,color:"#f59e0b"}] }
+- funnel: 漏斗图，data = { stages: [{name:"曝光",value:10000,rate:100},{name:"点击",value:3500,rate:35}] }
+- radar: 雷达图，data = { labels: ["速度","质量","成本"], values: [80,90,75] }
+- heatmap: 热力图，data = { rows: [{x:"周一",y:"上午",value:30},{x:"周二",y:"下午",value:50}] }
+- bullet: 子弹图，data = { value: 75, target: 80, max: 100, label: "目标达成率" }
+- alert: 告警列表，data = { alerts: [{level:"warning",message:"库存不足",time:"10:30"}] }
+- map: 地图，data = { points: [{name:"北京",value:120},{name:"上海",value:95}] }
+
+【数据源配置】
+当前环境默认至少可使用以下内置工具：
+- 天气查询：{ "type": "skill", "skillId": "weather_query", "input": { "city": "北京", "days": 7 } }
+
+数据源策略：
+- 如果用户明确要求真实数据、实时数据、最新数据，请优先配置 dataSource
+- 如果是天气类主题，优先使用内置 "weather_query"
+- 如果暂时无法确定真实数据源，再退回写入与主题相关的静态 data
 
 【布局规则（网格 12 列）】
-- metric: w=3 h=2
-- chart/table/kanban/timeline/list: w=6 h=4
-- report: w=9 h=4 或 w=12 h=4
-- universal: w=6 h=4
-- gauge: w=3 h=3
-- funnel/radar/heatmap/alert/map: w=6 h=4
-- bullet: w=6 h=2
+- metric: w=3 h=2 | gauge: w=3 h=3 | bullet: w=6 h=2
+- chart/table/kanban/timeline/list/funnel/radar/heatmap/alert/map: w=6 h=4
+- report: w=8 h=4 或 w=12 h=4 | universal/adaptive: w=6 h=4
 - 位置避免重叠，y 坐标优先放在最下方
 
 【关联/穿透配置（可选 link 字段）】
-- link = { type: "workspace|widget|url", targetId?: "目标workspaceID", targetTemplate?: "目标模板ID", url?: "https://...", title?: "链接标题" }
-- workspace类型：点击后导航到另一个驾驶舱（优先用targetId，如不知ID可用targetTemplate）
-- widget类型：点击后打开该widget的详情抽屉
-- url类型：点击后在新标签页打开外部链接
+- link = { type: "workspace|widget|url", targetId?: "...", targetTemplate?: "...", url?: "https://...", title?: "..." }
 
 【详情配置（可选 detail 字段）】
 - detail = { type: "slide-out", content?: "markdown或html详细内容", width?: "480px" }
-- 用于定义点击widget后展开的侧滑详情面板内容
 
 请只输出以下 JSON 格式，不要其他内容：
 {
@@ -102,10 +110,11 @@ export function buildGenerationPrompt(
   "description": "驾驶舱描述",
   "widgets": [
     {
-      "type": "metric|chart|table|kanban|timeline|list|report|html|progress|status|universal|gauge|funnel|radar|heatmap|bullet|alert|map",
+      "type": "metric|chart|table|kanban|timeline|list|report|html|progress|status|universal|adaptive|gauge|funnel|radar|heatmap|bullet|alert|map",
       "title": "组件标题",
       "position": {"x":0,"y":0,"w":3,"h":2},
-      "data": {...}
+      "data": {...},
+      "dataSource": { "type": "skill|query|static", ... }
     }
   ]
 }`;
@@ -132,34 +141,37 @@ ${specJson}
 提取到的实体：${JSON.stringify(extractedEntities)}
 
 你的任务是在此基础上进行"增强"，而不是重新设计。请分析用户指令中是否有以下未被基础配置覆盖的需求：
-1. 描述文案优化（体现用户提到的特定关注点，如"华东区"、"大客户转化率"等）
-2. 额外 widget 建议（用户明确要求的特定指标或视图）
-3. **widget 数据增强**：请为建议的新 widget 生成**有意义的示例数据**，而不是占位符（如"—"、"步骤1"）。例如行业分析场景应生成看起来真实的市场规模、投融资金额、企业名称等。
-4. 如果基础配置中的 widget 与用户需求完全不相关，请设置 replaceWidgets: true 建议替换所有 widgets。
-5. 布局微调建议（如果用户有明确的空间或排列要求）
+1. **主题相关性检查**：如果基础配置的 widget 与用户指令主题完全不相关（如用户要天气却给了企业管理组件），必须设置 replaceWidgets: true 替换所有 widgets
+2. 描述文案优化（体现用户提到的特定关注点）
+3. 额外 widget 建议（用户明确要求的特定指标或视图）
+4. **widget 数据增强**：为建议的新 widget 生成与主题相关的有意义数据，禁止占位符（如"—"、"步骤1"）
+5. **数据源配置**：如果组件需要获取实时数据，请配置 dataSource 字段
 
-【重要】数据质量要求：
-- 禁止生成占位符数据（如"—"、"示例数据"、"步骤1"、"事项1"）
-- metric 类型：value 应为看起来真实的数字和单位（如"1,860亿"、"¥320"）
-- chart 类型：values 应为有趋势的真实数据（如[120,280,520,980]）
-- table 类型：rows 应为真实的行数据（如[["OpenAI","GPT-4","1000亿+"]]）
-- list 类型：items 应为具体的列表项（如["欧盟AI法案生效","中国生成式AI管理办法"]）
-- timeline 类型：steps 应为具体的事件节点（如["Transformer诞生","ChatGPT引爆"]）
-- report 类型：summary 应为完整的分析摘要，highlights 应为关键指标，支持 detail.content 存放详细报告内容
-- gauge 类型：value 为0-100数字，可配 thresholds 阈值告警着色
-- funnel 类型：stages 为 [{name, value, rate}] 数组，体现流程转化
-- radar 类型：labels + values 数组，体现多维评估
-- heatmap 类型：rows 为 [{x, y, value}] 数组，体现二维密度
-- bullet 类型：value + target + max，体现紧凑目标进度
-- alert 类型：alerts 为 [{level, message, time}] 数组，level 取 warning/critical/info/success
-- map 类型：points 为 [{name, value}] 数组，体现地理分布
+【主题相关性检查（最重要）】
+如果基础配置中的 widget 明显与用户指令主题无关，例如：
+- 用户要"天气"但基础配置是"核心指标1,248"、"趋势分析"、"Q3目标"
+- 用户要"股票"但基础配置是"系统服务状态"、"数据同步"
+→ 这种情况必须设置 replaceWidgets: true，并提供完全相关的 widgets
+
+【数据质量要求】
+- 禁止占位符数据（如"—"、"示例数据"、"步骤1"、"事项1"）
+- 所有数据必须与用户指令的主题相关
+- metric: value 为真实数字和单位（如"25°C"、"¥3,200"）
+- chart: values 为有趋势的数据
+- table/list/timeline: 内容为具体、相关的项目
+
+【数据源配置】
+如果组件需要获取实时/真实数据，请配置 dataSource：
+- skill: { type: "skill", skillId: "技能名称", input: {参数} }
+- query: { type: "query", query: { endpoint: "/api/xxx", method: "GET", params: {} } }
+- static: { type: "static" }
 
 【新增widget类型布局尺寸】
 - gauge: w=3 h=3 | funnel/radar/heatmap/alert/map: w=6 h=4 | bullet: w=6 h=2
 
 【关联/穿透与详情配置】
-- 可为widget添加 link 字段实现点击跳转/穿透：{ type: "workspace|widget|url", targetId?: "...", targetTemplate?: "...", url?: "...", title?: "..." }
-- 可为widget添加 detail 字段定义侧滑详情面板：{ type: "slide-out", content?: "详细内容", width?: "480px" }
+- link: { type: "workspace|widget|url", targetId?: "...", targetTemplate?: "...", url?: "...", title?: "..." }
+- detail: { type: "slide-out", content?: "详细内容", width?: "480px" }
 
 约束（绝对不可修改）：
 - 名称：${baseSpec.name}
@@ -178,15 +190,8 @@ ${specJson}
       "type": "metric|chart|table|kanban|timeline|list|report|universal",
       "title": "标题",
       "position": {"x": 0, "y": 0, "w": 3, "h": 2},
-      "data": { "value": "1,860亿", "change": "+38.5%", "trend": "up" },
-      "dataSource": {
-        "type": "skill",
-        "skillId": "agent.skillName",
-        "agentId": "agent-id",
-        "input": {},
-        "transform": "({ result }) => ({ value: result })",
-        "fallbackToStatic": true
-      },
+      "data": { "value": "25°C", "change": "+2°C", "trend": "up" },
+      "dataSource": { "type": "skill", "skillId": "weather_query", "input": { "city": "北京", "days": 7 } },
       "reason": "为什么建议增加这个widget"
     }
   ],
@@ -240,24 +245,8 @@ function parseGeneratedSpec(raw: string): Record<string, unknown> | null {
   const p = parsed as Record<string, unknown>;
   if (!p.widgets || !Array.isArray(p.widgets)) return null;
 
-  // 标准化 widget 结构
-  const widgets = (p.widgets as any[]).map((w: any, i: number) => {
-    const inferred = inferWidgetType(w.data || {});
-    const rawType = String(w.type || '');
-    // 如果 LLM 返回的类型与数据不匹配，用推断类型修正
-    const finalType = (rawType && !isTypeMismatched(rawType, w.data || {}))
-      ? rawType
-      : (inferred !== 'universal' ? inferred : rawType || 'metric');
-    return {
-      id: w.id || `w-gen-${Date.now()}-${i}`,
-      type: finalType,
-      title: String(w.title || '新组件'),
-      position: w.position || { x: (i * 3) % 12, y: Math.floor(i / 4) * 4, w: 3, h: 2 },
-      data: w.data || {},
-      ...(w.dataSource ? { dataSource: w.dataSource } : {}),
-      ...(w.detail ? { detail: w.detail } : {}),
-    };
-  });
+  const widgets = normalizeWidgets(p.widgets, { idPrefix: 'w-gen' });
+  if (widgets.length === 0) return null;
 
   return {
     name: p.name || '新驾驶舱',
@@ -279,7 +268,7 @@ function validateEnhancement(
       if (!w.title || w.title.length < 1) {
         violations.push(`widget "${w.title || '?'}" 标题不能为空`);
       }
-      if (!['metric', 'chart', 'table', 'kanban', 'timeline', 'list', 'report', 'html', 'progress', 'status', 'universal', 'gauge', 'funnel', 'radar', 'heatmap', 'bullet', 'alert', 'map'].includes(w.type)) {
+      if (!['metric', 'chart', 'table', 'kanban', 'timeline', 'list', 'report', 'html', 'progress', 'status', 'universal', 'adaptive', 'gauge', 'funnel', 'radar', 'heatmap', 'bullet', 'alert', 'map'].includes(w.type)) {
         violations.push(`widget "${w.title}" 类型 "${w.type}" 不支持`);
       }
     }

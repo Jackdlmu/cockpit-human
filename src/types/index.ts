@@ -9,6 +9,9 @@ export type ProtocolType = 'http' | 'grpc' | 'websocket';
 export interface ConnectionConfig {
   endpoint: string;
   apiKey?: string;
+  token?: string;
+  pat?: string;
+  authType?: string;
   protocol: ProtocolType;
   timeout?: number;
   model?: string;
@@ -23,6 +26,7 @@ export interface Connection {
   name: string;
   type: ConnectionType;
   config: ConnectionConfig;
+  hasSecret?: boolean;
   status: ConnectionStatus;
   capabilities: string[];
   priority: number;
@@ -79,6 +83,12 @@ export interface Workspace {
   orchestration?: OrchestrationState;
   /** 数据获取失败时是否回退到 demo 示例数据 */
   useDemoDataFallback?: boolean;
+  initializing?: boolean;
+  initializationMode?: 'llm' | 'real-data';
+  executionOwner?: 'cockpit' | 'external';
+  externalProvider?: 'yonclaw' | 'openclaw' | 'generic-llm' | 'other';
+  externalWorkspaceId?: string;
+  externalConnectionId?: string;
 }
 
 export interface WidgetDataSource {
@@ -103,6 +113,14 @@ export interface WidgetDataSource {
   fallbackToStatic?: boolean;
 }
 
+export interface WidgetDataIntent {
+  domain?: string;
+  metricKey?: string;
+  sourcePreference?: 'real-time' | 'tool-first' | 'template-first';
+  priority?: 'high' | 'medium' | 'low';
+  required?: boolean;
+}
+
 export interface WidgetDetailConfig {
   type?: 'slide-out' | 'modal';
   content?: string;
@@ -114,6 +132,34 @@ export interface WidgetThreshold {
   value: number;
   color?: string;
   level?: 'normal' | 'warning' | 'critical';
+}
+
+export interface WidgetMetricItem {
+  label: string;
+  value: string | number;
+  change?: string;
+  trend?: 'up' | 'down' | 'flat';
+  caption?: string;
+  tone?: 'default' | 'success' | 'warning' | 'danger' | 'info';
+}
+
+export interface WidgetAdaptiveHeadline {
+  eyebrow?: string;
+  title?: string;
+  subtitle?: string;
+  status?: string;
+  tone?: 'default' | 'success' | 'warning' | 'danger' | 'info';
+}
+
+export interface WidgetAdaptiveSection {
+  type?: 'metrics' | 'list' | 'text' | 'table' | 'status' | 'timeline' | 'highlights';
+  title?: string;
+  description?: string;
+  content?: string;
+  metrics?: WidgetMetricItem[];
+  items?: Array<string | Record<string, unknown>>;
+  columns?: string[];
+  rows?: Array<string[] | Record<string, unknown>>;
 }
 
 export interface WidgetDrillDownConfig {
@@ -132,7 +178,7 @@ export interface WidgetLinkConfig {
 
 export type WidgetType =
   | 'chart' | 'table' | 'metric' | 'list' | 'kanban' | 'timeline'
-  | 'report' | 'universal' | 'progress' | 'status' | 'html'
+  | 'report' | 'universal' | 'adaptive' | 'progress' | 'status' | 'html'
   | 'gauge'      // 仪表盘：展示目标达成率 (0-100%)
   | 'funnel'     // 漏斗图：流程转化分析
   | 'radar'      // 雷达图：多维能力评估
@@ -148,8 +194,30 @@ export interface Widget {
   position: { x: number; y: number; w: number; h: number };
   data?: Record<string, unknown>;
   dataSource?: WidgetDataSource;
+  dataIntent?: WidgetDataIntent;
   detail?: WidgetDetailConfig;
   link?: WidgetLinkConfig;
+}
+
+export interface WidgetCatalogItem {
+  id: string;
+  name: string;
+  type: WidgetType;
+  category: string;
+  icon: string;
+  color: string;
+  description: string;
+  agentDescription: string;
+  useCases: string[];
+  tags: string[];
+  schemaHint?: {
+    recommendedDataShape?: Record<string, unknown>;
+    layoutAdvice?: string;
+  };
+  template: Partial<Widget>;
+  isBuiltin?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 // ── Multi-Agent ──

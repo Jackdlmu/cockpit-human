@@ -22,14 +22,29 @@ export class ConnectionManager {
   private unsubscribers = new Map<string, () => void>();
   private healthCheckTimer?: NodeJS.Timeout;
 
+  private sanitizeForResponse(connection: Connection): Connection {
+    return {
+      ...connection,
+      config: {
+        ...connection.config,
+        apiKey: undefined,
+        token: undefined,
+        pat: undefined,
+      },
+    };
+  }
+
   // ── CRUD ──
 
   async list(): Promise<Connection[]> {
-    return store.listConnections();
+    const connections = await store.listConnections();
+    return connections.map((connection) => this.sanitizeForResponse(connection));
   }
 
   async get(id: string): Promise<Connection | undefined> {
-    return store.getConnection(id);
+    const connection = await store.getConnection(id);
+    if (!connection) return undefined;
+    return this.sanitizeForResponse(connection);
   }
 
   async create(input: CreateConnectionInput): Promise<Connection> {
@@ -42,7 +57,7 @@ export class ConnectionManager {
         console.warn(`[ConnectionManager] Auto-connect failed for ${conn.id}:`, err.message);
       }
     }
-    return conn;
+    return this.sanitizeForResponse(conn);
   }
 
   async update(id: string, input: UpdateConnectionInput): Promise<Connection | undefined> {
@@ -66,7 +81,7 @@ export class ConnectionManager {
       }
     }
 
-    return updated;
+    return updated ? this.sanitizeForResponse(updated) : undefined;
   }
 
   async remove(id: string): Promise<boolean> {

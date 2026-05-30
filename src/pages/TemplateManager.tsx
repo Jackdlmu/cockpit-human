@@ -1,45 +1,98 @@
-// ─── TemplateManager ───
-// 驾驶舱模板管理页面（管理员专用）— 表单化编辑版
-
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import type { ReactNode } from 'react';
+import type { CockpitTemplate, Widget, WidgetCatalogItem, WidgetType } from '@/types';
+import WorkspaceIcon from '@/components/WorkspaceIcon';
 import {
-  ArrowLeft, Plus, Trash2, KeyRound, Loader2, X, ChevronDown, ChevronUp,
-  Edit3, FileJson, LayoutGrid, Bot, Tag, Type, Copy, Rocket, Database, AlertTriangle,
+  ArrowLeft,
+  Bot,
+  Copy,
+  Database,
+  Edit3,
+  Eye,
+  FileJson,
+  KeyRound,
+  LayoutGrid,
+  Loader2,
+  Plus,
+  Rocket,
+  Tag,
+  Trash2,
+  Type,
+  Wrench,
+  X,
+  ChevronDown,
+  ChevronUp,
+  AlertTriangle,
 } from 'lucide-react';
 import {
   AlertDialog,
-  AlertDialogContent,
-  AlertDialogHeader,
-  AlertDialogFooter,
-  AlertDialogTitle,
-  AlertDialogDescription,
   AlertDialogAction,
   AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { getTemplates, createTemplate, updateTemplate, deleteTemplate, createCockpitFromTemplate } from '@/api/client';
+import {
+  createCockpitFromTemplate,
+  createTemplate,
+  createWidgetCatalogItem,
+  deleteTemplate,
+  deleteWidgetCatalogItem,
+  getTemplates,
+  getWidgetCatalog,
+  updateTemplate,
+  updateWidgetCatalogItem,
+} from '@/api/client';
 import { toast } from 'sonner';
 
-const WIDGET_TYPES = ['metric', 'chart', 'table', 'kanban', 'timeline', 'list', 'report', 'universal', 'progress', 'status', 'gauge', 'funnel', 'radar', 'heatmap', 'bullet', 'alert', 'map'];
-const WIDGET_TYPE_LABELS: Record<string, string> = {
-  metric: 'metric - 指标卡',
-  chart: 'chart - 趋势图表',
-  table: 'table - 数据表格',
-  kanban: 'kanban - 状态看板',
-  timeline: 'timeline - 时间线',
-  list: 'list - 列表',
-  report: 'report - 报告摘要',
-  universal: 'universal - 通用容器',
-  progress: 'progress - 进度条',
-  status: 'status - 状态面板',
-  gauge: 'gauge - 仪表盘',
-  funnel: 'funnel - 漏斗图',
-  radar: 'radar - 雷达图',
-  heatmap: 'heatmap - 热力图',
-  bullet: 'bullet - 子弹图',
-  alert: 'alert - 告警列表',
-  map: 'map - 地理分布',
+const WIDGET_TYPES: WidgetType[] = [
+  'metric', 'chart', 'table', 'kanban', 'timeline', 'list', 'report',
+  'universal', 'adaptive', 'progress', 'status', 'html', 'gauge',
+  'funnel', 'radar', 'heatmap', 'bullet', 'alert', 'map',
+];
+
+const WIDGET_TYPE_LABELS: Record<WidgetType, string> = {
+  metric: '指标卡',
+  chart: '趋势图表',
+  table: '数据表格',
+  kanban: '状态看板',
+  timeline: '时间线',
+  list: '列表',
+  report: '报告摘要',
+  universal: '通用容器',
+  adaptive: '智能自适应容器',
+  progress: '进度条',
+  status: '状态面板',
+  html: 'HTML',
+  gauge: '仪表盘',
+  funnel: '漏斗图',
+  radar: '雷达图',
+  heatmap: '热力图',
+  bullet: '子弹图',
+  alert: '告警列表',
+  map: '地图',
 };
-const ICON_OPTIONS = ['BarChart3', 'PieChart', 'LineChart', 'Table2', 'Kanban', 'Clock', 'List', 'FileText', 'TrendingUp', 'Users', 'DollarSign', 'CheckCircle', 'AlertTriangle', 'Target', 'Layers', 'Monitor', 'Sparkles'];
+
+const ICON_OPTIONS = [
+  'BarChart3', 'PieChart', 'LineChart', 'Table2', 'Kanban', 'Clock', 'List',
+  'FileText', 'TrendingUp', 'Users', 'DollarSign', 'CheckCircle', 'AlertTriangle',
+  'Target', 'Layers', 'Monitor', 'Sparkles', 'Bot', 'Compass', 'Activity',
+  'Gauge', 'Radar', 'Grid3X3', 'Map', 'Filter', 'Code2',
+];
+
+type TabKey = 'templates' | 'widgets';
+type DeleteTarget =
+  | { kind: 'template'; id: string; name: string; builtin: boolean }
+  | { kind: 'widget'; id: string; name: string; builtin: boolean }
+  | null;
+
+type TemplateFormData = Omit<CockpitTemplate, 'isBuiltin'>;
+
+function cloneForForm<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T;
+}
 
 interface TemplateManagerProps {
   onBack: () => void;
@@ -48,23 +101,33 @@ interface TemplateManagerProps {
 export function TemplateManager({ onBack }: TemplateManagerProps) {
   const [adminKey, setAdminKey] = useState(localStorage.getItem('adminKey') || '');
   const [inputKey, setInputKey] = useState('');
-  const [templates, setTemplates] = useState<any[]>([]);
+  const [activeTab, setActiveTab] = useState<TabKey>('templates');
+
+  const [templates, setTemplates] = useState<CockpitTemplate[]>([]);
+  const [widgets, setWidgets] = useState<WidgetCatalogItem[]>([]);
   const [loading, setLoading] = useState(false);
-  const [editing, setEditing] = useState<any | null>(null);
-  const [isCreating, setIsCreating] = useState(false);
-  const [createTarget, setCreateTarget] = useState<any | null>(null);
+
+  const [templateEditorOpen, setTemplateEditorOpen] = useState(false);
+  const [templateEditorMode, setTemplateEditorMode] = useState<'create' | 'edit' | 'duplicate'>('create');
+  const [editingTemplate, setEditingTemplate] = useState<TemplateFormData | null>(null);
+
+  const [widgetEditorOpen, setWidgetEditorOpen] = useState(false);
+  const [widgetEditorMode, setWidgetEditorMode] = useState<'create' | 'edit' | 'duplicate'>('create');
+  const [editingWidget, setEditingWidget] = useState<WidgetCatalogItem | null>(null);
+  const [widgetDetailTarget, setWidgetDetailTarget] = useState<WidgetCatalogItem | null>(null);
+
+  const [createTarget, setCreateTarget] = useState<CockpitTemplate | null>(null);
   const [createName, setCreateName] = useState('');
   const [creatingCockpit, setCreatingCockpit] = useState(false);
-  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
-  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
-  const [deleteTargetName, setDeleteTargetName] = useState('');
-  const [deleteTargetBuiltin, setDeleteTargetBuiltin] = useState(false);
+
+  const [deleteTarget, setDeleteTarget] = useState<DeleteTarget>(null);
 
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await getTemplates();
-      setTemplates(data.templates);
+      const [templateData, widgetData] = await Promise.all([getTemplates(), getWidgetCatalog()]);
+      setTemplates(templateData.templates);
+      setWidgets(widgetData.widgets);
     } catch (err: any) {
       toast.error('加载失败', { description: err.message });
     } finally {
@@ -72,7 +135,9 @@ export function TemplateManager({ onBack }: TemplateManagerProps) {
     }
   }, []);
 
-  useEffect(() => { refresh(); }, [refresh]);
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
 
   const handleLogin = () => {
     localStorage.setItem('adminKey', inputKey);
@@ -81,80 +146,134 @@ export function TemplateManager({ onBack }: TemplateManagerProps) {
     refresh();
   };
 
-  const handleCreate = async (data: any) => {
+  const resetTemplateEditor = () => {
+    setTemplateEditorOpen(false);
+    setEditingTemplate(null);
+    setTemplateEditorMode('create');
+  };
+
+  const resetWidgetEditor = () => {
+    setWidgetEditorOpen(false);
+    setEditingWidget(null);
+    setWidgetEditorMode('create');
+  };
+
+  const openCreateTemplate = () => {
+    setTemplateEditorMode('create');
+    setEditingTemplate(null);
+    setTemplateEditorOpen(true);
+  };
+
+  const openEditTemplate = (template: CockpitTemplate) => {
+    setTemplateEditorMode('edit');
+    setEditingTemplate(sanitizeTemplateForForm(template));
+    setTemplateEditorOpen(true);
+  };
+
+  const openDuplicateTemplate = (template: CockpitTemplate) => {
+    const copy = sanitizeTemplateForForm(template);
+    copy.id = `custom-${Date.now().toString(36)}`;
+    copy.name = `${template.name}（副本）`;
+    setTemplateEditorMode('duplicate');
+    setEditingTemplate(copy);
+    setTemplateEditorOpen(true);
+  };
+
+  const openCreateWidget = () => {
+    setWidgetEditorMode('create');
+    setEditingWidget(null);
+    setWidgetEditorOpen(true);
+  };
+
+  const openEditWidget = (widget: WidgetCatalogItem) => {
+    setWidgetEditorMode('edit');
+    setEditingWidget(widget);
+    setWidgetEditorOpen(true);
+  };
+
+  const openDuplicateWidget = (widget: WidgetCatalogItem) => {
+    const copy = sanitizeWidgetCatalogItemForForm(widget);
+    copy.id = `custom-widget-${Date.now().toString(36)}`;
+    copy.name = `${widget.name}（副本）`;
+    setWidgetEditorMode('duplicate');
+    setEditingWidget(copy);
+    setWidgetEditorOpen(true);
+  };
+
+  const handleSaveTemplate = async (data: TemplateFormData) => {
     try {
-      const res = await createTemplate(data);
-      setTemplates((prev) => [...prev, res.template]);
-      setIsCreating(false);
-      toast.success('模板已创建');
+      if (templateEditorMode === 'edit' && editingTemplate?.id) {
+        const res = await updateTemplate(editingTemplate.id, data);
+        setTemplates((prev) => prev.map((item) => (item.id === editingTemplate.id ? res.template : item)));
+        toast.success('模板已更新');
+      } else {
+        const res = await createTemplate(data);
+        setTemplates((prev) => [...prev, res.template]);
+        toast.success(templateEditorMode === 'duplicate' ? '模板副本已创建' : '模板已创建');
+      }
+      resetTemplateEditor();
     } catch (err: any) {
-      toast.error('创建失败', { description: err.message });
+      toast.error('模板保存失败', { description: err.message });
     }
   };
 
-  const handleUpdate = async (id: string, data: any) => {
+  const handleSaveWidget = async (data: WidgetCatalogItem) => {
     try {
-      const res = await updateTemplate(id, data);
-      setTemplates((prev) => prev.map((t) => (t.id === id ? res.template : t)));
-      setEditing(null);
-      toast.success('模板已更新');
+      if (widgetEditorMode === 'edit' && editingWidget?.id) {
+        const res = await updateWidgetCatalogItem(editingWidget.id, data);
+        setWidgets((prev) => prev.map((item) => (item.id === editingWidget.id ? res.widget : item)));
+        toast.success('组件已更新');
+      } else {
+        const res = await createWidgetCatalogItem(data);
+        setWidgets((prev) => [...prev, res.widget]);
+        toast.success(widgetEditorMode === 'duplicate' ? '组件副本已创建' : '组件已创建');
+      }
+      resetWidgetEditor();
     } catch (err: any) {
-      toast.error('更新失败', { description: err.message });
+      toast.error('组件保存失败', { description: err.message });
     }
   };
 
-  const handleDeleteClick = (t: any) => {
-    setDeleteTargetId(t.id);
-    setDeleteTargetName(t.name);
-    setDeleteTargetBuiltin(t.isBuiltin);
-    setDeleteConfirmOpen(true);
-  };
-
-  const handleConfirmDelete = async () => {
-    if (!deleteTargetId) return;
-    try {
-      await deleteTemplate(deleteTargetId);
-      setTemplates((prev) => prev.filter((t) => t.id !== deleteTargetId));
-      toast.success('模板已删除');
-    } catch (err: any) {
-      toast.error('删除失败', { description: err.message });
-    } finally {
-      setDeleteConfirmOpen(false);
-      setDeleteTargetId(null);
-    }
-  };
-
-  const handleRename = async (id: string, newName: string) => {
+  const handleRenameTemplate = async (id: string, newName: string) => {
     try {
       const res = await updateTemplate(id, { name: newName });
-      setTemplates((prev) => prev.map((t) => (t.id === id ? res.template : t)));
+      setTemplates((prev) => prev.map((item) => (item.id === id ? res.template : item)));
       toast.success('名称已修改');
     } catch (err: any) {
       toast.error('修改失败', { description: err.message });
     }
   };
 
-  const handleCopyAsCustom = (template: any) => {
-    const copy = {
-      ...JSON.parse(JSON.stringify(template)),
-      id: `custom-${Date.now().toString(36)}`,
-      name: `${template.name}（副本）`,
-      isBuiltin: false,
-    };
-    delete copy._builtin;
-    delete copy._custom;
-    delete copy.createdAt;
-    delete copy.updatedAt;
-    setEditing(copy);
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    try {
+      if (deleteTarget.kind === 'template') {
+        await deleteTemplate(deleteTarget.id);
+        setTemplates((prev) => prev.filter((item) => item.id !== deleteTarget.id));
+        toast.success('模板已删除');
+      } else {
+        if (deleteTarget.builtin) {
+          toast.error('预制组件不可直接删除', { description: '如需调整，请复制为自定义组件后维护。' });
+          setDeleteTarget(null);
+          return;
+        }
+        await deleteWidgetCatalogItem(deleteTarget.id);
+        setWidgets((prev) => prev.filter((item) => item.id !== deleteTarget.id));
+        setWidgetDetailTarget((prev) => (prev?.id === deleteTarget.id ? null : prev));
+        toast.success('组件已删除');
+      }
+    } catch (err: any) {
+      toast.error('删除失败', { description: err.message });
+    } finally {
+      setDeleteTarget(null);
+    }
   };
 
   const handleCreateCockpit = async () => {
     if (!createTarget) return;
     setCreatingCockpit(true);
-    console.log('[TemplateManager] Creating from template:', createTarget.id, createName.trim() || undefined);
     try {
       const res = await createCockpitFromTemplate(createTarget.id, createName.trim() || undefined);
-      console.log('[TemplateManager] Create success:', res);
       toast.success(
         res.initializing ? '驾驶舱创建成功，正在初始化数据...' : '驾驶舱创建成功',
         { description: `ID: ${res.workspace.id}` }
@@ -168,27 +287,45 @@ export function TemplateManager({ onBack }: TemplateManagerProps) {
     }
   };
 
+  const templateStats = useMemo(() => ({
+    total: templates.length,
+    builtin: templates.filter((item) => item.isBuiltin).length,
+    custom: templates.filter((item) => !item.isBuiltin).length,
+  }), [templates]);
+
+  const widgetStats = useMemo(() => ({
+    total: widgets.length,
+    builtin: widgets.filter((item) => item.isBuiltin).length,
+    custom: widgets.filter((item) => !item.isBuiltin).length,
+  }), [widgets]);
+
   if (!adminKey) {
     return (
-      <div className="h-screen w-screen flex items-center justify-center bg-app-bg">
-        <div className="w-full max-w-sm p-6 rounded-xl bg-app-surface border border-app-border-subtle shadow-[0_1px_3px_rgba(0,0,0,0.18)]">
-          <h2 className="text-lg font-semibold text-app-text mb-1">模板管理</h2>
-          <p className="text-xs text-app-text-subtle mb-4">请输入管理员密钥</p>
+      <div className="flex h-screen w-screen items-center justify-center bg-app-bg">
+        <div className="w-full max-w-sm rounded-xl border border-app-border-subtle bg-app-surface p-6 shadow-[0_1px_3px_rgba(0,0,0,0.18)]">
+          <h2 className="mb-1 text-lg font-semibold text-app-text">模板与组件管理</h2>
+          <p className="mb-4 text-xs text-app-text-subtle">请输入管理员密钥</p>
           <div className="flex gap-2">
             <input
               type="password"
               value={inputKey}
               onChange={(e) => setInputKey(e.target.value)}
               placeholder="Admin Key"
-              className="flex-1 px-3 py-2 text-sm rounded-lg bg-app-surface-subtle border border-app-border-subtle text-app-text placeholder:text-app-text-subtle focus:outline-none focus:border-red-400/50"
+              className="flex-1 rounded-lg border border-app-border-subtle bg-app-surface-subtle px-3 py-2 text-sm text-app-text placeholder:text-app-text-subtle focus:border-red-400/50 focus:outline-none"
               onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
             />
-            <button onClick={handleLogin} className="px-4 py-2 rounded-lg bg-red-500 text-white text-sm font-medium hover:bg-red-600 transition-colors">
+            <button
+              onClick={handleLogin}
+              className="rounded-lg bg-red-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-600"
+            >
               进入
             </button>
           </div>
-          <button onClick={onBack} className="mt-4 text-xs text-app-text-subtle hover:text-app-text-muted flex items-center gap-1">
-            <ArrowLeft className="w-3 h-3" /> 返回
+          <button
+            onClick={onBack}
+            className="mt-4 flex items-center gap-1 text-xs text-app-text-subtle hover:text-app-text-muted"
+          >
+            <ArrowLeft className="h-3 w-3" /> 返回
           </button>
         </div>
       </div>
@@ -196,110 +333,168 @@ export function TemplateManager({ onBack }: TemplateManagerProps) {
   }
 
   return (
-    <div className="h-screen w-screen flex flex-col bg-app-bg overflow-hidden">
-      {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-app-border-subtle">
+    <div className="flex h-screen w-screen flex-col overflow-hidden bg-app-bg">
+      <div className="flex items-center justify-between border-b border-app-border-subtle px-6 py-4">
         <div className="flex items-center gap-3">
-          <button onClick={onBack} className="p-2 rounded-lg hover:bg-app-surface-subtle text-app-text-muted transition-colors">
-            <ArrowLeft className="w-4 h-4" />
+          <button onClick={onBack} className="rounded-lg p-2 text-app-text-muted transition-colors hover:bg-app-surface-subtle">
+            <ArrowLeft className="h-4 w-4" />
           </button>
-          <h1 className="text-base font-semibold text-app-text">驾驶舱模板管理</h1>
-          <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-500/10 text-red-400 border border-red-500/20">Admin</span>
+          <div>
+            <h1 className="text-base font-semibold text-app-text">模板与组件管理</h1>
+            <p className="text-xs text-app-text-subtle">模板维护、组件定义、智能体说明与扩展开发入口</p>
+          </div>
+          <span className="rounded-full border border-red-500/20 bg-red-500/10 px-2 py-0.5 text-[10px] text-red-400">Admin</span>
         </div>
+
         <div className="flex items-center gap-2">
           <button
-            onClick={() => { setAdminKey(''); localStorage.removeItem('adminKey'); }}
-            className="p-2 rounded-lg hover:bg-app-surface-subtle text-app-text-subtle transition-colors"
+            onClick={() => {
+              setAdminKey('');
+              localStorage.removeItem('adminKey');
+            }}
+            className="rounded-lg p-2 text-app-text-subtle transition-colors hover:bg-app-surface-subtle"
             title="退出管理"
           >
-            <KeyRound className="w-4 h-4" />
+            <KeyRound className="h-4 w-4" />
           </button>
           <button
-            onClick={() => setIsCreating(true)}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-red-500 text-white text-sm font-medium hover:bg-red-600 transition-colors"
+            onClick={activeTab === 'templates' ? openCreateTemplate : openCreateWidget}
+            className="flex items-center gap-1.5 rounded-lg bg-red-500 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-red-600"
           >
-            <Plus className="w-3.5 h-3.5" /> 新建模板
+            <Plus className="h-3.5 w-3.5" />
+            {activeTab === 'templates' ? '新建模板' : '新建组件'}
           </button>
         </div>
       </div>
 
-      {/* Content */}
+      <div className="border-b border-app-border-subtle px-6 py-3">
+        <div className="inline-flex rounded-2xl border border-app-border-subtle bg-app-surface-subtle/40 p-1">
+          <button
+            onClick={() => setActiveTab('templates')}
+            className={`rounded-xl px-4 py-2 text-sm transition-colors ${
+              activeTab === 'templates'
+                ? 'bg-app-surface text-app-text shadow-sm'
+                : 'text-app-text-muted hover:text-app-text'
+            }`}
+          >
+            模板管理
+          </button>
+          <button
+            onClick={() => setActiveTab('widgets')}
+            className={`rounded-xl px-4 py-2 text-sm transition-colors ${
+              activeTab === 'widgets'
+                ? 'bg-app-surface text-app-text shadow-sm'
+                : 'text-app-text-muted hover:text-app-text'
+            }`}
+          >
+            组件管理
+          </button>
+        </div>
+      </div>
+
       <div className="flex-1 overflow-y-auto p-6">
         {loading ? (
-          <div className="flex items-center justify-center h-full">
-            <Loader2 className="w-6 h-6 text-app-text-muted animate-spin" />
+          <div className="flex h-full items-center justify-center">
+            <Loader2 className="h-6 w-6 animate-spin text-app-text-muted" />
           </div>
-        ) : templates.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-app-text-subtle">
-            <p className="text-sm">暂无模板</p>
-            <p className="text-xs mt-1">系统模板将自动加载</p>
-          </div>
+        ) : activeTab === 'templates' ? (
+          <TemplatesSection
+            templates={templates}
+            stats={templateStats}
+            onEdit={openEditTemplate}
+            onDuplicate={openDuplicateTemplate}
+            onDelete={(item) => setDeleteTarget({ kind: 'template', id: item.id, name: item.name, builtin: !!item.isBuiltin })}
+            onRename={handleRenameTemplate}
+            onCreateCockpit={(item) => {
+              setCreateTarget(item);
+              setCreateName(item.name);
+            }}
+          />
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 max-w-6xl">
-            {templates.map((t) => (
-              <TemplateCard
-                key={t.id}
-                template={t}
-                onEdit={() => setEditing(t)}
-                onDelete={() => handleDeleteClick(t)}
-                onRename={(name) => handleRename(t.id, name)}
-                onCopy={() => handleCopyAsCustom(t)}
-                onCreateCockpit={() => { setCreateTarget(t); setCreateName(t.name); }}
-              />
-            ))}
-          </div>
+          <WidgetsSection
+            widgets={widgets}
+            stats={widgetStats}
+            onView={setWidgetDetailTarget}
+            onEdit={openEditWidget}
+            onDuplicate={openDuplicateWidget}
+            onDelete={(item) => setDeleteTarget({ kind: 'widget', id: item.id, name: item.name, builtin: !!item.isBuiltin })}
+          />
         )}
       </div>
 
-      {/* Editor Modal */}
-      {(isCreating || editing) && (
+      {templateEditorOpen && (
         <TemplateEditor
-          template={editing}
-          onSave={(data) => (editing ? handleUpdate(editing.id, data) : handleCreate(data))}
-          onClose={() => { setIsCreating(false); setEditing(null); }}
+          mode={templateEditorMode}
+          template={editingTemplate}
+          widgetCatalog={widgets}
+          onSave={handleSaveTemplate}
+          onClose={resetTemplateEditor}
         />
       )}
 
-      {/* Create Cockpit from Template Dialog */}
+      {widgetEditorOpen && (
+        <WidgetCatalogEditor
+          mode={widgetEditorMode}
+          item={editingWidget}
+          onSave={handleSaveWidget}
+          onClose={resetWidgetEditor}
+        />
+      )}
+
+      {widgetDetailTarget && (
+        <WidgetDetailModal
+          item={widgetDetailTarget}
+          onClose={() => setWidgetDetailTarget(null)}
+          onEdit={() => {
+            setWidgetDetailTarget(null);
+            if (widgetDetailTarget.isBuiltin) {
+              openDuplicateWidget(widgetDetailTarget);
+            } else {
+              openEditWidget(widgetDetailTarget);
+            }
+          }}
+        />
+      )}
+
       {createTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-app-overlay/80 backdrop-blur-sm p-4">
-          <div className="w-full max-w-sm p-5 rounded-xl bg-app-surface border border-app-border-subtle shadow-xl">
-            <h3 className="text-sm font-semibold text-app-text mb-1">从模板创建驾驶舱</h3>
-            <p className="text-xs text-app-text-subtle mb-4">
-              基于「{createTarget.name}」创建一个新的驾驶舱
-            </p>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-app-overlay/80 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-xl border border-app-border-subtle bg-app-surface p-5 shadow-xl">
+            <h3 className="mb-1 text-sm font-semibold text-app-text">从模板创建驾驶舱</h3>
+            <p className="mb-4 text-xs text-app-text-subtle">基于「{createTarget.name}」创建一个新的驾驶舱</p>
             <div className="space-y-3">
               <div>
-                <label className="block text-[11px] text-app-text-subtle mb-1">驾驶舱名称</label>
+                <label className="mb-1 block text-[11px] text-app-text-subtle">驾驶舱名称</label>
                 <input
                   value={createName}
                   onChange={(e) => setCreateName(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleCreateCockpit()}
-                  className="w-full px-3 py-2 text-sm rounded-lg bg-app-surface-subtle border border-app-border-subtle text-app-text focus:outline-none focus:border-red-400/50"
+                  className="w-full rounded-lg border border-app-border-subtle bg-app-surface-subtle px-3 py-2 text-sm text-app-text focus:border-red-400/50 focus:outline-none"
                   placeholder={createTarget.name}
                   autoFocus
                 />
               </div>
               {createTarget.initPrompt && (
-                <div className="text-[11px] text-app-text-subtle bg-app-surface-subtle rounded-lg p-2.5 border border-app-border-subtle">
+                <div className="rounded-lg border border-app-border-subtle bg-app-surface-subtle p-2.5 text-[11px] text-app-text-subtle">
                   <span className="text-app-text-muted">初始化：</span>创建后将自动执行预设初始化任务
                 </div>
               )}
             </div>
-            <div className="flex justify-end gap-2 mt-4">
+            <div className="mt-4 flex justify-end gap-2">
               <button
-                onClick={() => { setCreateTarget(null); setCreateName(''); }}
-                className="px-3 py-1.5 rounded-lg text-xs text-app-text-muted hover:bg-app-surface-subtle transition-colors"
+                onClick={() => {
+                  setCreateTarget(null);
+                  setCreateName('');
+                }}
+                className="rounded-lg px-3 py-1.5 text-xs text-app-text-muted transition-colors hover:bg-app-surface-subtle"
               >
                 取消
               </button>
               <button
                 onClick={handleCreateCockpit}
                 disabled={creatingCockpit}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs bg-red-500 text-white hover:bg-red-600 transition-colors disabled:opacity-50"
+                className="flex items-center gap-1.5 rounded-lg bg-red-500 px-3 py-1.5 text-xs text-white transition-colors hover:bg-red-600 disabled:opacity-50"
               >
-                {creatingCockpit && <Loader2 className="w-3 h-3 animate-spin" />}
-                <Rocket className="w-3 h-3" />
+                {creatingCockpit ? <Loader2 className="h-3 w-3 animate-spin" /> : <Rocket className="h-3 w-3" />}
                 创建驾驶舱
               </button>
             </div>
@@ -307,24 +502,26 @@ export function TemplateManager({ onBack }: TemplateManagerProps) {
         </div>
       )}
 
-      {/* Delete Confirm Dialog */}
-      <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
-        <AlertDialogContent className="bg-app-surface border-app-border-subtle text-app-text">
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent className="border-app-border-subtle bg-app-surface text-app-text">
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2 text-app-text">
-              <AlertTriangle className="w-4 h-4 text-red-400" />
-              确认删除模板
+              <AlertTriangle className="h-4 w-4 text-red-400" />
+              确认删除{deleteTarget?.kind === 'widget' ? '组件' : '模板'}
             </AlertDialogTitle>
             <AlertDialogDescription className="text-app-text-subtle">
-              {deleteTargetBuiltin ? (
+              {deleteTarget?.builtin ? (
                 <>
-                  即将删除系统模板「<span className="text-app-text font-medium">{deleteTargetName}</span>」。
+                  即将删除系统{deleteTarget.kind === 'widget' ? '组件' : '模板'}「
+                  <span className="font-medium text-app-text">{deleteTarget.name}</span>」。
                   <br />
-                  该模板将从模板库中移除，但已创建的驾驶舱不受影响。
+                  {deleteTarget.kind === 'widget'
+                    ? '该组件将从组件目录中移除，已写入模板的组件快照不受影响。'
+                    : '该模板将从模板库中移除，但已创建的驾驶舱不受影响。'}
                 </>
               ) : (
                 <>
-                  确定删除模板「<span className="text-app-text font-medium">{deleteTargetName}</span>」吗？
+                  确定删除「<span className="font-medium text-app-text">{deleteTarget?.name}</span>」吗？
                   <br />
                   此操作不可恢复。
                 </>
@@ -332,11 +529,10 @@ export function TemplateManager({ onBack }: TemplateManagerProps) {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="bg-app-surface-subtle text-app-text border-app-border-subtle hover:bg-app-surface-hover">取消</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleConfirmDelete}
-              className="bg-red-500 text-white hover:bg-red-600"
-            >
+            <AlertDialogCancel className="border-app-border-subtle bg-app-surface-subtle text-app-text hover:bg-app-surface-hover">
+              取消
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-red-500 text-white hover:bg-red-600">
               确认删除
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -346,7 +542,133 @@ export function TemplateManager({ onBack }: TemplateManagerProps) {
   );
 }
 
-/* ── TemplateCard ── */
+function TemplatesSection({
+  templates,
+  stats,
+  onEdit,
+  onDuplicate,
+  onDelete,
+  onRename,
+  onCreateCockpit,
+}: {
+  templates: CockpitTemplate[];
+  stats: { total: number; builtin: number; custom: number };
+  onEdit: (template: CockpitTemplate) => void;
+  onDuplicate: (template: CockpitTemplate) => void;
+  onDelete: (template: CockpitTemplate) => void;
+  onRename: (id: string, name: string) => void;
+  onCreateCockpit: (template: CockpitTemplate) => void;
+}) {
+  if (templates.length === 0) {
+    return (
+      <EmptyState
+        title="暂无模板"
+        description="系统模板和自定义模板都会出现在这里。"
+        icon={<LayoutGrid className="h-7 w-7 text-app-text-subtle" />}
+      />
+    );
+  }
+
+  return (
+    <div className="space-y-5">
+      <SummaryCards
+        cards={[
+          { label: '模板总数', value: String(stats.total), detail: '系统模板 + 自定义模板' },
+          { label: '系统模板', value: String(stats.builtin), detail: '出厂预制能力' },
+          { label: '自定义模板', value: String(stats.custom), detail: '管理员维护与扩展' },
+        ]}
+      />
+      <div className="grid max-w-6xl grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
+        {templates.map((template) => (
+          <TemplateCard
+            key={template.id}
+            template={template}
+            onEdit={() => onEdit(template)}
+            onDelete={() => onDelete(template)}
+            onRename={(name) => onRename(template.id, name)}
+            onCopy={() => onDuplicate(template)}
+            onCreateCockpit={() => onCreateCockpit(template)}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function WidgetsSection({
+  widgets,
+  stats,
+  onView,
+  onEdit,
+  onDuplicate,
+  onDelete,
+}: {
+  widgets: WidgetCatalogItem[];
+  stats: { total: number; builtin: number; custom: number };
+  onView: (widget: WidgetCatalogItem) => void;
+  onEdit: (widget: WidgetCatalogItem) => void;
+  onDuplicate: (widget: WidgetCatalogItem) => void;
+  onDelete: (widget: WidgetCatalogItem) => void;
+}) {
+  if (widgets.length === 0) {
+    return (
+      <EmptyState
+        title="暂无组件"
+        description="这里会列出当前可供模板复用的全部组件定义。"
+        icon={<Wrench className="h-7 w-7 text-app-text-subtle" />}
+      />
+    );
+  }
+
+  return (
+    <div className="space-y-5">
+      <SummaryCards
+        cards={[
+          { label: '组件总数', value: String(stats.total), detail: '预制组件 + 自定义组件' },
+          { label: '预制组件', value: String(stats.builtin), detail: '推荐给智能体优先选用' },
+          { label: '自定义组件', value: String(stats.custom), detail: '便于开发者扩展实现' },
+        ]}
+      />
+      <div className="grid max-w-7xl grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
+        {widgets.map((widget) => (
+          <WidgetCatalogCard
+            key={widget.id}
+            item={widget}
+            onView={() => onView(widget)}
+            onEdit={() => (widget.isBuiltin ? onDuplicate(widget) : onEdit(widget))}
+            onDuplicate={() => onDuplicate(widget)}
+            onDelete={() => onDelete(widget)}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function SummaryCards({ cards }: { cards: Array<{ label: string; value: string; detail: string }> }) {
+  return (
+    <div className="grid max-w-5xl grid-cols-1 gap-3 md:grid-cols-3">
+      {cards.map((card) => (
+        <div key={card.label} className="rounded-2xl border border-app-border-subtle bg-app-surface p-4">
+          <div className="text-[11px] uppercase tracking-[0.16em] text-app-text-subtle">{card.label}</div>
+          <div className="mt-2 text-2xl font-semibold text-app-text">{card.value}</div>
+          <div className="mt-1 text-xs text-app-text-muted">{card.detail}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function EmptyState({ title, description, icon }: { title: string; description: string; icon: ReactNode }) {
+  return (
+    <div className="flex h-full flex-col items-center justify-center rounded-3xl border border-dashed border-app-border-subtle bg-app-surface-subtle/20 px-6 py-16 text-center">
+      {icon}
+      <div className="mt-3 text-sm font-medium text-app-text">{title}</div>
+      <div className="mt-1 text-xs text-app-text-subtle">{description}</div>
+    </div>
+  );
+}
+
 function TemplateCard({
   template,
   onEdit,
@@ -355,7 +677,7 @@ function TemplateCard({
   onCopy,
   onCreateCockpit,
 }: {
-  template: any;
+  template: CockpitTemplate;
   onEdit: () => void;
   onDelete: () => void;
   onRename: (name: string) => void;
@@ -364,7 +686,6 @@ function TemplateCard({
 }) {
   const [isEditingName, setIsEditingName] = useState(false);
   const [nameInput, setNameInput] = useState(template.name);
-  const isBuiltin = template.isBuiltin;
 
   const commitRename = () => {
     if (nameInput.trim() && nameInput !== template.name) {
@@ -374,84 +695,229 @@ function TemplateCard({
   };
 
   return (
-    <div className="rounded-xl bg-app-surface border border-app-border-subtle shadow-[0_1px_3px_rgba(0,0,0,0.18)] p-4 hover:border-app-border hover:shadow-[0_2px_6px_rgba(0,0,0,0.22)] transition-colors">
-      <div className="flex items-start justify-between mb-3">
-        <div className="flex-1 min-w-0">
+    <div className="rounded-xl border border-app-border-subtle bg-app-surface p-4 shadow-[0_1px_3px_rgba(0,0,0,0.18)] transition-colors hover:border-app-border hover:shadow-[0_2px_6px_rgba(0,0,0,0.22)]">
+      <div className="mb-3 flex items-start justify-between">
+        <div className="min-w-0 flex-1">
           {isEditingName ? (
-            <div className="flex items-center gap-2">
-              <input
-                value={nameInput}
-                onChange={(e) => setNameInput(e.target.value)}
-                onBlur={commitRename}
-                onKeyDown={(e) => e.key === 'Enter' && commitRename()}
-                className="flex-1 px-2 py-1 text-sm rounded bg-app-surface-subtle border border-app-border-subtle text-app-text focus:outline-none focus:border-red-400/50"
-                autoFocus
-              />
-            </div>
+            <input
+              value={nameInput}
+              onChange={(e) => setNameInput(e.target.value)}
+              onBlur={commitRename}
+              onKeyDown={(e) => e.key === 'Enter' && commitRename()}
+              className="w-full rounded bg-app-surface-subtle px-2 py-1 text-sm text-app-text focus:border-red-400/50 focus:outline-none"
+              autoFocus
+            />
           ) : (
-            <div className="flex items-center gap-2 group">
+            <div className="group flex items-center gap-2">
               <h3
-                className="text-sm font-medium text-app-text cursor-pointer hover:text-red-400 transition-colors"
+                className="cursor-pointer text-sm font-medium text-app-text transition-colors hover:text-red-400"
                 onClick={() => setIsEditingName(true)}
-                title="点击修改名称"
               >
                 {template.name}
               </h3>
-              <Edit3 className="w-3 h-3 text-app-text-subtle opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer" onClick={() => setIsEditingName(true)} />
-              {isBuiltin && (
-                <span className="text-[10px] px-1.5 py-0.5 rounded bg-app-surface-subtle text-app-text-muted border border-app-border-subtle">系统</span>
+              <Edit3 className="h-3 w-3 cursor-pointer text-app-text-subtle opacity-0 transition-opacity group-hover:opacity-100" onClick={() => setIsEditingName(true)} />
+              {template.isBuiltin && (
+                <span className="rounded border border-app-border-subtle bg-app-surface-subtle px-1.5 py-0.5 text-[10px] text-app-text-muted">系统</span>
               )}
             </div>
           )}
-          <p className="text-xs text-app-text-subtle mt-0.5">ID: {template.id} · 领域: {template.domain}</p>
+          <p className="mt-0.5 text-xs text-app-text-subtle">ID: {template.id} · 领域: {template.domain}</p>
         </div>
-        <div className="flex gap-1 ml-2">
-          <button onClick={onCreateCockpit} className="p-1.5 rounded-lg hover:bg-emerald-500/10 text-app-text-subtle hover:text-emerald-400 transition-colors" title="创建驾驶舱">
-            <Rocket className="w-3.5 h-3.5" />
-          </button>
-          <button onClick={onCopy} className="p-1.5 rounded-lg hover:bg-app-surface-subtle text-app-text-subtle hover:text-app-text-muted transition-colors" title="复制为自定义模板">
-            <Copy className="w-3.5 h-3.5" />
-          </button>
-          <button onClick={onEdit} className="p-1.5 rounded-lg hover:bg-app-surface-subtle text-app-text-subtle hover:text-app-text-muted transition-colors" title="编辑">
-            <Edit3 className="w-3.5 h-3.5" />
-          </button>
-          <button onClick={onDelete} className="p-1.5 rounded-lg hover:bg-red-500/10 text-app-text-subtle hover:text-red-400 transition-colors" title="删除">
-            <Trash2 className="w-3.5 h-3.5" />
-          </button>
+
+        <div className="ml-2 flex gap-1">
+          <IconButton title="创建驾驶舱" onClick={onCreateCockpit} accent="emerald"><Rocket className="h-3.5 w-3.5" /></IconButton>
+          <IconButton title="复制为自定义模板" onClick={onCopy}><Copy className="h-3.5 w-3.5" /></IconButton>
+          <IconButton title="编辑" onClick={onEdit}><Edit3 className="h-3.5 w-3.5" /></IconButton>
+          <IconButton title="删除" onClick={onDelete} accent="red"><Trash2 className="h-3.5 w-3.5" /></IconButton>
         </div>
       </div>
+
       <div className="flex flex-wrap items-center gap-2 text-xs">
-        <span className="px-2 py-0.5 rounded bg-app-surface-subtle text-app-text-muted">{template.widgets?.length || 0} 个组件</span>
-        <span className="px-2 py-0.5 rounded bg-app-surface-subtle text-app-text-muted">{template.keywords?.length || 0} 个关键词</span>
-        <span className="w-3 h-3 rounded-full inline-block" style={{ backgroundColor: template.color }} title={template.color} />
-        <span className="text-app-text-subtle text-[10px]">{template.icon}</span>
+        <span className="rounded bg-app-surface-subtle px-2 py-0.5 text-app-text-muted">{template.widgets?.length || 0} 个组件</span>
+        <span className="rounded bg-app-surface-subtle px-2 py-0.5 text-app-text-muted">{template.keywords?.length || 0} 个关键词</span>
+        <span className="inline-block h-3 w-3 rounded-full" style={{ backgroundColor: template.color }} title={template.color} />
+        <span className="text-[10px] text-app-text-subtle">{template.icon}</span>
         {template.initPrompt && (
-          <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 text-[10px] border border-emerald-500/20">自动初始化</span>
+          <span className="rounded border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 text-[10px] text-emerald-400">自动初始化</span>
         )}
       </div>
     </div>
   );
 }
 
-/* ── TemplateEditor ── */
-function TemplateEditor({ template, onSave, onClose, readOnly }: { template: any | null; onSave: (d: any) => void; onClose: () => void; readOnly?: boolean }) {
-  const isEdit = !!template && !readOnly;
-  const [data, setData] = useState(() => initFormData(template));
+function WidgetCatalogCard({
+  item,
+  onView,
+  onEdit,
+  onDuplicate,
+  onDelete,
+}: {
+  item: WidgetCatalogItem;
+  onView: () => void;
+  onEdit: () => void;
+  onDuplicate: () => void;
+  onDelete: () => void;
+}) {
+  return (
+    <div className="rounded-xl border border-app-border-subtle bg-app-surface p-4 shadow-[0_1px_3px_rgba(0,0,0,0.18)] transition-colors hover:border-app-border hover:shadow-[0_2px_6px_rgba(0,0,0,0.22)]">
+      <div className="mb-3 flex items-start justify-between gap-3">
+        <div className="flex min-w-0 items-start gap-3">
+          <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-app-border-subtle" style={{ backgroundColor: `${item.color}18` }}>
+            <WorkspaceIcon icon={item.icon} color={item.color} className="h-4 w-4" />
+          </div>
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <h3 className="truncate text-sm font-medium text-app-text">{item.name}</h3>
+              {item.isBuiltin && (
+                <span className="rounded border border-app-border-subtle bg-app-surface-subtle px-1.5 py-0.5 text-[10px] text-app-text-muted">预制</span>
+              )}
+            </div>
+            <div className="mt-0.5 text-xs text-app-text-subtle">
+              {WIDGET_TYPE_LABELS[item.type]} · {item.category}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex gap-1">
+          <IconButton title="查看详情" onClick={onView}><Eye className="h-3.5 w-3.5" /></IconButton>
+          <IconButton title="复制组件" onClick={onDuplicate}><Copy className="h-3.5 w-3.5" /></IconButton>
+          <IconButton title="编辑组件" onClick={onEdit}><Edit3 className="h-3.5 w-3.5" /></IconButton>
+          {!item.isBuiltin && (
+            <IconButton title="删除组件" onClick={onDelete} accent="red"><Trash2 className="h-3.5 w-3.5" /></IconButton>
+          )}
+        </div>
+      </div>
+
+      <p className="line-clamp-2 text-sm leading-6 text-app-text-muted">{item.description}</p>
+
+      <div className="mt-3 flex flex-wrap gap-1.5">
+        {item.tags.slice(0, 4).map((tag) => (
+          <span key={tag} className="rounded-full border border-app-border-subtle bg-app-surface-subtle px-2 py-0.5 text-[10px] text-app-text-subtle">
+            {tag}
+          </span>
+        ))}
+      </div>
+
+      <div className="mt-3 rounded-lg border border-app-border-subtle bg-app-surface-subtle/40 px-3 py-2">
+        <div className="text-[10px] uppercase tracking-[0.16em] text-app-text-subtle">面向智能体说明</div>
+        <div className="mt-1 line-clamp-3 text-xs leading-5 text-app-text-muted">{item.agentDescription}</div>
+      </div>
+    </div>
+  );
+}
+
+function IconButton({
+  title,
+  onClick,
+  children,
+  accent,
+}: {
+  title: string;
+  onClick: () => void;
+  children: ReactNode;
+  accent?: 'red' | 'emerald';
+}) {
+  const base = accent === 'red'
+    ? 'hover:bg-red-500/10 hover:text-red-400'
+    : accent === 'emerald'
+      ? 'hover:bg-emerald-500/10 hover:text-emerald-400'
+      : 'hover:bg-app-surface-subtle hover:text-app-text-muted';
+
+  return (
+    <button
+      onClick={onClick}
+      className={`rounded-lg p-1.5 text-app-text-subtle transition-colors ${base}`}
+      title={title}
+    >
+      {children}
+    </button>
+  );
+}
+
+function TemplateEditor({
+  mode,
+  template,
+  widgetCatalog,
+  onSave,
+  onClose,
+}: {
+  mode: 'create' | 'edit' | 'duplicate';
+  template: TemplateFormData | null;
+  widgetCatalog: WidgetCatalogItem[];
+  onSave: (data: TemplateFormData) => void;
+  onClose: () => void;
+}) {
+  const [data, setData] = useState(() => initTemplateFormData(template));
   const [showJson, setShowJson] = useState(false);
   const [jsonError, setJsonError] = useState('');
 
-  const updateField = (path: string, value: any) => {
-    setData((prev: any) => {
+  const updateField = (path: string, value: unknown) => {
+    setData((prev) => {
       const next = { ...prev };
       const keys = path.split('.');
-      let target: any = next;
-      for (let i = 0; i < keys.length - 1; i++) {
-        target[keys[i]] = { ...target[keys[i]] };
-        target = target[keys[i]];
+      let target: Record<string, unknown> = next as unknown as Record<string, unknown>;
+      for (let i = 0; i < keys.length - 1; i += 1) {
+        const current = target[keys[i]];
+        target[keys[i]] = { ...(current as Record<string, unknown> | undefined) };
+        target = target[keys[i]] as Record<string, unknown>;
       }
       target[keys[keys.length - 1]] = value;
       return next;
     });
+  };
+
+  const updateWidget = (idx: number, patch: Partial<Widget>) => {
+    setData((prev) => {
+      const widgets = [...prev.widgets];
+      widgets[idx] = { ...widgets[idx], ...patch };
+      return { ...prev, widgets };
+    });
+  };
+
+  const addWidget = () => {
+    const ts = Date.now();
+    setData((prev) => ({
+      ...prev,
+      widgets: [
+        ...prev.widgets,
+        {
+          id: `w-${ts}`,
+          type: 'metric',
+          title: '新组件',
+          position: { x: 0, y: 0, w: 3, h: 2 },
+          data: { value: '—', change: '+0%', trend: 'flat' },
+        },
+      ],
+    }));
+  };
+
+  const addWidgetFromCatalog = (item: WidgetCatalogItem) => {
+    const ts = Date.now();
+    const baseTemplate = item.template || {};
+    setData((prev) => ({
+      ...prev,
+      widgets: [
+        ...prev.widgets,
+        {
+          id: `${baseTemplate.id || `w-${ts}`}-${Math.random().toString(36).slice(2, 6)}`,
+          type: baseTemplate.type || item.type,
+          title: baseTemplate.title || item.name,
+          position: baseTemplate.position || { x: 0, y: 0, w: 4, h: 3 },
+          data: baseTemplate.data || {},
+          dataSource: baseTemplate.dataSource,
+          dataIntent: baseTemplate.dataIntent,
+          detail: baseTemplate.detail,
+          link: baseTemplate.link,
+        },
+      ],
+    }));
+  };
+
+  const removeWidget = (idx: number) => {
+    setData((prev) => ({
+      ...prev,
+      widgets: prev.widgets.filter((_: unknown, index: number) => index !== idx),
+    }));
   };
 
   const handleSave = () => {
@@ -466,77 +932,309 @@ function TemplateEditor({ template, onSave, onClose, readOnly }: { template: any
     onSave(data);
   };
 
-  const addWidget = () => {
-    const ts = Date.now();
-    const newWidget = {
-      id: `w-${ts}`,
-      type: 'metric',
-      title: '新组件',
-      position: { x: 0, y: 0, w: 3, h: 2 },
-      data: { value: '—', change: '+0%', trend: 'up' },
-    };
-    setData((prev: any) => ({ ...prev, widgets: [...prev.widgets, newWidget] }));
-  };
+  const title = mode === 'edit' ? '编辑模板' : mode === 'duplicate' ? '复制模板' : '新建模板';
 
-  const removeWidget = (idx: number) => {
-    setData((prev: any) => ({ ...prev, widgets: prev.widgets.filter((_: any, i: number) => i !== idx) }));
-  };
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-app-overlay/80 p-4 backdrop-blur-sm">
+      <div className="flex max-h-[90vh] w-full max-w-5xl flex-col rounded-xl border border-app-border-subtle bg-app-surface shadow-xl">
+        <div className="flex items-center justify-between border-b border-app-border-subtle px-5 py-3.5">
+          <h3 className="text-sm font-semibold text-app-text">{title}</h3>
+          <button onClick={onClose} className="text-app-text-subtle hover:text-app-text-muted"><X className="h-4 w-4" /></button>
+        </div>
 
-  const updateWidget = (idx: number, patch: any) => {
-    setData((prev: any) => {
-      const widgets = [...prev.widgets];
-      widgets[idx] = { ...widgets[idx], ...patch };
-      return { ...prev, widgets };
+        <div className="flex-1 overflow-y-auto p-5">
+          <div className="grid gap-5 xl:grid-cols-[minmax(0,1.3fr)_320px]">
+            <div className="space-y-5">
+              <section>
+                <h4 className="mb-3 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-app-text-muted">
+                  <Type className="h-3.5 w-3.5" /> 基础信息
+                </h4>
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="模板 ID">
+                    <input
+                      value={data.id}
+                      onChange={(e) => updateField('id', e.target.value)}
+                      disabled={mode === 'edit'}
+                      className="w-full rounded-lg border border-app-border-subtle bg-app-surface-subtle px-3 py-2 text-sm text-app-text focus:border-red-400/50 focus:outline-none disabled:opacity-50"
+                    />
+                  </Field>
+                  <Field label="显示名称">
+                    <input
+                      value={data.name}
+                      onChange={(e) => updateField('name', e.target.value)}
+                      className="w-full rounded-lg border border-app-border-subtle bg-app-surface-subtle px-3 py-2 text-sm text-app-text focus:border-red-400/50 focus:outline-none"
+                    />
+                  </Field>
+                  <Field label="领域">
+                    <input
+                      value={data.domain}
+                      onChange={(e) => updateField('domain', e.target.value)}
+                      className="w-full rounded-lg border border-app-border-subtle bg-app-surface-subtle px-3 py-2 text-sm text-app-text focus:border-red-400/50 focus:outline-none"
+                    />
+                  </Field>
+                  <Field label="图标">
+                    <select
+                      value={data.icon}
+                      onChange={(e) => updateField('icon', e.target.value)}
+                      className="w-full rounded-lg border border-app-border-subtle bg-app-surface-subtle px-3 py-2 text-sm text-app-text focus:border-red-400/50 focus:outline-none"
+                    >
+                      {ICON_OPTIONS.map((icon) => (
+                        <option key={icon} value={icon}>{icon}</option>
+                      ))}
+                    </select>
+                  </Field>
+                  <Field label="主题色">
+                    <div className="flex items-center gap-2">
+                      <input type="color" value={data.color} onChange={(e) => updateField('color', e.target.value)} className="h-9 w-10 rounded-lg border border-app-border-subtle" />
+                      <input
+                        value={data.color}
+                        onChange={(e) => updateField('color', e.target.value)}
+                        className="flex-1 rounded-lg border border-app-border-subtle bg-app-surface-subtle px-3 py-2 text-sm text-app-text focus:border-red-400/50 focus:outline-none"
+                      />
+                    </div>
+                  </Field>
+                  <Field label="描述">
+                    <input
+                      value={data.description}
+                      onChange={(e) => updateField('description', e.target.value)}
+                      className="w-full rounded-lg border border-app-border-subtle bg-app-surface-subtle px-3 py-2 text-sm text-app-text focus:border-red-400/50 focus:outline-none"
+                    />
+                  </Field>
+                </div>
+              </section>
+
+              <section>
+                <h4 className="mb-3 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-app-text-muted">
+                  <Bot className="h-3.5 w-3.5" /> 初始化 Prompt
+                </h4>
+                <textarea
+                  value={data.initPrompt || ''}
+                  onChange={(e) => updateField('initPrompt', e.target.value)}
+                  className="h-24 w-full rounded-lg border border-app-border-subtle bg-app-surface-subtle px-3 py-2 text-sm text-app-text focus:border-red-400/50 focus:outline-none"
+                  spellCheck={false}
+                />
+                <p className="mt-1 text-[10px] text-app-text-subtle">创建驾驶舱后将自动执行，用于初始化数据和组件配置。</p>
+              </section>
+
+              <section>
+                <h4 className="mb-3 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-app-text-muted">
+                  <Database className="h-3.5 w-3.5" /> 数据回退设置
+                </h4>
+                <label className="flex items-center gap-2 text-sm text-app-text">
+                  <input
+                    type="checkbox"
+                    checked={!!data.useDemoDataFallback}
+                    onChange={(e) => updateField('useDemoDataFallback', e.target.checked)}
+                    className="h-4 w-4"
+                  />
+                  数据获取失败时显示演示数据
+                </label>
+              </section>
+
+              <section>
+                <h4 className="mb-3 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-app-text-muted">
+                  <Tag className="h-3.5 w-3.5" /> 触发关键词
+                </h4>
+                <KeywordsInput keywords={data.keywords} onChange={(keywords) => updateField('keywords', keywords)} />
+              </section>
+
+              <section>
+                <h4 className="mb-3 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-app-text-muted">
+                  <Bot className="h-3.5 w-3.5" /> 关联智能体
+                </h4>
+                <AgentInput
+                  agentIds={data.agentIds}
+                  primaryAgentId={data.primaryAgentId}
+                  onAgentIdsChange={(agentIds) => updateField('agentIds', agentIds)}
+                  onPrimaryChange={(id) => updateField('primaryAgentId', id)}
+                />
+              </section>
+
+              <section>
+                <div className="mb-3 flex items-center justify-between">
+                  <h4 className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-app-text-muted">
+                    <LayoutGrid className="h-3.5 w-3.5" /> 模板组件
+                  </h4>
+                  <button
+                    onClick={addWidget}
+                    className="inline-flex items-center gap-1 rounded-lg border border-dashed border-app-border-subtle px-2.5 py-1 text-[11px] text-app-text-subtle transition-colors hover:border-app-border hover:bg-app-surface-subtle hover:text-app-text"
+                  >
+                    <Plus className="h-3 w-3" /> 手动新增
+                  </button>
+                </div>
+                <div className="space-y-2">
+                  {data.widgets.map((widget: Widget, idx: number) => (
+                    <WidgetEditorItem
+                      key={widget.id || idx}
+                      widget={widget}
+                      index={idx}
+                      onChange={(patch) => updateWidget(idx, patch)}
+                      onRemove={() => removeWidget(idx)}
+                    />
+                  ))}
+                </div>
+              </section>
+
+              <section>
+                <button
+                  onClick={() => setShowJson(!showJson)}
+                  className="flex items-center gap-1.5 text-xs text-app-text-subtle transition-colors hover:text-app-text-muted"
+                >
+                  <FileJson className="h-3.5 w-3.5" />
+                  {showJson ? '收起 JSON' : '高级：查看/编辑 JSON'}
+                  {showJson ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                </button>
+                {showJson && (
+                  <div className="mt-2">
+                    <textarea
+                      value={JSON.stringify(data, null, 2)}
+                      onChange={(e) => {
+                        try {
+                          const parsed = JSON.parse(e.target.value) as TemplateFormData;
+                          setData(parsed);
+                          setJsonError('');
+                        } catch (err: any) {
+                          setJsonError(err.message);
+                        }
+                      }}
+                      className="h-48 w-full rounded-lg border border-app-border-subtle bg-app-surface-subtle p-3 font-mono text-[11px] text-app-text focus:border-red-400/50 focus:outline-none"
+                      spellCheck={false}
+                    />
+                    {jsonError && <p className="mt-1 text-[10px] text-red-400">{jsonError}</p>}
+                  </div>
+                )}
+              </section>
+            </div>
+
+            <aside className="space-y-4 rounded-2xl border border-app-border-subtle bg-app-surface-subtle/30 p-4">
+              <div>
+                <div className="text-sm font-medium text-app-text">组件目录</div>
+                <div className="mt-1 text-[11px] leading-5 text-app-text-subtle">
+                  这些组件定义可复用于模板。选中后会把组件快照加入当前模板，后续可继续单独微调。
+                </div>
+              </div>
+              <div className="max-h-[480px] space-y-2 overflow-y-auto pr-1">
+                {widgetCatalog.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => addWidgetFromCatalog(item)}
+                    className="w-full rounded-xl border border-app-border-subtle bg-app-surface px-3 py-3 text-left transition-colors hover:border-app-border hover:bg-app-surface-hover"
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-app-border-subtle" style={{ backgroundColor: `${item.color}18` }}>
+                        <WorkspaceIcon icon={item.icon} color={item.color} className="h-3.5 w-3.5" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-xs font-medium text-app-text">{item.name}</div>
+                        <div className="mt-0.5 text-[10px] text-app-text-subtle">{WIDGET_TYPE_LABELS[item.type]} · {item.category}</div>
+                        <div className="mt-1 line-clamp-2 text-[10px] leading-5 text-app-text-subtle">{item.agentDescription}</div>
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </aside>
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-2 border-t border-app-border-subtle px-5 py-3.5">
+          <button onClick={onClose} className="rounded-lg px-4 py-2 text-sm text-app-text-muted transition-colors hover:bg-app-surface-subtle">取消</button>
+          <button onClick={handleSave} className="rounded-lg bg-red-500 px-4 py-2 text-sm text-white transition-colors hover:bg-red-600">
+            {mode === 'edit' ? '保存' : mode === 'duplicate' ? '创建副本' : '创建模板'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function WidgetCatalogEditor({
+  mode,
+  item,
+  onSave,
+  onClose,
+}: {
+  mode: 'create' | 'edit' | 'duplicate';
+  item: WidgetCatalogItem | null;
+  onSave: (data: WidgetCatalogItem) => void;
+  onClose: () => void;
+}) {
+  const [data, setData] = useState(() => initWidgetCatalogFormData(item));
+  const [showJson, setShowJson] = useState(false);
+  const [jsonError, setJsonError] = useState('');
+
+  const title = mode === 'edit' ? '编辑组件' : mode === 'duplicate' ? '复制组件' : '新建组件';
+
+  const handleSave = () => {
+    if (!data.id.trim() || !data.name.trim()) {
+      toast.error('组件 ID 和名称不能为空');
+      return;
+    }
+    if (!data.agentDescription.trim()) {
+      toast.error('请补充面向智能体的说明');
+      return;
+    }
+    onSave({
+      ...data,
+      isBuiltin: false,
+      useCases: data.useCases.filter(Boolean),
+      tags: data.tags.filter(Boolean),
     });
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-app-overlay/80 backdrop-blur-sm p-4">
-      <div className="w-full max-w-3xl max-h-[90vh] flex flex-col rounded-xl bg-app-surface border border-app-border-subtle shadow-xl">
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 py-3.5 border-b border-app-border-subtle">
-          <h3 className="text-sm font-semibold text-app-text">{isEdit ? '编辑模板' : '新建模板'}</h3>
-          <button onClick={onClose} className="text-app-text-subtle hover:text-app-text-muted"><X className="w-4 h-4" /></button>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-app-overlay/80 p-4 backdrop-blur-sm">
+      <div className="flex max-h-[90vh] w-full max-w-4xl flex-col rounded-xl border border-app-border-subtle bg-app-surface shadow-xl">
+        <div className="flex items-center justify-between border-b border-app-border-subtle px-5 py-3.5">
+          <h3 className="text-sm font-semibold text-app-text">{title}</h3>
+          <button onClick={onClose} className="text-app-text-subtle hover:text-app-text-muted"><X className="h-4 w-4" /></button>
         </div>
 
-        {/* Body */}
         <div className="flex-1 overflow-y-auto p-5 space-y-5">
-          {/* ── 基础信息 ── */}
           <section>
-            <h4 className="text-xs font-medium text-app-text-muted uppercase tracking-wider mb-3 flex items-center gap-1.5">
-              <Type className="w-3.5 h-3.5" /> 基础信息
+            <h4 className="mb-3 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-app-text-muted">
+              <Wrench className="h-3.5 w-3.5" /> 组件基础信息
             </h4>
             <div className="grid grid-cols-2 gap-3">
-              <Field label="模板 ID">
+              <Field label="组件 ID">
                 <input
                   value={data.id}
-                  onChange={(e) => updateField('id', e.target.value)}
-                  disabled={isEdit}
-                  className="w-full px-3 py-2 text-sm rounded-lg bg-app-surface-subtle border border-app-border-subtle text-app-text disabled:opacity-50 focus:outline-none focus:border-red-400/50"
-                  placeholder="如: sales-hr"
+                  onChange={(e) => setData((prev) => ({ ...prev, id: e.target.value }))}
+                  disabled={mode === 'edit'}
+                  className="w-full rounded-lg border border-app-border-subtle bg-app-surface-subtle px-3 py-2 text-sm text-app-text focus:border-red-400/50 focus:outline-none disabled:opacity-50"
                 />
               </Field>
               <Field label="显示名称">
                 <input
                   value={data.name}
-                  onChange={(e) => updateField('name', e.target.value)}
-                  className="w-full px-3 py-2 text-sm rounded-lg bg-app-surface-subtle border border-app-border-subtle text-app-text focus:outline-none focus:border-red-400/50"
-                  placeholder="如: 销售人事联合驾驶舱"
+                  onChange={(e) => setData((prev) => ({ ...prev, name: e.target.value }))}
+                  className="w-full rounded-lg border border-app-border-subtle bg-app-surface-subtle px-3 py-2 text-sm text-app-text focus:border-red-400/50 focus:outline-none"
                 />
               </Field>
-              <Field label="领域">
+              <Field label="组件类型">
+                <select
+                  value={data.type}
+                  onChange={(e) => setData((prev) => ({ ...prev, type: e.target.value as WidgetType }))}
+                  className="w-full rounded-lg border border-app-border-subtle bg-app-surface-subtle px-3 py-2 text-sm text-app-text focus:border-red-400/50 focus:outline-none"
+                >
+                  {WIDGET_TYPES.map((type) => (
+                    <option key={type} value={type}>{WIDGET_TYPE_LABELS[type]}</option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="分类">
                 <input
-                  value={data.domain}
-                  onChange={(e) => updateField('domain', e.target.value)}
-                  className="w-full px-3 py-2 text-sm rounded-lg bg-app-surface-subtle border border-app-border-subtle text-app-text focus:outline-none focus:border-red-400/50"
-                  placeholder="如: 销售"
+                  value={data.category}
+                  onChange={(e) => setData((prev) => ({ ...prev, category: e.target.value }))}
+                  className="w-full rounded-lg border border-app-border-subtle bg-app-surface-subtle px-3 py-2 text-sm text-app-text focus:border-red-400/50 focus:outline-none"
                 />
               </Field>
               <Field label="图标">
                 <select
                   value={data.icon}
-                  onChange={(e) => updateField('icon', e.target.value)}
-                  className="w-full px-3 py-2 text-sm rounded-lg bg-app-surface-subtle border border-app-border-subtle text-app-text focus:outline-none focus:border-red-400/50"
+                  onChange={(e) => setData((prev) => ({ ...prev, icon: e.target.value }))}
+                  className="w-full rounded-lg border border-app-border-subtle bg-app-surface-subtle px-3 py-2 text-sm text-app-text focus:border-red-400/50 focus:outline-none"
                 >
                   {ICON_OPTIONS.map((icon) => (
                     <option key={icon} value={icon}>{icon}</option>
@@ -545,138 +1243,116 @@ function TemplateEditor({ template, onSave, onClose, readOnly }: { template: any
               </Field>
               <Field label="主题色">
                 <div className="flex items-center gap-2">
-                  <input
-                    type="color"
-                    value={data.color}
-                    onChange={(e) => updateField('color', e.target.value)}
-                    className="w-10 h-9 rounded-lg border border-app-border-subtle cursor-pointer"
-                  />
+                  <input type="color" value={data.color} onChange={(e) => setData((prev) => ({ ...prev, color: e.target.value }))} className="h-9 w-10 rounded-lg border border-app-border-subtle" />
                   <input
                     value={data.color}
-                    onChange={(e) => updateField('color', e.target.value)}
-                    className="flex-1 px-3 py-2 text-sm rounded-lg bg-app-surface-subtle border border-app-border-subtle text-app-text focus:outline-none focus:border-red-400/50"
+                    onChange={(e) => setData((prev) => ({ ...prev, color: e.target.value }))}
+                    className="flex-1 rounded-lg border border-app-border-subtle bg-app-surface-subtle px-3 py-2 text-sm text-app-text focus:border-red-400/50 focus:outline-none"
                   />
                 </div>
               </Field>
-              <Field label="描述">
-                <input
+            </div>
+          </section>
+
+          <section>
+            <h4 className="mb-3 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-app-text-muted">
+              <Type className="h-3.5 w-3.5" /> 描述与智能体说明
+            </h4>
+            <div className="space-y-3">
+              <Field label="组件说明">
+                <textarea
                   value={data.description}
-                  onChange={(e) => updateField('description', e.target.value)}
-                  className="w-full px-3 py-2 text-sm rounded-lg bg-app-surface-subtle border border-app-border-subtle text-app-text focus:outline-none focus:border-red-400/50"
-                  placeholder="支持 {{name}} 占位符"
+                  onChange={(e) => setData((prev) => ({ ...prev, description: e.target.value }))}
+                  className="h-20 w-full rounded-lg border border-app-border-subtle bg-app-surface-subtle px-3 py-2 text-sm text-app-text focus:border-red-400/50 focus:outline-none"
+                />
+              </Field>
+              <Field label="面向智能体如何描述">
+                <textarea
+                  value={data.agentDescription}
+                  onChange={(e) => setData((prev) => ({ ...prev, agentDescription: e.target.value }))}
+                  className="h-28 w-full rounded-lg border border-app-border-subtle bg-app-surface-subtle px-3 py-2 text-sm text-app-text focus:border-red-400/50 focus:outline-none"
                 />
               </Field>
             </div>
           </section>
 
-          {/* ── 初始化 Prompt ── */}
           <section>
-            <h4 className="text-xs font-medium text-app-text-muted uppercase tracking-wider mb-3 flex items-center gap-1.5">
-              <Bot className="w-3.5 h-3.5" /> 初始化 Prompt
+            <h4 className="mb-3 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-app-text-muted">
+              <Tag className="h-3.5 w-3.5" /> 标签与适用场景
             </h4>
-            <textarea
-              value={data.initPrompt || ''}
-              onChange={(e) => updateField('initPrompt', e.target.value)}
-              className="w-full h-24 px-3 py-2 text-sm rounded-lg bg-app-surface-subtle border border-app-border-subtle text-app-text placeholder:text-app-text-subtle focus:outline-none focus:border-red-400/50 resize-none"
-              placeholder="创建驾驶舱后自动执行的初始化指令，用于获取数据、调整组件等。对最终用户隐藏。"
-              spellCheck={false}
-            />
-            <p className="mt-1 text-[10px] text-app-text-subtle">
-              创建驾驶舱后将自动执行此 Prompt，用于初始化数据和组件配置。执行结果对用户不可见。
-            </p>
-          </section>
-
-          {/* ── 数据回退设置 ── */}
-          <section>
-            <h4 className="text-xs font-medium text-app-text-muted uppercase tracking-wider mb-3 flex items-center gap-1.5">
-              <Database className="w-3.5 h-3.5" /> 数据回退设置
-            </h4>
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={!!data.useDemoDataFallback}
-                onChange={(e) => updateField('useDemoDataFallback', e.target.checked)}
-                className="w-4 h-4 rounded border-app-border-subtle bg-app-surface-subtle text-red-400 focus:ring-red-400/20"
-              />
-              <span className="text-sm text-app-text">数据获取失败时显示演示数据</span>
-            </label>
-            <p className="mt-1 text-[10px] text-app-text-subtle">
-              勾选后，当数据源无法获取真实数据时，组件将显示模板中的演示数据。不勾选则显示空状态。
-            </p>
-          </section>
-
-          {/* ── 关键词 ── */}
-          <section>
-            <h4 className="text-xs font-medium text-app-text-muted uppercase tracking-wider mb-3 flex items-center gap-1.5">
-              <Tag className="w-3.5 h-3.5" /> 触发关键词
-            </h4>
-            <KeywordsInput
-              keywords={data.keywords}
-              onChange={(keywords) => updateField('keywords', keywords)}
-            />
-          </section>
-
-          {/* ── 智能体 ── */}
-          <section>
-            <h4 className="text-xs font-medium text-app-text-muted uppercase tracking-wider mb-3 flex items-center gap-1.5">
-              <Bot className="w-3.5 h-3.5" /> 关联智能体
-            </h4>
-            <AgentInput
-              agentIds={data.agentIds}
-              primaryAgentId={data.primaryAgentId}
-              onAgentIdsChange={(agentIds) => updateField('agentIds', agentIds)}
-              onPrimaryChange={(id) => updateField('primaryAgentId', id)}
-            />
-          </section>
-
-          {/* ── Widget 列表 ── */}
-          <section>
-            <h4 className="text-xs font-medium text-app-text-muted uppercase tracking-wider mb-3 flex items-center gap-1.5">
-              <LayoutGrid className="w-3.5 h-3.5" /> 组件配置
-            </h4>
-            <div className="space-y-2">
-              {data.widgets.map((w: any, idx: number) => (
-                <WidgetEditorItem
-                  key={w.id || idx}
-                  widget={w}
-                  index={idx}
-                  onChange={(patch) => updateWidget(idx, patch)}
-                  onRemove={() => removeWidget(idx)}
-                />
-              ))}
-              <button
-                onClick={addWidget}
-                className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-lg border border-dashed border-app-border-subtle text-app-text-subtle hover:text-app-text-muted hover:border-app-border hover:bg-app-surface-subtle transition-colors text-xs"
-              >
-                <Plus className="w-3.5 h-3.5" /> 添加组件
-              </button>
+            <div className="grid gap-4 md:grid-cols-2">
+              <TagListEditor label="标签" values={data.tags} onChange={(tags) => setData((prev) => ({ ...prev, tags }))} />
+              <TagListEditor label="适用场景" values={data.useCases} onChange={(useCases) => setData((prev) => ({ ...prev, useCases }))} />
             </div>
           </section>
 
-          {/* ── JSON 高级模式 ── */}
+          <section>
+            <h4 className="mb-3 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-app-text-muted">
+              <LayoutGrid className="h-3.5 w-3.5" /> 推荐模板快照
+            </h4>
+            <WidgetSnapshotEditor
+              widget={data.template}
+              onChange={(template) => setData((prev) => ({ ...prev, template }))}
+            />
+          </section>
+
+          <section>
+            <h4 className="mb-3 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-app-text-muted">
+              <Database className="h-3.5 w-3.5" /> 智能体选用建议
+            </h4>
+            <Field label="推荐数据结构说明">
+              <textarea
+                value={JSON.stringify(data.schemaHint?.recommendedDataShape || {}, null, 2)}
+                onChange={(e) => {
+                  try {
+                    const parsed = JSON.parse(e.target.value);
+                    setData((prev) => ({
+                      ...prev,
+                      schemaHint: { ...prev.schemaHint, recommendedDataShape: parsed },
+                    }));
+                  } catch {
+                    // ignore
+                  }
+                }}
+                className="h-28 w-full rounded-lg border border-app-border-subtle bg-app-surface-subtle p-3 font-mono text-[11px] text-app-text focus:border-red-400/50 focus:outline-none"
+                spellCheck={false}
+              />
+            </Field>
+            <Field label="布局建议">
+              <textarea
+                value={data.schemaHint?.layoutAdvice || ''}
+                onChange={(e) => setData((prev) => ({
+                  ...prev,
+                  schemaHint: { ...prev.schemaHint, layoutAdvice: e.target.value },
+                }))}
+                className="mt-3 h-20 w-full rounded-lg border border-app-border-subtle bg-app-surface-subtle px-3 py-2 text-sm text-app-text focus:border-red-400/50 focus:outline-none"
+              />
+            </Field>
+          </section>
+
           <section>
             <button
               onClick={() => setShowJson(!showJson)}
-              className="flex items-center gap-1.5 text-xs text-app-text-subtle hover:text-app-text-muted transition-colors"
+              className="flex items-center gap-1.5 text-xs text-app-text-subtle transition-colors hover:text-app-text-muted"
             >
-              <FileJson className="w-3.5 h-3.5" />
+              <FileJson className="h-3.5 w-3.5" />
               {showJson ? '收起 JSON' : '高级：查看/编辑 JSON'}
-              {showJson ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+              {showJson ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
             </button>
             {showJson && (
               <div className="mt-2">
                 <textarea
                   value={JSON.stringify(data, null, 2)}
-                  onChange={(e) => {
-                    try {
-                      const parsed = JSON.parse(e.target.value);
-                      setData(parsed);
-                      setJsonError('');
-                    } catch (err: any) {
-                      setJsonError(err.message);
+                      onChange={(e) => {
+                        try {
+                          const parsed = JSON.parse(e.target.value) as WidgetCatalogItem;
+                          setData(parsed);
+                          setJsonError('');
+                        } catch (err: any) {
+                          setJsonError(err.message);
                     }
                   }}
-                  className="w-full h-48 p-3 text-[11px] font-mono rounded-lg bg-app-surface-subtle border border-app-border-subtle text-app-text resize-none focus:outline-none focus:border-red-400/50"
+                  className="h-56 w-full rounded-lg border border-app-border-subtle bg-app-surface-subtle p-3 font-mono text-[11px] text-app-text focus:border-red-400/50 focus:outline-none"
                   spellCheck={false}
                 />
                 {jsonError && <p className="mt-1 text-[10px] text-red-400">{jsonError}</p>}
@@ -685,26 +1361,86 @@ function TemplateEditor({ template, onSave, onClose, readOnly }: { template: any
           </section>
         </div>
 
-        {/* Footer */}
-        <div className="flex justify-end gap-2 px-5 py-3.5 border-t border-app-border-subtle">
-          <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm text-app-text-muted hover:bg-app-surface-subtle transition-colors">取消</button>
-          {!readOnly && (
-            <button onClick={handleSave} className="px-4 py-2 rounded-lg text-sm bg-red-500 text-white hover:bg-red-600 transition-colors">
-              {isEdit ? '保存' : '创建'}
-            </button>
-          )}
+        <div className="flex justify-end gap-2 border-t border-app-border-subtle px-5 py-3.5">
+          <button onClick={onClose} className="rounded-lg px-4 py-2 text-sm text-app-text-muted transition-colors hover:bg-app-surface-subtle">取消</button>
+          <button onClick={handleSave} className="rounded-lg bg-red-500 px-4 py-2 text-sm text-white transition-colors hover:bg-red-600">
+            {mode === 'edit' ? '保存' : mode === 'duplicate' ? '创建副本' : '创建组件'}
+          </button>
         </div>
       </div>
     </div>
   );
 }
 
-/* ── 子组件 ── */
+function WidgetDetailModal({
+  item,
+  onClose,
+  onEdit,
+}: {
+  item: WidgetCatalogItem;
+  onClose: () => void;
+  onEdit: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-app-overlay/80 p-4 backdrop-blur-sm">
+      <div className="flex max-h-[88vh] w-full max-w-3xl flex-col rounded-xl border border-app-border-subtle bg-app-surface shadow-xl">
+        <div className="flex items-center justify-between border-b border-app-border-subtle px-5 py-3.5">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-app-border-subtle" style={{ backgroundColor: `${item.color}18` }}>
+              <WorkspaceIcon icon={item.icon} color={item.color} className="h-4 w-4" />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-app-text">{item.name}</h3>
+              <div className="text-xs text-app-text-subtle">
+                {WIDGET_TYPE_LABELS[item.type]} · {item.category} · {item.id}
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <button onClick={onEdit} className="rounded-lg border border-app-border-subtle px-3 py-1.5 text-xs text-app-text-muted transition-colors hover:bg-app-surface-subtle hover:text-app-text">
+              {item.isBuiltin ? '基于此扩展' : '编辑组件'}
+            </button>
+            <button onClick={onClose} className="text-app-text-subtle hover:text-app-text-muted"><X className="h-4 w-4" /></button>
+          </div>
+        </div>
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+        <div className="flex-1 overflow-y-auto p-5 space-y-5">
+          <DetailBlock title="组件说明">{item.description}</DetailBlock>
+          <DetailBlock title="面向智能体的说明">{item.agentDescription}</DetailBlock>
+          <DetailBlock title="适用场景">{item.useCases.join('、') || '未填写'}</DetailBlock>
+          <DetailBlock title="标签">{item.tags.join('、') || '未填写'}</DetailBlock>
+          <DetailBlock title="推荐数据结构">
+            <pre className="whitespace-pre-wrap break-all rounded-lg bg-app-surface-subtle p-3 text-[11px] text-app-text-subtle">
+              {JSON.stringify(item.schemaHint?.recommendedDataShape || {}, null, 2)}
+            </pre>
+          </DetailBlock>
+          <DetailBlock title="布局建议">{item.schemaHint?.layoutAdvice || '未填写'}</DetailBlock>
+          <DetailBlock title="默认模板快照">
+            <pre className="whitespace-pre-wrap break-all rounded-lg bg-app-surface-subtle p-3 text-[11px] text-app-text-subtle">
+              {JSON.stringify(item.template || {}, null, 2)}
+            </pre>
+          </DetailBlock>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DetailBlock({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div>
-      <label className="block text-[11px] text-app-text-subtle mb-1">{label}</label>
+      <div className="mb-2 text-[11px] uppercase tracking-[0.16em] text-app-text-subtle">{title}</div>
+      <div className="rounded-xl border border-app-border-subtle bg-app-surface-subtle/30 px-4 py-3 text-sm leading-6 text-app-text-muted">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function Field({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div>
+      <label className="mb-1 block text-[11px] text-app-text-subtle">{label}</label>
       {children}
     </div>
   );
@@ -723,11 +1459,11 @@ function KeywordsInput({ keywords, onChange }: { keywords: string[]; onChange: (
 
   return (
     <div>
-      <div className="flex flex-wrap gap-1.5 mb-2">
-        {keywords.map((k, i) => (
-          <span key={i} className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-app-surface-subtle text-xs text-app-text-muted border border-app-border-subtle">
-            {k}
-            <button onClick={() => onChange(keywords.filter((_, idx) => idx !== i))} className="hover:text-red-400"><X className="w-3 h-3" /></button>
+      <div className="mb-2 flex flex-wrap gap-1.5">
+        {keywords.map((keyword, i) => (
+          <span key={`${keyword}-${i}`} className="inline-flex items-center gap-1 rounded-md border border-app-border-subtle bg-app-surface-subtle px-2 py-1 text-xs text-app-text-muted">
+            {keyword}
+            <button onClick={() => onChange(keywords.filter((_, idx) => idx !== i))} className="hover:text-red-400"><X className="h-3 w-3" /></button>
           </span>
         ))}
       </div>
@@ -736,17 +1472,61 @@ function KeywordsInput({ keywords, onChange }: { keywords: string[]; onChange: (
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && add()}
-          placeholder="输入关键词后回车"
-          className="flex-1 px-3 py-2 text-sm rounded-lg bg-app-surface-subtle border border-app-border-subtle text-app-text placeholder:text-app-text-subtle focus:outline-none focus:border-red-400/50"
+          className="flex-1 rounded-lg border border-app-border-subtle bg-app-surface-subtle px-3 py-2 text-sm text-app-text placeholder:text-app-text-subtle focus:border-red-400/50 focus:outline-none"
+          placeholder="输入后回车"
         />
-        <button onClick={add} className="px-3 py-2 rounded-lg text-sm bg-app-surface-subtle border border-app-border-subtle text-app-text-muted hover:bg-app-surface-hover transition-colors">添加</button>
+        <button onClick={add} className="rounded-lg border border-app-border-subtle bg-app-surface-subtle px-3 py-2 text-sm text-app-text-muted transition-colors hover:bg-app-surface-hover">添加</button>
       </div>
     </div>
   );
 }
 
-function AgentInput({ agentIds, primaryAgentId, onAgentIdsChange, onPrimaryChange }: {
-  agentIds: string[]; primaryAgentId: string; onAgentIdsChange: (ids: string[]) => void; onPrimaryChange: (id: string) => void;
+function TagListEditor({ label, values, onChange }: { label: string; values: string[]; onChange: (v: string[]) => void }) {
+  const [input, setInput] = useState('');
+
+  const add = () => {
+    const trimmed = input.trim();
+    if (trimmed && !values.includes(trimmed)) {
+      onChange([...values, trimmed]);
+      setInput('');
+    }
+  };
+
+  return (
+    <div>
+      <div className="mb-1 text-[11px] text-app-text-subtle">{label}</div>
+      <div className="mb-2 flex min-h-10 flex-wrap gap-1.5 rounded-lg border border-app-border-subtle bg-app-surface-subtle px-2 py-2">
+        {values.map((value, index) => (
+          <span key={`${value}-${index}`} className="inline-flex items-center gap-1 rounded-md border border-app-border-subtle bg-app-surface px-2 py-1 text-xs text-app-text-muted">
+            {value}
+            <button onClick={() => onChange(values.filter((_, idx) => idx !== index))} className="hover:text-red-400"><X className="h-3 w-3" /></button>
+          </span>
+        ))}
+      </div>
+      <div className="flex gap-2">
+        <input
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && add()}
+          className="flex-1 rounded-lg border border-app-border-subtle bg-app-surface-subtle px-3 py-2 text-sm text-app-text placeholder:text-app-text-subtle focus:border-red-400/50 focus:outline-none"
+          placeholder="输入后回车"
+        />
+        <button onClick={add} className="rounded-lg border border-app-border-subtle bg-app-surface-subtle px-3 py-2 text-sm text-app-text-muted transition-colors hover:bg-app-surface-hover">添加</button>
+      </div>
+    </div>
+  );
+}
+
+function AgentInput({
+  agentIds,
+  primaryAgentId,
+  onAgentIdsChange,
+  onPrimaryChange,
+}: {
+  agentIds: string[];
+  primaryAgentId: string;
+  onAgentIdsChange: (ids: string[]) => void;
+  onPrimaryChange: (id: string) => void;
 }) {
   const [input, setInput] = useState('');
 
@@ -762,24 +1542,27 @@ function AgentInput({ agentIds, primaryAgentId, onAgentIdsChange, onPrimaryChang
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap gap-1.5">
-        {agentIds.map((id: string) => (
+        {agentIds.map((id) => (
           <button
             key={id}
             onClick={() => onPrimaryChange(id)}
-            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs border transition-colors ${
+            className={`inline-flex items-center gap-1 rounded-md border px-2.5 py-1 text-xs transition-colors ${
               id === primaryAgentId
-                ? 'bg-red-500/10 text-red-400 border-red-500/30'
-                : 'bg-app-surface-subtle text-app-text-muted border-app-border-subtle hover:border-app-border'
+                ? 'border-red-500/30 bg-red-500/10 text-red-400'
+                : 'border-app-border-subtle bg-app-surface-subtle text-app-text-muted hover:border-app-border'
             }`}
-            title={id === primaryAgentId ? '主智能体（点击切换）' : '点击设为主智能体'}
           >
-            {id === primaryAgentId && <span className="w-1.5 h-1.5 rounded-full bg-red-400" />}
+            {id === primaryAgentId && <span className="h-1.5 w-1.5 rounded-full bg-red-400" />}
             {id}
             <span
-              onClick={(e) => { e.stopPropagation(); onAgentIdsChange(agentIds.filter((a: string) => a !== id)); if (primaryAgentId === id) onPrimaryChange(agentIds.find((a: string) => a !== id) || ''); }}
+              onClick={(e) => {
+                e.stopPropagation();
+                onAgentIdsChange(agentIds.filter((agentId) => agentId !== id));
+                if (primaryAgentId === id) onPrimaryChange(agentIds.find((agentId) => agentId !== id) || '');
+              }}
               className="ml-0.5 hover:text-red-400"
             >
-              <X className="w-3 h-3" />
+              <X className="h-3 w-3" />
             </span>
           </button>
         ))}
@@ -789,239 +1572,184 @@ function AgentInput({ agentIds, primaryAgentId, onAgentIdsChange, onPrimaryChang
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && add()}
-          placeholder="如: sales-agent"
-          className="flex-1 px-3 py-2 text-sm rounded-lg bg-app-surface-subtle border border-app-border-subtle text-app-text placeholder:text-app-text-subtle focus:outline-none focus:border-red-400/50"
+          placeholder="如: finance-agent"
+          className="flex-1 rounded-lg border border-app-border-subtle bg-app-surface-subtle px-3 py-2 text-sm text-app-text placeholder:text-app-text-subtle focus:border-red-400/50 focus:outline-none"
         />
-        <button onClick={add} className="px-3 py-2 rounded-lg text-sm bg-app-surface-subtle border border-app-border-subtle text-app-text-muted hover:bg-app-surface-hover transition-colors">添加</button>
+        <button onClick={add} className="rounded-lg border border-app-border-subtle bg-app-surface-subtle px-3 py-2 text-sm text-app-text-muted transition-colors hover:bg-app-surface-hover">添加</button>
       </div>
-      <p className="text-[10px] text-app-text-subtle">带红点的为主智能体，点击智能体标签可切换</p>
+      <p className="text-[10px] text-app-text-subtle">带红点的是主智能体，点击标签可切换。</p>
     </div>
   );
 }
 
-function WidgetEditorItem({ widget, index, onChange, onRemove }: { widget: any; index: number; onChange: (p: any) => void; onRemove: () => void }) {
+function WidgetEditorItem({
+  widget,
+  index,
+  onChange,
+  onRemove,
+}: {
+  widget: Widget;
+  index: number;
+  onChange: (patch: Partial<Widget>) => void;
+  onRemove: () => void;
+}) {
   const [expanded, setExpanded] = useState(false);
 
   return (
     <div className="rounded-lg border border-app-border-subtle bg-app-surface-subtle/50">
-      <div
-        className="flex items-center justify-between px-3 py-2 cursor-pointer hover:bg-app-surface-subtle transition-colors"
-        onClick={() => setExpanded(!expanded)}
-      >
+      <div className="flex cursor-pointer items-center justify-between px-3 py-2 transition-colors hover:bg-app-surface-subtle" onClick={() => setExpanded((prev) => !prev)}>
         <div className="flex items-center gap-2">
-          <span className="text-[10px] text-app-text-subtle w-5">#{index + 1}</span>
+          <span className="w-5 text-[10px] text-app-text-subtle">#{index + 1}</span>
           <span className="text-xs font-medium text-app-text">{widget.title}</span>
-          <span className="text-[10px] px-1.5 py-0.5 rounded bg-app-surface text-app-text-subtle border border-app-border-subtle">{widget.type}</span>
+          <span className="rounded border border-app-border-subtle bg-app-surface px-1.5 py-0.5 text-[10px] text-app-text-subtle">{widget.type}</span>
         </div>
         <div className="flex items-center gap-1">
-          {expanded ? <ChevronUp className="w-3.5 h-3.5 text-app-text-subtle" /> : <ChevronDown className="w-3.5 h-3.5 text-app-text-subtle" />}
+          {expanded ? <ChevronUp className="h-3.5 w-3.5 text-app-text-subtle" /> : <ChevronDown className="h-3.5 w-3.5 text-app-text-subtle" />}
           <button
-            onClick={(e) => { e.stopPropagation(); onRemove(); }}
-            className="p-1 rounded hover:bg-red-500/10 text-app-text-subtle hover:text-red-400 transition-colors"
+            onClick={(e) => {
+              e.stopPropagation();
+              onRemove();
+            }}
+            className="rounded p-1 text-app-text-subtle transition-colors hover:bg-red-500/10 hover:text-red-400"
           >
-            <Trash2 className="w-3 h-3" />
+            <Trash2 className="h-3 w-3" />
           </button>
         </div>
       </div>
 
       {expanded && (
-        <div className="px-3 pb-3 space-y-2.5 border-t border-app-border-subtle/50">
+        <div className="space-y-2.5 border-t border-app-border-subtle/50 px-3 pb-3">
           <div className="grid grid-cols-2 gap-2 pt-2">
-            <div>
-              <label className="block text-[10px] text-app-text-subtle mb-1">组件 ID</label>
+            <Field label="组件 ID">
               <input
                 value={widget.id}
                 onChange={(e) => onChange({ id: e.target.value })}
-                className="w-full px-2 py-1.5 text-xs rounded bg-app-surface border border-app-border-subtle text-app-text focus:outline-none focus:border-red-400/50"
+                className="w-full rounded border border-app-border-subtle bg-app-surface px-2 py-1.5 text-xs text-app-text focus:border-red-400/50 focus:outline-none"
               />
-            </div>
-            <div>
-              <label className="block text-[10px] text-app-text-subtle mb-1">标题</label>
+            </Field>
+            <Field label="标题">
               <input
                 value={widget.title}
                 onChange={(e) => onChange({ title: e.target.value })}
-                className="w-full px-2 py-1.5 text-xs rounded bg-app-surface border border-app-border-subtle text-app-text focus:outline-none focus:border-red-400/50"
+                className="w-full rounded border border-app-border-subtle bg-app-surface px-2 py-1.5 text-xs text-app-text focus:border-red-400/50 focus:outline-none"
               />
-            </div>
-            <div>
-              <label className="block text-[10px] text-app-text-subtle mb-1">类型</label>
+            </Field>
+            <Field label="类型">
               <select
                 value={widget.type}
-                onChange={(e) => onChange({ type: e.target.value })}
-                className="w-full px-2 py-1.5 text-xs rounded bg-app-surface border border-app-border-subtle text-app-text focus:outline-none focus:border-red-400/50"
+                onChange={(e) => onChange({ type: e.target.value as WidgetType })}
+                className="w-full rounded border border-app-border-subtle bg-app-surface px-2 py-1.5 text-xs text-app-text focus:border-red-400/50 focus:outline-none"
               >
-                {WIDGET_TYPES.map((t) => <option key={t} value={t}>{WIDGET_TYPE_LABELS[t] || t}</option>)}
+                {WIDGET_TYPES.map((type) => (
+                  <option key={type} value={type}>{WIDGET_TYPE_LABELS[type]}</option>
+                ))}
               </select>
-            </div>
+            </Field>
             <div>
-              <label className="block text-[10px] text-app-text-subtle mb-1">位置 (x,y,w,h)</label>
+              <label className="mb-1 block text-[10px] text-app-text-subtle">位置 (x,y,w,h)</label>
               <div className="flex gap-1">
-                {(['x', 'y', 'w', 'h'] as const).map((k) => (
+                {(['x', 'y', 'w', 'h'] as const).map((key) => (
                   <input
-                    key={k}
+                    key={key}
                     type="number"
-                    value={widget.position?.[k] ?? 0}
-                    onChange={(e) => onChange({ position: { ...widget.position, [k]: Number(e.target.value) } })}
-                    className="w-12 px-1.5 py-1.5 text-xs text-center rounded bg-app-surface border border-app-border-subtle text-app-text focus:outline-none focus:border-red-400/50"
+                    value={widget.position?.[key] ?? 0}
+                    onChange={(e) => onChange({ position: { ...widget.position, [key]: Number(e.target.value) } })}
+                    className="w-12 rounded border border-app-border-subtle bg-app-surface px-1.5 py-1.5 text-center text-xs text-app-text focus:border-red-400/50 focus:outline-none"
                   />
                 ))}
               </div>
             </div>
           </div>
-          <div>
-            <label className="block text-[10px] text-app-text-subtle mb-1">数据 (JSON)</label>
+
+          <Field label="数据 (JSON)">
             <textarea
               value={JSON.stringify(widget.data || {}, null, 2)}
               onChange={(e) => {
-                try { onChange({ data: JSON.parse(e.target.value) }); } catch { /* ignore */ }
+                try {
+                  onChange({ data: JSON.parse(e.target.value) });
+                } catch {
+                  // ignore while editing
+                }
               }}
-              className="w-full h-20 p-2 text-[10px] font-mono rounded bg-app-surface border border-app-border-subtle text-app-text resize-none focus:outline-none focus:border-red-400/50"
+              className="h-24 w-full rounded border border-app-border-subtle bg-app-surface p-2 font-mono text-[10px] text-app-text focus:border-red-400/50 focus:outline-none"
               spellCheck={false}
             />
-          </div>
-          {/* Detail 结构化配置 */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <label className="block text-[10px] text-app-text-subtle">详情配置</label>
-              <button
-                onClick={() => onChange({ detail: { type: 'slide-out', content: '# 详细报告\n\n## 核心发现\n- 指标A：较去年同期增长12%\n- 指标B：达到预期目标\n\n## 建议行动\n1. 继续监控趋势\n2. 优化资源配置', width: '480px' } })}
-                className="text-[9px] text-app-text-subtle hover:text-indigo-400 transition-colors"
-                title="填入样例"
-              >
-                填入样例
-              </button>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="block text-[9px] text-app-text-subtle/70 mb-0.5">类型</label>
-                <select
-                  value={widget.detail?.type || ''}
-                  onChange={(e) => onChange({ detail: { ...widget.detail, type: e.target.value || undefined } })}
-                  className="w-full px-2 py-1 text-[10px] rounded bg-app-surface border border-app-border-subtle text-app-text focus:outline-none focus:border-red-400/50"
-                >
-                  <option value="">无</option>
-                  <option value="slide-out">侧滑面板</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-[9px] text-app-text-subtle/70 mb-0.5">宽度</label>
-                <input
-                  value={widget.detail?.width || ''}
-                  onChange={(e) => onChange({ detail: { ...widget.detail, width: e.target.value || undefined } })}
-                  placeholder="480px"
-                  className="w-full px-2 py-1 text-[10px] rounded bg-app-surface border border-app-border-subtle text-app-text focus:outline-none focus:border-red-400/50"
-                />
-              </div>
-            </div>
-            <div>
-              <label className="block text-[9px] text-app-text-subtle/70 mb-0.5">静态内容 (markdown/html)</label>
-              <textarea
-                value={typeof widget.detail?.content === 'string' ? widget.detail.content : ''}
-                onChange={(e) => onChange({ detail: { ...widget.detail, content: e.target.value || undefined } })}
-                placeholder="# 标题\n详细内容..."
-                className="w-full h-14 p-2 text-[10px] font-mono rounded bg-app-surface border border-app-border-subtle text-app-text resize-none focus:outline-none focus:border-red-400/50"
-                spellCheck={false}
-              />
-            </div>
-          </div>
-
-          {/* Link 结构化配置 */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <label className="block text-[10px] text-app-text-subtle">关联/穿透</label>
-              <button
-                onClick={() => onChange({ link: { type: 'workspace', targetTemplate: 'financial-decision', title: '下钻到财务驾驶舱' } })}
-                className="text-[9px] text-app-text-subtle hover:text-indigo-400 transition-colors"
-                title="填入样例"
-              >
-                填入样例
-              </button>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="block text-[9px] text-app-text-subtle/70 mb-0.5">类型</label>
-                <select
-                  value={widget.link?.type || ''}
-                  onChange={(e) => onChange({ link: { ...widget.link, type: e.target.value || undefined } })}
-                  className="w-full px-2 py-1 text-[10px] rounded bg-app-surface border border-app-border-subtle text-app-text focus:outline-none focus:border-red-400/50"
-                >
-                  <option value="">无</option>
-                  <option value="workspace">驾驶舱跳转</option>
-                  <option value="widget">组件详情</option>
-                  <option value="url">外部链接</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-[9px] text-app-text-subtle/70 mb-0.5">标题</label>
-                <input
-                  value={widget.link?.title || ''}
-                  onChange={(e) => onChange({ link: { ...widget.link, title: e.target.value || undefined } })}
-                  placeholder="链接标题"
-                  className="w-full px-2 py-1 text-[10px] rounded bg-app-surface border border-app-border-subtle text-app-text focus:outline-none focus:border-red-400/50"
-                />
-              </div>
-            </div>
-            {widget.link?.type === 'workspace' && (
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="block text-[9px] text-app-text-subtle/70 mb-0.5">目标驾驶舱ID</label>
-                  <input
-                    value={widget.link?.targetId || ''}
-                    onChange={(e) => onChange({ link: { ...widget.link, targetId: e.target.value || undefined } })}
-                    placeholder="workspace-id"
-                    className="w-full px-2 py-1 text-[10px] rounded bg-app-surface border border-app-border-subtle text-app-text focus:outline-none focus:border-red-400/50"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[9px] text-app-text-subtle/70 mb-0.5">或目标模板ID</label>
-                  <input
-                    value={widget.link?.targetTemplate || ''}
-                    onChange={(e) => onChange({ link: { ...widget.link, targetTemplate: e.target.value || undefined } })}
-                    placeholder="template-id"
-                    className="w-full px-2 py-1 text-[10px] rounded bg-app-surface border border-app-border-subtle text-app-text focus:outline-none focus:border-red-400/50"
-                  />
-                </div>
-              </div>
-            )}
-            {widget.link?.type === 'widget' && (
-              <div>
-                <label className="block text-[9px] text-app-text-subtle/70 mb-0.5">目标组件ID</label>
-                <input
-                  value={widget.link?.targetId || ''}
-                  onChange={(e) => onChange({ link: { ...widget.link, targetId: e.target.value || undefined } })}
-                  placeholder="widget-id"
-                  className="w-full px-2 py-1 text-[10px] rounded bg-app-surface border border-app-border-subtle text-app-text focus:outline-none focus:border-red-400/50"
-                />
-              </div>
-            )}
-            {widget.link?.type === 'url' && (
-              <div>
-                <label className="block text-[9px] text-app-text-subtle/70 mb-0.5">URL</label>
-                <input
-                  value={widget.link?.url || ''}
-                  onChange={(e) => onChange({ link: { ...widget.link, url: e.target.value || undefined } })}
-                  placeholder="https://..."
-                  className="w-full px-2 py-1 text-[10px] rounded bg-app-surface border border-app-border-subtle text-app-text focus:outline-none focus:border-red-400/50"
-                />
-              </div>
-            )}
-          </div>
+          </Field>
         </div>
       )}
     </div>
   );
 }
 
-/* ── 初始化 ── */
-function initFormData(template: any | null) {
-  if (template) return JSON.parse(JSON.stringify(template));
+function WidgetSnapshotEditor({
+  widget,
+  onChange,
+}: {
+  widget: Partial<Widget>;
+  onChange: (widget: Partial<Widget>) => void;
+}) {
+  const safeWidget = {
+    id: widget.id || 'widget-template',
+    type: widget.type || 'metric',
+    title: widget.title || '组件标题',
+    position: widget.position || { x: 0, y: 0, w: 4, h: 3 },
+    data: widget.data || {},
+    dataSource: widget.dataSource,
+    dataIntent: widget.dataIntent,
+    detail: widget.detail,
+    link: widget.link,
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="grid grid-cols-2 gap-2">
+        <Field label="标题">
+          <input
+            value={safeWidget.title}
+            onChange={(e) => onChange({ ...safeWidget, title: e.target.value })}
+            className="w-full rounded-lg border border-app-border-subtle bg-app-surface-subtle px-3 py-2 text-sm text-app-text focus:border-red-400/50 focus:outline-none"
+          />
+        </Field>
+        <Field label="类型">
+          <select
+            value={safeWidget.type}
+            onChange={(e) => onChange({ ...safeWidget, type: e.target.value as WidgetType })}
+            className="w-full rounded-lg border border-app-border-subtle bg-app-surface-subtle px-3 py-2 text-sm text-app-text focus:border-red-400/50 focus:outline-none"
+          >
+            {WIDGET_TYPES.map((type) => (
+              <option key={type} value={type}>{WIDGET_TYPE_LABELS[type]}</option>
+            ))}
+          </select>
+        </Field>
+      </div>
+
+      <Field label="默认数据 (JSON)">
+        <textarea
+          value={JSON.stringify(safeWidget.data || {}, null, 2)}
+          onChange={(e) => {
+            try {
+              onChange({ ...safeWidget, data: JSON.parse(e.target.value) });
+            } catch {
+              // ignore
+            }
+          }}
+          className="h-28 w-full rounded-lg border border-app-border-subtle bg-app-surface-subtle p-3 font-mono text-[11px] text-app-text focus:border-red-400/50 focus:outline-none"
+          spellCheck={false}
+        />
+      </Field>
+    </div>
+  );
+}
+
+function initTemplateFormData(template: TemplateFormData | null): TemplateFormData {
+  if (template) return cloneForForm(template);
   return {
     id: `custom-${Date.now().toString(36)}`,
     name: '',
     domain: '通用',
     keywords: [],
     icon: 'BarChart3',
-    color: '#6366f1',
+    color: '#ef4444',
     agentIds: [],
     primaryAgentId: '',
     description: '由驾驶舱智能体自动创建的{{name}}',
@@ -1031,8 +1759,72 @@ function initFormData(template: any | null) {
         type: 'metric',
         title: '核心指标',
         position: { x: 0, y: 0, w: 3, h: 2 },
-        data: { value: '—', change: '+0%', trend: 'up' },
+        data: { value: '—', change: '+0%', trend: 'flat' },
       },
     ],
+    initPrompt: '',
+    useDemoDataFallback: true,
+  };
+}
+
+function initWidgetCatalogFormData(item: WidgetCatalogItem | null): WidgetCatalogItem {
+  if (item) return sanitizeWidgetCatalogItemForForm(item);
+  return {
+    id: `custom-widget-${Date.now().toString(36)}`,
+    name: '',
+    type: 'metric',
+    category: '通用',
+    icon: 'BarChart3',
+    color: '#ef4444',
+    description: '',
+    agentDescription: '',
+    useCases: [],
+    tags: [],
+    schemaHint: {
+      recommendedDataShape: { value: 'string | number', change: 'string', trend: 'up | down | flat' },
+      layoutAdvice: '',
+    },
+    template: {
+      id: 'widget-template',
+      type: 'metric',
+      title: '核心指标',
+      position: { x: 0, y: 0, w: 3, h: 2 },
+      data: { value: '—', change: '+0%', trend: 'flat' },
+    },
+    isBuiltin: false,
+  };
+}
+
+function sanitizeTemplateForForm(template: CockpitTemplate): TemplateFormData {
+  const {
+    isBuiltin: _isBuiltin,
+    _custom: _custom,
+    createdAt: _createdAt,
+    updatedAt: _updatedAt,
+    ...rest
+  } = cloneForForm(template) as CockpitTemplate & Record<string, unknown>;
+
+  return {
+    ...rest,
+    keywords: Array.isArray(rest.keywords) ? rest.keywords : [],
+    agentIds: Array.isArray(rest.agentIds) ? rest.agentIds : [],
+    widgets: Array.isArray(rest.widgets) ? rest.widgets : [],
+  };
+}
+
+function sanitizeWidgetCatalogItemForForm(item: WidgetCatalogItem): WidgetCatalogItem {
+  const {
+    createdAt: _createdAt,
+    updatedAt: _updatedAt,
+    isBuiltin: _isBuiltin,
+    ...rest
+  } = cloneForForm(item) as WidgetCatalogItem;
+
+  return {
+    ...rest,
+    useCases: Array.isArray(rest.useCases) ? rest.useCases : [],
+    tags: Array.isArray(rest.tags) ? rest.tags : [],
+    template: rest.template || {},
+    isBuiltin: false,
   };
 }

@@ -2,6 +2,14 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import * as api from '@/api/client';
 import type { Agent, Workspace } from '@/types';
+import { normalizeWidgets } from '@/lib/widget-normalizer';
+
+function normalizeWorkspace(workspace: Workspace): Workspace {
+  return {
+    ...workspace,
+    widgets: normalizeWidgets(workspace.widgets),
+  };
+}
 
 // ─── useAgents ───
 export function useAgents() {
@@ -64,7 +72,7 @@ export function useWorkspaces() {
     setError(null);
     try {
       const data = await api.getWorkspaces();
-      setWorkspaces(data.workspaces);
+      setWorkspaces(data.workspaces.map(normalizeWorkspace));
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -88,7 +96,7 @@ export function useWorkspaceDetail(id: string | null) {
     setLoading(true);
     setError(null);
     api.getWorkspace(id)
-      .then((data) => setWorkspace(data.workspace))
+      .then((data) => setWorkspace(normalizeWorkspace(data.workspace)))
       .catch((err: unknown) => setError(err instanceof Error ? err.message : String(err)))
       .finally(() => setLoading(false));
   }, [id]);

@@ -3,11 +3,18 @@
 
 export interface WidgetTemplate {
   id: string;
-  type: 'metric' | 'chart' | 'table' | 'kanban' | 'timeline' | 'list' | 'report' | 'universal' | 'progress' | 'status';
+  type: 'metric' | 'chart' | 'table' | 'kanban' | 'timeline' | 'list' | 'report' | 'universal' | 'adaptive' | 'progress' | 'status';
   title: string;
   position: { x: number; y: number; w: number; h: number };
   data: Record<string, unknown>;
   dataSource?: Record<string, unknown>;
+  dataIntent?: {
+    domain?: string;
+    metricKey?: string;
+    sourcePreference?: 'real-time' | 'tool-first' | 'template-first';
+    priority?: 'high' | 'medium' | 'low';
+    required?: boolean;
+  };
   detail?: Record<string, unknown>;
   link?: Record<string, unknown>;
 }
@@ -49,4 +56,8 @@ export interface TemplateContext {
   entities: Record<string, string>;
   /** 识别到的领域 */
   domain: string;
+  /** 用户自定义的初始化指令，存在时表示期望 LLM 重新生成数据 */
+  initPrompt?: string;
+  /** 是否明确禁用模板 demo 数据回退 */
+  disableDemoDataFallback?: boolean;
 }

@@ -1,4 +1,4 @@
-import type { Agent, Connection, CreateConnectionInput, Workspace, CockpitTemplate } from '@/types';
+import type { Agent, Connection, CreateConnectionInput, Workspace, CockpitTemplate, WidgetCatalogItem } from '@/types';
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3001/api';
 
@@ -74,31 +74,31 @@ export function getConnections() {
 }
 
 export function createConnection(data: CreateConnectionInput) {
-  return fetchJson<{ connection: Connection }>('/connections', { method: 'POST', body: JSON.stringify(data) });
+  return adminFetch<{ connection: Connection }>('/connections', { method: 'POST', body: JSON.stringify(data) });
 }
 
 export function updateConnection(id: string, data: Partial<CreateConnectionInput>) {
-  return fetchJson<{ connection: Connection }>(`/connections/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+  return adminFetch<{ connection: Connection }>(`/connections/${id}`, { method: 'PUT', body: JSON.stringify(data) });
 }
 
 export function deleteConnection(id: string) {
-  return fetchJson<{ success: boolean }>(`/connections/${id}`, { method: 'DELETE' });
+  return adminFetch<{ success: boolean }>(`/connections/${id}`, { method: 'DELETE' });
 }
 
 export function testConnection(id: string) {
-  return fetchJson<{ success: boolean; message: string }>(`/connections/${id}/test`, { method: 'POST' });
+  return adminFetch<{ success: boolean; message: string }>(`/connections/${id}/test`, { method: 'POST' });
 }
 
 export function testConnectionConfig(data: { type: string; config: Connection['config'] }) {
-  return fetchJson<{ success: boolean; message: string }>('/connections/test', { method: 'POST', body: JSON.stringify(data) });
+  return adminFetch<{ success: boolean; message: string }>('/connections/test', { method: 'POST', body: JSON.stringify(data) });
 }
 
 export function connectConnection(id: string) {
-  return fetchJson<{ success: boolean; connection: Connection }>(`/connections/${id}/connect`, { method: 'POST' });
+  return adminFetch<{ success: boolean; connection: Connection }>(`/connections/${id}/connect`, { method: 'POST' });
 }
 
 export function disconnectConnection(id: string) {
-  return fetchJson<{ success: boolean; connection: Connection }>(`/connections/${id}/disconnect`, { method: 'POST' });
+  return adminFetch<{ success: boolean; connection: Connection }>(`/connections/${id}/disconnect`, { method: 'POST' });
 }
 
 // ─── CockpitAgent 智能对话 ───
@@ -109,17 +109,39 @@ export interface ChatDoneData {
   plan?: Record<string, unknown>;
   results?: Record<string, unknown>[];
   usedLLM?: boolean;
+  workspace?: Workspace;
+  initializing?: boolean;
+  initializationMode?: 'llm' | 'real-data';
+}
+
+export interface WorkspaceChatRequestContext {
+  history?: Array<{ role: 'user' | 'agent'; content: string }>;
+  runtimeWidgetData?: Array<{ widgetId?: string; title?: string; data?: Record<string, unknown> }>;
+  viewContext?: {
+    activeFilters?: Record<string, unknown>;
+    focusedWidget?: Record<string, unknown>;
+    drillContext?: Record<string, unknown>;
+  };
 }
 
 export function cockpitAgentChatStream(
   command: string,
   workspaceId: string | undefined,
   sessionId: string | undefined,
+  requestContext: WorkspaceChatRequestContext | undefined,
   onChunk: (chunk: string, stage?: string) => void,
   onDone: (data: ChatDoneData) => void,
   onError: (err: Error) => void
 ) {
-  const body = JSON.stringify({ command, workspaceId, sessionId, stream: true });
+  const body = JSON.stringify({
+    command,
+    workspaceId,
+    sessionId,
+    stream: true,
+    history: requestContext?.history,
+    runtimeWidgetData: requestContext?.runtimeWidgetData,
+    viewContext: requestContext?.viewContext,
+  });
 
   fetch(`${API_BASE}/agent/chat`, {
     method: 'POST',
@@ -169,6 +191,9 @@ export function cockpitAgentChatStream(
               suggestedCommands: Array.isArray(data.suggestedCommands) ? data.suggestedCommands as string[] : undefined,
               results: Array.isArray(data.results) ? data.results as Record<string, unknown>[] : undefined,
               usedLLM: data.usedLLM as boolean | undefined,
+              workspace: data.workspace as Workspace | undefined,
+              initializing: data.initializing as boolean | undefined,
+              initializationMode: data.initializationMode as 'llm' | 'real-data' | undefined,
             });
           } else if (typeof data.chunk === 'string') {
             onChunk(data.chunk, typeof data.stage === 'string' ? data.stage : undefined);
@@ -183,10 +208,15 @@ export function cockpitAgentChatStream(
 }
 
 // ─── Widget Data (Phase 4) ───
-export function refreshWidgetData(workspaceId: string, widgetId: string, context?: Record<string, unknown>) {
+export function refreshWidgetData(
+  workspaceId: string,
+  widgetId: string,
+  context?: Record<string, unknown>,
+  options?: { persist?: boolean }
+) {
   return fetchJson<{ data: unknown; source: string; latency: number }>(
     `/workspaces/${workspaceId}/widgets/${widgetId}/data`,
-    { method: 'POST', body: JSON.stringify({ context }) }
+    { method: 'POST', body: JSON.stringify({ context, persist: options?.persist ?? false }) }
   );
 }
 
@@ -197,14 +227,20 @@ export function getWidgetData(workspaceId: string, widgetId: string) {
 }
 
 // ─── Templates (Admin) ───
-const ADMIN_KEY = localStorage.getItem('adminKey') || '';
+function getAdminKey() {
+  try {
+    return localStorage.getItem('adminKey') || '';
+  } catch {
+    return '';
+  }
+}
 
 function adminFetch<T>(path: string, options?: RequestInit): Promise<T> {
   return fetchJson<T>(path, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
-      'X-Admin-Key': ADMIN_KEY,
+      'X-Admin-Key': getAdminKey(),
       ...(options?.headers || {}),
     },
   });
@@ -219,7 +255,7 @@ export function getTemplate(id: string) {
 }
 
 export function createCockpitFromTemplate(templateId: string, name?: string, initPrompt?: string) {
-  return fetchJson<{ workspace: Workspace; initializing: boolean }>(`/templates/${templateId}/create-cockpit`, {
+  return fetchJson<{ workspace: Workspace; initializing: boolean; initializationMode?: 'llm' | 'real-data' }>(`/templates/${templateId}/create-cockpit`, {
     method: 'POST',
     body: JSON.stringify({ name, initPrompt }),
   });
@@ -237,6 +273,34 @@ export function deleteTemplate(id: string) {
   return adminFetch<{ success: boolean }>(`/templates/${id}`, { method: 'DELETE' });
 }
 
+export function getWidgetCatalog() {
+  return fetchJson<{ widgets: WidgetCatalogItem[] }>('/widget-catalog');
+}
+
+export function getWidgetCatalogItem(id: string) {
+  return fetchJson<{ widget: WidgetCatalogItem }>(`/widget-catalog/${id}`);
+}
+
+export function createWidgetCatalogItem(data: Partial<WidgetCatalogItem>) {
+  return adminFetch<{ widget: WidgetCatalogItem }>('/widget-catalog', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export function updateWidgetCatalogItem(id: string, data: Partial<WidgetCatalogItem>) {
+  return adminFetch<{ widget: WidgetCatalogItem }>(`/widget-catalog/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+}
+
+export function deleteWidgetCatalogItem(id: string) {
+  return adminFetch<{ success: boolean }>(`/widget-catalog/${id}`, {
+    method: 'DELETE',
+  });
+}
+
 // SSE 流式对话（与驾驶舱主智能体）
 export interface WorkspaceChatDoneData {
   message: string;
@@ -249,11 +313,19 @@ export function workspaceCommandStream(
   command: string,
   agentId: string | undefined,
   sessionId: string | undefined,
+  requestContext: WorkspaceChatRequestContext | undefined,
   onChunk: (chunk: string) => void,
   onDone: (data: WorkspaceChatDoneData) => void,
   onError: (err: Error) => void
 ) {
-  const body = JSON.stringify({ command, agentId, sessionId });
+  const body = JSON.stringify({
+    command,
+    agentId,
+    sessionId,
+    history: requestContext?.history,
+    runtimeWidgetData: requestContext?.runtimeWidgetData,
+    viewContext: requestContext?.viewContext,
+  });
 
   fetch(`${API_BASE}/workspaces/${workspaceId}/chat`, {
     method: 'POST',
