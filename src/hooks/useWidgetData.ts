@@ -5,6 +5,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import type { Widget } from '@/types';
 import * as api from '@/api/client';
+import { normalizeWidgetDataPayload } from '@/lib/widget-normalizer';
 
 interface WidgetDataState {
   data: Record<string, unknown> | null;
@@ -15,7 +16,7 @@ interface WidgetDataState {
 
 export function useWidgetData(workspaceId: string, widget: Widget, useDemoDataFallback?: boolean, filterContext?: Record<string, unknown>) {
   const [state, setState] = useState<WidgetDataState>({
-    data: (widget.data ?? null) as Record<string, unknown> | null,
+    data: normalizeData(widget.data, widget.type),
     loading: false,
     error: null,
     source: null,
@@ -32,7 +33,7 @@ export function useWidgetData(workspaceId: string, widget: Widget, useDemoDataFa
       const shouldPersist = !filterContext || Object.keys(filterContext).length === 0;
       const result = await api.refreshWidgetData(workspaceId, widget.id, filterContext, { persist: shouldPersist });
       setState({
-        data: result.data as Record<string, unknown> | null,
+        data: normalizeData(result.data, widget.type),
         loading: false,
         error: null,
         source: result.source,
@@ -43,7 +44,7 @@ export function useWidgetData(workspaceId: string, widget: Widget, useDemoDataFa
       // 失败时优先保留已有的静态数据，仅在无数据时才构建空结构
       const hasStaticData = widget.data && typeof widget.data === 'object' && !Array.isArray(widget.data) && Object.keys(widget.data).length > 0;
       const fallbackData = hasStaticData
-        ? (widget.data as Record<string, unknown>)
+        ? normalizeData(widget.data, widget.type)
         : (buildEmptyData(widget.type) as Record<string, unknown>);
       setState((s) => ({
         ...s,
@@ -65,7 +66,7 @@ export function useWidgetData(workspaceId: string, widget: Widget, useDemoDataFa
 
     // 重置为静态数据（当 widget 变化时）
     setState({
-      data: (widget.data ?? null) as Record<string, unknown> | null,
+      data: normalizeData(widget.data, widget.type),
       loading: false,
       error: null,
       source: null,
@@ -104,6 +105,19 @@ export function useWidgetData(workspaceId: string, widget: Widget, useDemoDataFa
     source: state.source,
     refresh,
   };
+}
+
+function normalizeData(data: unknown, widgetType: string): Record<string, unknown> | null {
+  if (data === null || data === undefined) {
+    return null;
+  }
+  if (typeof data === 'string') {
+    return normalizeWidgetDataPayload({ content: data }, widgetType);
+  }
+  if (typeof data !== 'object' || Array.isArray(data)) {
+    return normalizeWidgetDataPayload({ value: data }, widgetType);
+  }
+  return normalizeWidgetDataPayload(data as Record<string, unknown>, widgetType);
 }
 
 /** 根据 widget 类型构建空数据结构 */

@@ -60,6 +60,11 @@ const BUILTIN_WIDGETS = [
         series: '可选，多序列图表使用',
       },
       layoutAdvice: '适合宽度 4-6、高度 3-4，避免过窄影响可读性。',
+      styleConfig: {
+        variant: 'auto | bar | donut',
+        donut: { innerRatio: 0.58, legendRatio: 0.42, maxSlices: 5 },
+        guidance: '2-5 个分类占比可用 donut；超过 5 个分类优先 bar/table，避免图例挤压。',
+      },
     },
     template: {
       type: 'chart',

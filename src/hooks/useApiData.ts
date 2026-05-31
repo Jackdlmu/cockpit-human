@@ -11,6 +11,19 @@ function normalizeWorkspace(workspace: Workspace): Workspace {
   };
 }
 
+function getWorkspaceCreatedTime(workspace: Workspace): number {
+  const time = new Date(workspace.createdAt || '').getTime();
+  return Number.isNaN(time) ? 0 : time;
+}
+
+function sortWorkspacesByCreatedDesc(workspaces: Workspace[]): Workspace[] {
+  return [...workspaces].sort((a, b) => {
+    const createdDelta = getWorkspaceCreatedTime(b) - getWorkspaceCreatedTime(a);
+    if (createdDelta !== 0) return createdDelta;
+    return String(b.id).localeCompare(String(a.id));
+  });
+}
+
 // ─── useAgents ───
 export function useAgents() {
   const [agents, setAgents] = useState<Agent[]>([]);
@@ -72,7 +85,7 @@ export function useWorkspaces() {
     setError(null);
     try {
       const data = await api.getWorkspaces();
-      setWorkspaces(data.workspaces.map(normalizeWorkspace));
+      setWorkspaces(sortWorkspacesByCreatedDesc(data.workspaces.map(normalizeWorkspace)));
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {

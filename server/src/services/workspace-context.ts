@@ -62,6 +62,7 @@ function summarizeWidgetData(data: Record<string, unknown>): string[] {
   const values = Array.isArray(data.values) ? data.values : [];
   const points = Array.isArray(data.points) ? data.points : [];
   const metrics = Array.isArray(data.metrics) ? data.metrics : [];
+  const highlights = Array.isArray(data.highlights) ? data.highlights : [];
   const sections = Array.isArray(data.sections) ? data.sections : [];
 
   if (summarizeScalar(metricValue)) {
@@ -108,6 +109,10 @@ function summarizeWidgetData(data: Record<string, unknown>): string[] {
   if (metrics.length > 0) {
     refs.push(`metrics=${metrics.length}`);
     refs.push(`指标=${summarizeListItems(metrics).slice(0, 160)}`);
+  }
+  if (highlights.length > 0) {
+    refs.push(`highlights=${highlights.length}`);
+    refs.push(`重点=${summarizeListItems(highlights).slice(0, 160)}`);
   }
   if (sections.length > 0) {
     refs.push(`sections=${sections.length}`);

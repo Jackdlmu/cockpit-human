@@ -25,6 +25,238 @@ import { normalizeWidgets } from '../services/widget-normalizer';
 import { createWorkspaceWithLifecycle } from '../services/workspace-creation';
 import { contextBuilder } from '../services/context-builder';
 
+function scalarToText(value: unknown): string {
+  if (value === null || value === undefined) return '';
+  if (typeof value === 'string') return value.trim();
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  return '';
+}
+
+function normalizeLooseText(value: unknown): string {
+  return scalarToText(value).replace(/\s+/g, '').toLowerCase();
+}
+
+function normalizeHistoryRole(role: string): ChatMessage['role'] {
+  if (role === 'assistant' || role === 'system' || role === 'tool' || role === 'user') {
+    return role;
+  }
+  if (role === 'agent') {
+    return 'assistant';
+  }
+  return 'user';
+}
+
+function isGenericReplyText(text: string): boolean {
+  const normalized = text.trim();
+  if (!normalized) return true;
+  return (
+    /^查询结果如下[:：]?$/.test(normalized) ||
+    /^命令执行成功[。.]?$/.test(normalized) ||
+    /^任务执行完毕[。.]?$/.test(normalized) ||
+    /^ok$/i.test(normalized) ||
+    /^success$/i.test(normalized)
+  );
+}
+
+function summarizeLabelValuePairs(labels: unknown[], values: unknown[], limit = 4): string {
+  return labels
+    .slice(0, Math.min(limit, values.length))
+    .map((label, index) => {
+      const left = scalarToText(label);
+      const right = scalarToText(values[index]);
+      return [left, right].filter(Boolean).join(' ');
+    })
+    .filter(Boolean)
+    .join('；');
+}
+
+function hasMeaningfulRecordData(record: Record<string, unknown>): boolean {
+  const preferredKeys = [
+    'message',
+    'summary',
+    'value',
+    'rows',
+    'items',
+    'metrics',
+    'highlights',
+    'alerts',
+    'stages',
+    'steps',
+    'labels',
+    'values',
+    'points',
+    'data',
+    'result',
+    'results',
+    'payload',
+  ];
+
+  for (const key of preferredKeys) {
+    if (hasMeaningfulTaskData(record[key])) {
+      return true;
+    }
+  }
+
+  return Object.entries(record)
+    .filter(([key]) => {
+      const normalizedKey = key.replace(/[_-]/g, '').toLowerCase();
+      if (
+        normalizedKey === 'sessionid' ||
+        normalizedKey === 'requestid' ||
+        normalizedKey === 'traceid' ||
+        normalizedKey === 'taskid' ||
+        normalizedKey === 'status' ||
+        normalizedKey === 'success' ||
+        normalizedKey === 'ok' ||
+        normalizedKey === 'code' ||
+        normalizedKey === 'latency' ||
+        normalizedKey === 'duration' ||
+        normalizedKey === 'elapsed'
+      ) {
+        return false;
+      }
+      if (normalizedKey.endsWith('id') || normalizedKey.endsWith('ids')) {
+        return false;
+      }
+      return true;
+    })
+    .some(([, value]) => hasMeaningfulTaskData(value));
+}
+
+function hasMeaningfulTaskData(data: unknown): boolean {
+  if (data === null || data === undefined) return false;
+  if (typeof data === 'string') return !isGenericReplyText(data);
+  if (typeof data === 'number') return true;
+  if (typeof data === 'boolean') return data;
+  if (Array.isArray(data)) return data.some((item) => hasMeaningfulTaskData(item));
+  if (typeof data === 'object') {
+    return hasMeaningfulRecordData(data as Record<string, unknown>);
+  }
+  return true;
+}
+
+function summarizeArrayValues(items: unknown[], limit = 3): string {
+  return items
+    .slice(0, limit)
+    .map((item) => {
+      if (typeof item === 'string' || typeof item === 'number' || typeof item === 'boolean') {
+        return String(item);
+      }
+      if (item && typeof item === 'object') {
+        const record = item as Record<string, unknown>;
+        const label = scalarToText(record.label ?? record.title ?? record.name ?? record.status ?? record.key);
+        const value = scalarToText(record.value ?? record.summary ?? record.description ?? record.detail);
+        return [label, value].filter(Boolean).join(' ');
+      }
+      return '';
+    })
+    .filter(Boolean)
+    .join('；');
+}
+
+function summarizeWidgetForReply(widget: any): string | null {
+  if (!widget || typeof widget !== 'object') return null;
+  const title = scalarToText(widget.title) || '未命名组件';
+  const data = widget.data && typeof widget.data === 'object' ? widget.data as Record<string, unknown> : {};
+
+  if (scalarToText(data.value)) {
+    const value = scalarToText(data.value);
+    const change = scalarToText(data.change);
+    return `${title}：${value}${change ? `（变化 ${change}）` : ''}`;
+  }
+
+  if (Array.isArray(data.metrics) && data.metrics.length > 0) {
+    const metrics = summarizeArrayValues(data.metrics, 4);
+    if (metrics) return `${title}：${metrics}`;
+  }
+
+  if (Array.isArray(data.highlights) && data.highlights.length > 0) {
+    const highlights = summarizeArrayValues(data.highlights, 4);
+    if (highlights) return `${title}：${highlights}`;
+  }
+
+  if (scalarToText(data.summary)) {
+    return `${title}：${scalarToText(data.summary).slice(0, 140)}`;
+  }
+
+  if (Array.isArray(data.labels) && Array.isArray(data.values) && data.labels.length > 0 && data.values.length > 0) {
+    const points = summarizeLabelValuePairs(data.labels, data.values as unknown[], 4);
+    if (points) return `${title}：${points}`;
+  }
+
+  if (Array.isArray(data.rows) && data.rows.length > 0) {
+    const rows = summarizeArrayValues(data.rows, 2);
+    if (rows) return `${title}：${rows}`;
+  }
+
+  if (Array.isArray(data.items) && data.items.length > 0) {
+    const items = summarizeArrayValues(data.items, 3);
+    if (items) return `${title}：${items}`;
+  }
+
+  if (Array.isArray(data.alerts) && data.alerts.length > 0) {
+    const alerts = summarizeArrayValues(data.alerts, 3);
+    if (alerts) return `${title}：${alerts}`;
+  }
+
+  if (Array.isArray(data.stages) && data.stages.length > 0) {
+    const stages = summarizeArrayValues(data.stages, 4);
+    if (stages) return `${title}：${stages}`;
+  }
+
+  if (Array.isArray(data.steps) && data.steps.length > 0) {
+    const steps = summarizeArrayValues(data.steps, 4);
+    if (steps) return `${title}：${steps}`;
+  }
+
+  return null;
+}
+
+function buildWorkspaceContextFallbackMessage(command: string, workspace?: WorkspaceData): string | null {
+  if (!workspace || !Array.isArray(workspace.widgets) || workspace.widgets.length === 0) {
+    return null;
+  }
+
+  const normalizedCommand = normalizeLooseText(command);
+  const ranked = workspace.widgets
+    .map((widget) => {
+      let score = 0;
+      const title = normalizeLooseText(widget?.title);
+      if (title && normalizedCommand.includes(title)) score += 5;
+
+      const data = widget?.data && typeof widget.data === 'object' ? widget.data as Record<string, unknown> : {};
+      const metricLabels = Array.isArray(data.metrics)
+        ? data.metrics.map((item) => normalizeLooseText((item as Record<string, unknown>)?.label))
+        : [];
+      const matchedMetric = metricLabels.some((label) => label && normalizedCommand.includes(label));
+      if (matchedMetric) score += 4;
+
+      const highlightLabels = Array.isArray(data.highlights)
+        ? data.highlights.map((item) => normalizeLooseText((item as Record<string, unknown>)?.label ?? (item as Record<string, unknown>)?.title))
+        : [];
+      const matchedHighlight = highlightLabels.some((label) => label && normalizedCommand.includes(label));
+      if (matchedHighlight) score += 4;
+
+      const chartLabels = Array.isArray(data.labels)
+        ? data.labels.map((item) => normalizeLooseText(item))
+        : [];
+      const matchedChartLabel = chartLabels.some((label) => label && normalizedCommand.includes(label));
+      if (matchedChartLabel) score += 3;
+
+      if (/(当前|这个|该|此|这里|上面|驾驶舱|组件|卡片|图上|页面|已有|现有)/.test(command)) score += 1;
+      return { widget, score };
+    })
+    .sort((a, b) => b.score - a.score);
+
+  const selected = (ranked.some((item) => item.score > 0) ? ranked.filter((item) => item.score > 0) : ranked)
+    .map((item) => summarizeWidgetForReply(item.widget))
+    .filter((item): item is string => !!item)
+    .slice(0, 4);
+
+  if (selected.length === 0) return null;
+  return `我没有拿到新的外部查询结果，但当前驾驶舱里已有这些信息：\n${selected.map((line, index) => `${index + 1}. ${line}`).join('\n')}`;
+}
+
 export class CockpitAgent {
   // 会话缓存：保存每个 session 的 planning 结果（用于 create 时复用 spec）
   private sessionCache = new Map<string, any>();
@@ -65,6 +297,138 @@ ${widgetSummary ? '组件列表：\n' + widgetSummary : ''}
     return connectors.find(c => c.type === 'generic-llm')
       || connectors.find(c => c.type === 'openclaw' || c.type === 'yonclaw')
       || connectors[0];
+  }
+
+  private shouldPreferWorkspaceContextAnswer(command: string, context: ExecutionContext, intent: Intent): boolean {
+    if (!context.workspace || (intent.type !== 'chat' && intent.type !== 'query_data')) {
+      return false;
+    }
+
+    if (/(刷新|更新|同步|重新获取|重新查询|联网|调用|抓取|拉取|执行|最新|实时)/.test(command)) {
+      return false;
+    }
+
+    if (intent.type === 'chat') {
+      return true;
+    }
+
+    if (/(当前|这个|该|此|这里|上面|驾驶舱|组件|卡片|图上|页面|已有|现有|显示|里面)/.test(command)) {
+      return true;
+    }
+
+    const normalizedCommand = normalizeLooseText(command);
+    return (context.workspace.widgets || []).some((widget: any) => {
+      const title = normalizeLooseText(widget?.title);
+      if (title && normalizedCommand.includes(title)) return true;
+      const data = widget?.data && typeof widget.data === 'object' ? widget.data as Record<string, unknown> : {};
+      if (Array.isArray(data.metrics)) {
+        return data.metrics.some((item) => {
+          const label = normalizeLooseText((item as Record<string, unknown>)?.label);
+          return label && normalizedCommand.includes(label);
+        });
+      }
+      if (Array.isArray(data.highlights)) {
+        const matchedHighlight = data.highlights.some((item) => {
+          const label = normalizeLooseText((item as Record<string, unknown>)?.label ?? (item as Record<string, unknown>)?.title);
+          return label && normalizedCommand.includes(label);
+        });
+        if (matchedHighlight) return true;
+      }
+      if (Array.isArray(data.labels)) {
+        const matchedLabel = data.labels.some((item) => {
+          const label = normalizeLooseText(item);
+          return label && normalizedCommand.includes(label);
+        });
+        if (matchedLabel) return true;
+      }
+      return intent.type === 'query_data';
+    });
+  }
+
+  private async answerFromWorkspaceContext(command: string, context: ExecutionContext, llmConnector: Connector): Promise<string> {
+    const systemPrompt = this.buildSystemPrompt(
+      context,
+      '你是一个智能驾驶舱助手。你可以查看驾驶舱中的数据、分析趋势、回答用户关于当前驾驶舱的问题。'
+    );
+    const messages: ChatMessage[] = [
+      { role: 'system', content: systemPrompt },
+      ...((context.history || []).map((h) => ({ role: normalizeHistoryRole(h.role), content: h.content }))),
+      { role: 'user', content: command },
+    ];
+    const reply = (await llmConnector.chat!(messages, { temperature: 0.3, maxTokens: 1200 })).trim();
+    if (!reply || isGenericReplyText(reply)) {
+      const fallback = buildWorkspaceContextFallbackMessage(command, context.workspace);
+      if (fallback) {
+        return fallback;
+      }
+    }
+    return reply || '当前驾驶舱里还没有足够的数据来回答这个问题，请先刷新或补充数据。';
+  }
+
+  private formatQueryResultMessage(results: SubTaskResult[], context: ExecutionContext): string | null {
+    const summarizeResultData = (data: unknown): string => {
+      if (typeof data === 'string') {
+        return isGenericReplyText(data) ? '' : data.trim();
+      }
+      if (Array.isArray(data)) {
+        return summarizeArrayValues(data, 4);
+      }
+      if (data && typeof data === 'object') {
+        const record = data as Record<string, unknown>;
+        const message = scalarToText(record.message);
+        if (message && !isGenericReplyText(message)) {
+          return message;
+        }
+
+        const nested = record.data ?? record.result ?? record.results ?? record.payload;
+        if (nested) {
+          const nestedSummary = summarizeResultData(nested);
+          if (nestedSummary) {
+            return nestedSummary;
+          }
+        }
+
+        if (scalarToText(record.summary)) {
+          return scalarToText(record.summary);
+        }
+        if (scalarToText(record.value)) {
+          return scalarToText(record.value);
+        }
+        const rows = Array.isArray(record.rows) ? summarizeArrayValues(record.rows, 3) : '';
+        if (rows) return rows;
+        const items = Array.isArray(record.items) ? summarizeArrayValues(record.items, 4) : '';
+        if (items) return items;
+        const metrics = Array.isArray(record.metrics) ? summarizeArrayValues(record.metrics, 4) : '';
+        if (metrics) return metrics;
+        const highlights = Array.isArray(record.highlights) ? summarizeArrayValues(record.highlights, 4) : '';
+        if (highlights) return highlights;
+        if (Array.isArray(record.labels) && Array.isArray(record.values)) {
+          const points = summarizeLabelValuePairs(record.labels, record.values as unknown[], 4);
+          if (points) return points;
+        }
+      }
+      return '';
+    };
+
+    const lines = results
+      .filter((result) => result.success && hasMeaningfulTaskData(result.data))
+      .map((result) => {
+        const summary = summarizeResultData(result.data);
+        if (!summary) {
+          return '';
+        }
+        if (/^查询结果如下[:：]/.test(summary) || /[。！？\n]$/.test(summary) || summary.length > 80) {
+          return summary;
+        }
+        return `查询结果如下：${summary}`;
+      })
+      .filter(Boolean);
+
+    if (lines.length > 0) {
+      return lines[0];
+    }
+
+    return buildWorkspaceContextFallbackMessage(context.command || '', context.workspace);
   }
 
   // ── 流式处理入口 ──
@@ -130,18 +494,14 @@ ${widgetSummary ? '组件列表：\n' + widgetSummary : ''}
     }
 
     // ── Phase 2: chat 意图短路路径（高置信度 + 无次要意图） ──
-    if (intent.type === 'chat' && intent.confidence >= 0.7 && (!multiResult || multiResult.secondary.length === 0) && llmConnector && llmConnector.chat) {
-      yield { chunk: `💬 直接对话（基于「${context.workspace?.name || '当前驾驶舱'}」上下文）...\n`, stage: 'thinking', done: false };
+    const canShortcutByContext = llmConnector && llmConnector.chat
+      && (!multiResult || multiResult.secondary.length === 0)
+      && ((intent.type === 'chat' && intent.confidence >= 0.7) || this.shouldPreferWorkspaceContextAnswer(command, context, intent));
+    if (canShortcutByContext && llmConnector && llmConnector.chat) {
+      yield { chunk: `💬 基于「${context.workspace?.name || '当前驾驶舱'}」上下文直接回答...\n`, stage: 'thinking', done: false };
       const chatStart = Date.now();
       try {
-        const systemPrompt = this.buildSystemPrompt(context,
-          '你是一个智能驾驶舱助手。你可以查看驾驶舱中的数据、分析趋势、回答用户关于当前驾驶舱的问题。');
-        const messages: ChatMessage[] = [
-          { role: 'system', content: systemPrompt },
-          ...((context.history || []).map((h) => ({ role: h.role as 'user' | 'assistant', content: h.content }))),
-          { role: 'user', content: command },
-        ];
-        const reply = await llmConnector.chat(messages, { temperature: 0.7, maxTokens: 1200 });
+        const reply = await this.answerFromWorkspaceContext(command, context, llmConnector);
         const latency = Date.now() - chatStart;
         yield { chunk: `\n`, stage: 'summarizing', done: false };
         yield {
@@ -150,20 +510,20 @@ ${widgetSummary ? '组件列表：\n' + widgetSummary : ''}
           done: true,
           message: reply,
           card: null,
-          suggestedCommands: this.suggestCommands('chat'),
+          suggestedCommands: this.suggestCommands(intent.type),
           results: [{ taskId: 'direct-chat', success: true, data: reply, latency }],
           usedLLM: true,
         };
         return {
           message: reply,
           card: null,
-          suggestedCommands: this.suggestCommands('chat'),
+          suggestedCommands: this.suggestCommands(intent.type),
           plan: undefined,
           results: [{ taskId: 'direct-chat', success: true, data: reply, latency }],
           sessionId: context.sessionId,
         };
       } catch (err: any) {
-        console.warn('[CockpitAgent] Chat shortcut failed:', err.message, '→ falling back to full pipeline');
+        console.warn('[CockpitAgent] Context shortcut failed:', err.message, '→ falling back to full pipeline');
         yield { chunk: `⚠️ 直接对话失败，回退到标准流程...\n`, stage: 'thinking', done: false };
       }
     }
@@ -345,6 +705,21 @@ ${widgetSummary ? '组件列表：\n' + widgetSummary : ''}
     context.command = command;
 
     let intent = await recognizeIntent(command, llmConnector);
+
+    if (llmConnector && llmConnector.chat && this.shouldPreferWorkspaceContextAnswer(command, context, intent)) {
+      try {
+        const reply = await this.answerFromWorkspaceContext(command, context, llmConnector);
+        return {
+          message: reply,
+          card: null,
+          suggestedCommands: this.suggestCommands(intent.type),
+          results: [{ taskId: 'direct-context-chat', success: true, data: reply, latency: 0 }],
+          sessionId: context.sessionId,
+        };
+      } catch (err: any) {
+        console.warn('[CockpitAgent] Non-stream context shortcut failed:', err.message, '→ falling back to pipeline');
+      }
+    }
 
     // 已有 Workspace 上下文保护
     if (context.workspaceId && (intent.type === 'create_cockpit' || intent.type === 'plan_cockpit')) {
@@ -752,9 +1127,10 @@ ${widgetSummary ? '组件列表：\n' + widgetSummary : ''}
     // 所有任务成功
     const allSuccess = results.every((r) => r.success);
     const successResults = results.filter((r) => r.success);
+    const hasMeaningfulSuccessData = successResults.some((result) => hasMeaningfulTaskData(result.data));
 
     // 先通过规则聚合获取 card（LLM 聚合可能丢失结构化数据）
-    const ruleResult = this.aggregateByRule(plan, results);
+    const ruleResult = this.aggregateByRule(plan, results, context);
 
     // chat 意图：executeSubTask 的 llm-chat 已返回完整回答，无需再次总结
     if (plan.intent.type === 'chat') {
@@ -772,6 +1148,30 @@ ${widgetSummary ? '组件列表：\n' + widgetSummary : ''}
       }
       // 否则 fallback 到规则聚合
       return ruleResult;
+    }
+
+    if (plan.intent.type === 'query_data' && !hasMeaningfulSuccessData) {
+      if (llmConnector && llmConnector.chat && context.workspace) {
+        try {
+          const reply = await this.answerFromWorkspaceContext(context.command || plan.intent.raw, context, llmConnector);
+          return {
+            message: reply,
+            card: ruleResult.card,
+            suggestedCommands: this.suggestCommands(plan.intent.type),
+          };
+        } catch (err: any) {
+          console.warn('[CockpitAgent] Query fallback to context chat failed:', err.message);
+        }
+      }
+
+      const fallback = buildWorkspaceContextFallbackMessage(context.command || plan.intent.raw, context.workspace);
+      if (fallback) {
+        return {
+          message: fallback,
+          card: ruleResult.card,
+          suggestedCommands: this.suggestCommands(plan.intent.type),
+        };
+      }
     }
 
     // 尝试用 LLM 生成优美的聚合回复
@@ -807,6 +1207,7 @@ ${widgetSummary ? '组件列表：\n' + widgetSummary : ''}
       `意图：${plan.intent.type}`,
       `驾驶舱ID：${context.workspaceId || '无'}`,
       '',
+      context.promptContext ? `当前驾驶舱上下文：\n${context.promptContext}\n` : '',
       '执行结果：',
     ];
 
@@ -823,7 +1224,8 @@ ${widgetSummary ? '组件列表：\n' + widgetSummary : ''}
 
   private aggregateByRule(
     plan: TaskPlan,
-    results: SubTaskResult[]
+    results: SubTaskResult[],
+    context: ExecutionContext
   ): Pick<CockpitAgentResponse, 'message' | 'card' | 'suggestedCommands'> {
     const successCount = results.filter((r) => r.success).length;
     const totalCount = results.length;
@@ -901,7 +1303,13 @@ ${widgetSummary ? '组件列表：\n' + widgetSummary : ''}
           : `命令执行遇到问题（${totalCount - successCount} 个失败）。`;
         break;
       case 'query_data':
-        message = successCount > 0 ? '查询结果如下：' : '查询失败，请稍后重试。';
+        message = successCount > 0
+          ? (
+            this.formatQueryResultMessage(results, context)
+            || buildWorkspaceContextFallbackMessage(context.command || '', context.workspace)
+            || '当前未返回可展示的数据，请尝试刷新数据或换个问法。'
+          )
+          : '查询失败，请稍后重试。';
         break;
       case 'list_agents':
         message = successCount > 0 ? '当前可用智能体：' : '无法获取智能体列表。';

@@ -30,6 +30,7 @@ describe('API Integration Tests', () => {
     fs.mkdirSync(tmpDir, { recursive: true });
     fs.writeFileSync(path.join(tmpDir, 'workspaces.json'), JSON.stringify({ workspaces: [] }), 'utf-8');
     __setTestDir(tmpDir);
+    process.env.LOCAL_REPORT_ROOTS = tmpDir;
     loadBuiltinTemplates();
     loadCustomTemplates();
     registerBuiltinTools();
@@ -38,6 +39,7 @@ describe('API Integration Tests', () => {
   });
 
   afterEach(() => {
+    delete process.env.LOCAL_REPORT_ROOTS;
     cleanup(tmpDir);
   });
 
@@ -57,6 +59,29 @@ describe('API Integration Tests', () => {
       expect(res.status).toBe(200);
       expect(res.body).toHaveProperty('agents');
       expect(Array.isArray(res.body.agents)).toBe(true);
+    });
+  });
+
+  describe('GET /reports/local', () => {
+    it('serves allowed local html reports', async () => {
+      const reportPath = path.join(tmpDir, 'full-report.html');
+      fs.writeFileSync(reportPath, '<!DOCTYPE html><html><body>本地报告</body></html>', 'utf-8');
+
+      const res = await request(app).get('/reports/local').query({ path: reportPath });
+
+      expect(res.status).toBe(200);
+      expect(res.headers['content-type']).toContain('text/html');
+      expect(res.text).toContain('本地报告');
+    });
+
+    it('rejects non-html local files', async () => {
+      const reportPath = path.join(tmpDir, 'secret.txt');
+      fs.writeFileSync(reportPath, 'secret', 'utf-8');
+
+      const res = await request(app).get('/reports/local').query({ path: reportPath });
+
+      expect(res.status).toBe(403);
+      expect(res.body.code).toBe('REPORT_PATH_FORBIDDEN');
     });
   });
 

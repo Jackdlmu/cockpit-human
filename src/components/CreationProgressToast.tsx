@@ -67,7 +67,7 @@ export default function CreationProgressToast({
 
   return (
     <div className="fixed bottom-6 right-6 z-50 w-80">
-      <div className="rounded-xl bg-app-surface-elevated border border-app-border shadow-xl shadow-black/40 p-4">
+      <div className="rounded-2xl border border-app-border/85 bg-[linear-gradient(180deg,rgba(255,255,255,0.97),rgba(248,245,244,0.94))] p-4 shadow-[0_18px_40px_rgba(15,23,42,0.18)]">
         {/* 头部 */}
         <div className="flex items-center gap-2 mb-3">
           {done ? (
@@ -79,11 +79,11 @@ export default function CreationProgressToast({
           ) : (
             <Loader2 className="w-4 h-4 text-red-400 animate-spin" />
           )}
-          <span className="text-sm font-medium text-app-text-secondary">{title}</span>
+          <span className="text-[15px] font-semibold text-app-text-secondary">{title}</span>
           {done && (
             <button
               onClick={onClose}
-              className="ml-auto text-[10px] text-app-text-subtle hover:text-app-text-muted transition-colors"
+              className="ml-auto text-[11px] text-app-text-subtle hover:text-app-text-muted transition-colors"
             >
               关闭
             </button>
@@ -92,7 +92,7 @@ export default function CreationProgressToast({
 
         {/* 统一阶段指示器 */}
         {!done && (
-          <div className="flex items-center gap-1.5 mb-3">
+          <div className="mb-3 flex flex-wrap items-center gap-1.5">
             {stageOrder.map((s, i) => {
               const isActive = stage === s;
               const isPast = stageOrder.indexOf(normalizedStage) > i;
@@ -104,8 +104,8 @@ export default function CreationProgressToast({
                     }`}
                   />
                   <span
-                    className={`text-[10px] transition-colors ${
-                      isActive ? 'text-app-text-muted' : isPast ? 'text-app-text-subtle' : 'text-app-border'
+                    className={`text-[11px] transition-colors ${
+                      isActive ? 'text-app-text-muted' : isPast ? 'text-app-text-subtle' : 'text-app-border-hover'
                     }`}
                   >
                     {stageConfig[s].label}
@@ -120,10 +120,10 @@ export default function CreationProgressToast({
         {!done && stage === 'initializing' && progressTotal && progressTotal > 0 && (
           <div className="mb-3">
             <div className="flex items-center justify-between mb-1">
-              <span className="text-[10px] text-app-text-subtle">
+              <span className="text-[11px] text-app-text-muted">
                 {progressLabel || '正在初始化组件'}
               </span>
-              <span className="text-[10px] text-app-text-subtle">
+              <span className="text-[11px] text-app-text-muted">
                 {progressCurrent ?? 0} / {progressTotal}
               </span>
             </div>
@@ -142,13 +142,13 @@ export default function CreationProgressToast({
         {config && !done && (
           <div className="flex items-center gap-1.5 mb-2">
             <span className={config.color}>{config.icon}</span>
-            <span className={`text-xs ${config.color}`}>{config.label}</span>
+            <span className={`text-[12px] font-medium ${config.color}`}>{config.label}</span>
           </div>
         )}
 
         {/* 消息内容 */}
         <div
-          className={`text-xs leading-relaxed whitespace-pre-wrap max-h-48 overflow-y-auto ${
+          className={`max-h-48 overflow-y-auto whitespace-pre-wrap text-[13px] leading-6 ${
             message.includes('❌') || message.includes('失败') || message.includes('错误')
               ? 'text-red-400'
               : success && done

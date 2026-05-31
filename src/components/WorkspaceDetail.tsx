@@ -18,6 +18,7 @@ import { CanvasGrid } from './CanvasGrid';
 import { WidgetLibraryPanel } from './WidgetLibraryPanel';
 import { inferWidgetType, isTypeMismatched } from '@/lib/widget-type-inferer';
 import { getDefaultWidgetSize, normalizeWidget, normalizeWidgets } from '@/lib/widget-normalizer';
+import { buildReportDisplayData } from '@/lib/report-widget';
 import { Switch } from '@/components/ui/switch';
 import { AgentAvatar } from '@/components/AgentAvatar';
 import { workspaceCommandStream, cockpitAgentChatStream, updateWorkspace } from '@/api/client';
@@ -294,6 +295,18 @@ function WorkspaceDetailInner({ workspaceId, agents, workspaces: allWorkspaces, 
     saveWidgets(updated);
   };
 
+  const handleRenameWidget = useCallback((widgetId: string, title: string) => {
+    const nextTitle = title.trim();
+    if (!nextTitle) return;
+    setLocalWidgets((prev) => {
+      const updated = prev.map((widget) => (
+        widget.id === widgetId ? { ...widget, title: nextTitle } : widget
+      ));
+      saveWidgets(updated);
+      return updated;
+    });
+  }, [saveWidgets]);
+
   const handleSaveTitle = useCallback(async () => {
     if (!workspace) return;
     if (editName === workspace.name && editDescription === (workspace.description || '')) return;
@@ -489,9 +502,9 @@ function WorkspaceDetailInner({ workspaceId, agents, workspaces: allWorkspaces, 
         : 'bg-app-text-subtle';
 
   return (
-    <div className="flex-1 flex flex-col min-w-0 bg-app-bg overflow-hidden">
+    <div className="bi-page flex-1 flex flex-col min-w-0 overflow-hidden">
       {/* Header */}
-      <div className="shrink-0 border-b border-app-border-subtle/80 bg-app-surface-elevated/95 backdrop-blur">
+      <div className="bi-toolbar shrink-0">
         <div className="px-6 py-4">
           <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
             <div className="min-w-0 flex-1">
@@ -690,7 +703,7 @@ function WorkspaceDetailInner({ workspaceId, agents, workspaces: allWorkspaces, 
       )}
 
       {/* Dashboard Grid — 画布模式 */}
-      <div className={`flex-1 overflow-y-auto sidebar-scroll p-6 ${isEditing ? 'bg-app-surface-subtle/30' : ''}`}>
+      <div className={`flex-1 overflow-y-auto sidebar-scroll p-5 pb-28 ${isEditing ? 'bg-app-surface-subtle/40' : ''}`}>
         <CanvasGrid
           widgets={localWidgets}
           isEditing={isEditing}
@@ -702,6 +715,7 @@ function WorkspaceDetailInner({ workspaceId, agents, workspaces: allWorkspaces, 
               widget={widget}
               useDemoDataFallback={workspace.useDemoDataFallback}
               isEditing={isEditing}
+              onRename={(title) => handleRenameWidget(widget.id, title)}
               onRuntimeDataChange={(snapshot) => {
                 setRuntimeWidgetSnapshots((prev) => {
                   const current = prev[widget.id];
@@ -1056,35 +1070,81 @@ const TYPE_GRADIENTS: Record<string, string> = {
   sparkline:'from-indigo-500/70 via-blue-400/50 to-transparent',
 };
 
-function WidgetRenderer({ workspaceId, widget, useDemoDataFallback, isEditing, onClick, onDrillDown, filterContext, onRuntimeDataChange }: { workspaceId: string; widget: Widget; useDemoDataFallback?: boolean; isEditing?: boolean; onClick?: () => void; onDrillDown?: (context: Record<string, unknown>, dimension: string) => void; filterContext?: Record<string, unknown>; onRuntimeDataChange?: (snapshot: RuntimeWidgetSnapshot | null) => void }) {
-  const gridSize = { w: widget.position.w, h: widget.position.h };
-  const hasDetail = !!widget.detail || !!((widget.data as Record<string, unknown>)?.detail) || !!((widget.data as Record<string, unknown>)?.fullContent) || widget.type === 'report' || widget.type === 'html';
-  const hasLink = !!widget.link;
-  const isClickable = !isEditing && (hasDetail || hasLink);
-  const gradient = TYPE_GRADIENTS[widget.type] || TYPE_GRADIENTS.universal;
+export function WidgetRenderer({ workspaceId, widget, useDemoDataFallback, isEditing, onClick, onRename, onDrillDown, filterContext, onRuntimeDataChange, previewMode = false }: { workspaceId: string; widget: Widget; useDemoDataFallback?: boolean; isEditing?: boolean; onClick?: () => void; onRename?: (title: string) => void; onDrillDown?: (context: Record<string, unknown>, dimension: string) => void; filterContext?: Record<string, unknown>; onRuntimeDataChange?: (snapshot: RuntimeWidgetSnapshot | null) => void; previewMode?: boolean }) {
+  const renderWidget = previewMode ? { ...widget, dataSource: undefined } : widget;
+  const [titleDraft, setTitleDraft] = useState(renderWidget.title);
+  const skipTitleCommitRef = useRef(false);
+  const gridSize = { w: renderWidget.position.w, h: renderWidget.position.h };
+  const hasDetail = !!renderWidget.detail || !!((renderWidget.data as Record<string, unknown>)?.detail) || !!((renderWidget.data as Record<string, unknown>)?.fullContent) || renderWidget.type === 'report' || renderWidget.type === 'html';
+  const hasLink = !!renderWidget.link;
+  const isClickable = !previewMode && !isEditing && (hasDetail || hasLink);
+  const canRename = !!isEditing && !previewMode && !!onRename;
+  const gradient = TYPE_GRADIENTS[renderWidget.type] || TYPE_GRADIENTS.universal;
+
+  useEffect(() => {
+    setTitleDraft(renderWidget.title);
+  }, [renderWidget.title]);
+
+  const commitTitle = useCallback(() => {
+    if (skipTitleCommitRef.current) {
+      skipTitleCommitRef.current = false;
+      return;
+    }
+    const nextTitle = titleDraft.trim();
+    if (!nextTitle) {
+      setTitleDraft(renderWidget.title);
+      return;
+    }
+    if (nextTitle !== renderWidget.title) {
+      onRename?.(nextTitle);
+    }
+  }, [onRename, renderWidget.title, titleDraft]);
 
   return (
     <div
-      className={`group relative h-full rounded-[22px] bg-gradient-to-b from-widget-bg via-widget-bg to-app-surface-subtle/30 border border-widget-border/80 overflow-hidden flex flex-col transition-all duration-300 ease-widget backdrop-blur-sm ${isEditing ? 'ring-1 ring-primary/20 shadow-lg shadow-primary/5' : 'shadow-widget hover:shadow-widget-hover hover:border-widget-border-hover'} ${isClickable ? 'cursor-pointer' : ''}`}
+      className={`bi-widget-shell group relative flex flex-col ${isEditing ? 'ring-1 ring-primary/25' : ''} ${isClickable ? 'cursor-pointer' : ''}`}
       onClick={isClickable ? onClick : undefined}
     >
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-app-surface-hover/70 via-transparent to-transparent opacity-70" />
       {/* 渐变顶部装饰线 */}
       <div className={`relative z-10 h-[3px] w-full bg-gradient-to-r ${gradient}`} />
       {/* 标题栏 */}
-      <div className="relative z-10 flex items-center justify-between px-3.5 py-2.5 border-b border-app-border-subtle/60 bg-app-surface-subtle/55 backdrop-blur-[2px]">
-        <div className="flex items-center gap-1.5 min-w-0">
-          <div className={`w-1.5 h-1.5 rounded-full bg-gradient-to-br ${gradient.replace('/70', '').replace('/50', '').replace(' to-transparent', '').replace(' via-', ' ')}`} />
-          <h4 className="text-[11px] font-medium text-app-text-muted truncate tracking-wide">{widget.title}</h4>
+      <div className="bi-widget-titlebar relative z-10">
+        <div className="flex min-w-0 flex-1 items-center gap-1.5">
+          <div className={`h-2 w-2 rounded-full bg-gradient-to-br shadow-sm ${gradient.replace('/70', '').replace('/50', '').replace(' to-transparent', '').replace(' via-', ' ')}`} />
+          {canRename ? (
+            <input
+              value={titleDraft}
+              onChange={(e) => setTitleDraft(e.target.value)}
+              onBlur={commitTitle}
+              onClick={(e) => e.stopPropagation()}
+              onMouseDown={(e) => e.stopPropagation()}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  e.currentTarget.blur();
+                }
+                if (e.key === 'Escape') {
+                  e.preventDefault();
+                  skipTitleCommitRef.current = true;
+                  setTitleDraft(renderWidget.title);
+                  e.currentTarget.blur();
+                }
+              }}
+              className="min-w-0 flex-1 rounded-md border border-app-border-subtle bg-app-surface px-2 py-1 text-[13px] font-semibold text-app-text-secondary outline-none transition-colors focus:border-primary/45 focus:bg-app-bg"
+              aria-label="组件名称"
+            />
+          ) : (
+            <h4 className="truncate text-[13px] font-semibold text-app-text-secondary tracking-[0.01em]">{renderWidget.title}</h4>
+          )}
         </div>
         <div className="flex items-center gap-1 shrink-0">
-          {hasLink && <ExternalLink className="w-3 h-3 text-app-text-subtle/60 group-hover:text-primary/70 transition-colors" />}
-          {hasDetail && <ArrowRight className="w-3 h-3 text-app-text-subtle/60 group-hover:text-primary/70 transition-colors" />}
+          {hasLink && <ExternalLink className="w-3.5 h-3.5 text-app-text-subtle/70 group-hover:text-primary/70 transition-colors" />}
+          {hasDetail && <ArrowRight className="w-3.5 h-3.5 text-app-text-subtle/70 group-hover:text-primary/70 transition-colors" />}
         </div>
       </div>
       {/* 内容区 */}
-      <div className="relative z-10 flex-1 p-3.5 min-h-0">
-        <WidgetContent workspaceId={workspaceId} widget={widget} useDemoDataFallback={useDemoDataFallback} gridSize={gridSize} onDrillDown={onDrillDown} filterContext={filterContext} onRuntimeDataChange={onRuntimeDataChange} />
+      <div className="bi-widget-content relative z-10 flex-1">
+        <WidgetContent workspaceId={workspaceId} widget={renderWidget} useDemoDataFallback={useDemoDataFallback} gridSize={gridSize} onDrillDown={onDrillDown} filterContext={filterContext} onRuntimeDataChange={onRuntimeDataChange} />
       </div>
     </div>
   );
@@ -1104,17 +1164,17 @@ function isEmptyValue(val: unknown): boolean {
 
 function EmptyWidgetState({ title, source, error, initError }: { title: string; source?: string; error?: string | null; initError?: string | null }) {
   return (
-    <div className="h-full flex flex-col items-center justify-center gap-2">
-      <div className="w-8 h-8 rounded-xl bg-app-surface-subtle border border-app-border-subtle flex items-center justify-center">
+    <div className="h-full flex flex-col items-center justify-center gap-2.5 text-center">
+      <div className="w-9 h-9 rounded-xl bg-app-surface-subtle border border-app-border-subtle flex items-center justify-center">
         <Monitor className="w-3.5 h-3.5 text-app-text-subtle/50" />
       </div>
-      <div className="text-[11px] text-app-text-subtle font-medium">
+      <div className="text-[13px] text-app-text-muted font-semibold">
         {initError ? '数据初始化失败' : error ? '数据获取失败' : '暂无数据'}
       </div>
-      {source === 'static' && <div className="text-[10px] text-app-text-subtle/60">演示数据</div>}
-      {error && <div className="text-[10px] text-app-text-subtle/40">{error}</div>}
-      {initError && <div className="text-[10px] text-app-text-subtle/40">{initError}</div>}
-      <div className="text-[10px] text-app-text-subtle/40">{title}</div>
+      {source === 'static' && <div className="text-[11px] text-app-text-subtle/80">演示数据</div>}
+      {error && <div className="max-w-[220px] text-[11px] leading-relaxed text-app-text-subtle/70">{error}</div>}
+      {initError && <div className="max-w-[220px] text-[11px] leading-relaxed text-app-text-subtle/70">{initError}</div>}
+      <div className="text-[11px] text-app-text-subtle/60">{title}</div>
     </div>
   );
 }
@@ -1163,6 +1223,61 @@ function toneClasses(tone?: WidgetMetricItem['tone'] | WidgetAdaptiveHeadline['t
     default:
       return { chip: 'bg-app-surface-subtle text-app-text-subtle border-app-border-subtle', text: 'text-app-text-secondary', dot: 'bg-primary/60' };
   }
+}
+
+const DATA_VIZ_PALETTE = [
+  {
+    hex: 'hsl(var(--primary))',
+    dotClass: 'bg-primary',
+    gradientClass: 'from-primary to-red-400',
+    badgeClass: 'bg-primary/8 border-primary/15 text-primary',
+  },
+  {
+    hex: '#0f766e',
+    dotClass: 'bg-teal-600',
+    gradientClass: 'from-teal-600 to-emerald-400',
+    badgeClass: 'bg-teal-500/8 border-teal-500/15 text-teal-600',
+  },
+  {
+    hex: '#d97706',
+    dotClass: 'bg-amber-500',
+    gradientClass: 'from-amber-500 to-orange-400',
+    badgeClass: 'bg-amber-500/8 border-amber-500/15 text-amber-600',
+  },
+  {
+    hex: '#4f46e5',
+    dotClass: 'bg-indigo-500',
+    gradientClass: 'from-indigo-600 to-indigo-400',
+    badgeClass: 'bg-indigo-500/8 border-indigo-500/15 text-indigo-600',
+  },
+  {
+    hex: '#e11d48',
+    dotClass: 'bg-rose-500',
+    gradientClass: 'from-rose-600 to-rose-400',
+    badgeClass: 'bg-rose-500/8 border-rose-500/15 text-rose-600',
+  },
+  {
+    hex: '#0284c7',
+    dotClass: 'bg-sky-500',
+    gradientClass: 'from-sky-600 to-cyan-400',
+    badgeClass: 'bg-sky-500/8 border-sky-500/15 text-sky-600',
+  },
+] as const;
+
+function getVizStyle(index: number) {
+  return DATA_VIZ_PALETTE[index % DATA_VIZ_PALETTE.length];
+}
+
+function getDensityProfile(gridSize: { w: number; h: number }) {
+  const compact = gridSize.w <= 2 || gridSize.h <= 2;
+  const relaxed = gridSize.w >= 5 || gridSize.h >= 4;
+  return {
+    compact,
+    relaxed,
+    bodyTextClass: compact ? 'text-[12px] leading-5' : 'text-[13px] leading-6',
+    labelTextClass: compact ? 'text-[11px]' : 'text-[12px]',
+    metaTextClass: compact ? 'text-[10px]' : 'text-[11px]',
+  };
 }
 
 function normalizeMetricItem(item: unknown, index: number): WidgetMetricItem | null {
@@ -1361,9 +1476,9 @@ function renderMetricChip(metric: WidgetMetricItem, index: number) {
   const tone = toneClasses(metric.tone);
   const trendText = metric.change || (metric.trend === 'up' ? '上升' : metric.trend === 'down' ? '下降' : '');
   return (
-    <div key={`${metric.label}-${index}`} className="rounded-xl border border-app-border-subtle/70 bg-app-surface-subtle/70 px-3 py-2.5">
+    <div key={`${metric.label}-${index}`} className="rounded-md border border-app-border-subtle bg-app-surface-subtle/55 px-3 py-2.5">
       <div className="flex items-start justify-between gap-2">
-        <span className="text-[10px] uppercase tracking-[0.16em] text-app-text-subtle">{metric.label}</span>
+        <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-app-text-muted">{metric.label}</span>
         {metric.trend && (
           <span className={`inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[9px] font-medium ${tone.chip}`}>
             <span className={`h-1.5 w-1.5 rounded-full ${tone.dot}`} />
@@ -1371,9 +1486,9 @@ function renderMetricChip(metric: WidgetMetricItem, index: number) {
           </span>
         )}
       </div>
-      <div className={`mt-1 text-sm font-semibold tabular-nums ${tone.text}`}>{metric.value}</div>
-      {trendText && <div className="mt-1 text-[10px] text-app-text-subtle">{trendText}</div>}
-      {metric.caption && <div className="mt-1 line-clamp-2 text-[10px] text-app-text-subtle/80">{metric.caption}</div>}
+      <div className={`bi-tabular mt-1.5 text-[15px] font-semibold ${tone.text}`}>{metric.value}</div>
+      {trendText && <div className="mt-1 text-[11px] text-app-text-muted">{trendText}</div>}
+      {metric.caption && <div className="mt-1 line-clamp-2 text-[11px] leading-relaxed text-app-text-subtle/85">{metric.caption}</div>}
     </div>
   );
 }
@@ -1382,13 +1497,14 @@ function renderAdaptiveSection(section: WidgetAdaptiveSection, gridSize: { w: nu
   const title = section.title || `区块 ${sectionIndex + 1}`;
   const maxMetrics = gridSize.w <= 3 ? 2 : gridSize.w >= 6 ? 4 : 3;
   const maxItems = gridSize.h <= 2 ? 2 : gridSize.h <= 3 ? 3 : 4;
+  const density = getDensityProfile(gridSize);
 
   return (
-    <div key={`${title}-${sectionIndex}`} className="rounded-2xl border border-app-border-subtle/70 bg-app-surface-subtle/60 p-3">
+    <div key={`${title}-${sectionIndex}`} className="rounded-2xl border border-app-border-subtle/75 bg-[linear-gradient(180deg,rgba(255,255,255,0.75),rgba(246,243,241,0.72))] p-3.5">
       {(section.title || section.description) && (
         <div className="mb-2.5">
-          {section.title && <div className="text-[11px] font-semibold text-app-text-secondary">{section.title}</div>}
-          {section.description && <div className="mt-1 text-[10px] text-app-text-subtle leading-relaxed">{section.description}</div>}
+          {section.title && <div className="text-[13px] font-semibold text-app-text-secondary">{section.title}</div>}
+          {section.description && <div className="mt-1 text-[11px] leading-relaxed text-app-text-muted">{section.description}</div>}
         </div>
       )}
 
@@ -1408,7 +1524,7 @@ function renderAdaptiveSection(section: WidgetAdaptiveSection, gridSize: { w: nu
             return (
               <div key={`${text}-${index}`} className="flex items-start gap-2 rounded-xl bg-widget-bg/65 px-2.5 py-2">
                 <div className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary/65" />
-                <span className="text-[11px] leading-relaxed text-app-text-secondary">{text}</span>
+                <span className={`${density.bodyTextClass} text-app-text-secondary`}>{text}</span>
               </div>
             );
           })}
@@ -1420,7 +1536,7 @@ function renderAdaptiveSection(section: WidgetAdaptiveSection, gridSize: { w: nu
           {Array.isArray(section.columns) && section.columns.length > 0 && (
             <div className="flex items-center gap-2 border-b border-app-border-subtle/60 px-2 pb-1.5">
               {section.columns.slice(0, gridSize.w <= 3 ? 2 : 3).map((column, index) => (
-                <span key={`${column}-${index}`} className="flex-1 truncate text-[10px] font-semibold uppercase tracking-[0.14em] text-app-text-subtle">
+                <span key={`${column}-${index}`} className="flex-1 truncate text-[11px] font-semibold uppercase tracking-[0.12em] text-app-text-muted">
                   {column}
                 </span>
               ))}
@@ -1438,7 +1554,7 @@ function renderAdaptiveSection(section: WidgetAdaptiveSection, gridSize: { w: nu
             return (
               <div key={`row-${index}`} className="flex items-center gap-2 rounded-xl bg-widget-bg/65 px-2.5 py-2">
                 {cells.slice(0, gridSize.w <= 3 ? 2 : 3).map((cell, cellIndex) => (
-                  <span key={`${cell}-${cellIndex}`} className={`flex-1 truncate text-[11px] ${cellIndex === 0 ? 'font-medium text-app-text-secondary' : 'text-app-text-muted'}`}>
+                  <span key={`${cell}-${cellIndex}`} className={`flex-1 truncate text-[12px] ${cellIndex === 0 ? 'font-semibold text-app-text-secondary' : 'text-app-text-muted'}`}>
                     {cell}
                   </span>
                 ))}
@@ -1451,7 +1567,7 @@ function renderAdaptiveSection(section: WidgetAdaptiveSection, gridSize: { w: nu
       {(section.type === 'text' || section.type === 'highlights' || section.type === 'status' || section.type === 'timeline') && (
         <>
           {section.content && (
-            <p className={`text-[11px] leading-relaxed text-app-text-secondary ${gridSize.h <= 2 ? 'line-clamp-3' : 'line-clamp-5'}`}>
+            <p className={`${density.bodyTextClass} text-app-text-secondary ${gridSize.h <= 2 ? 'line-clamp-3' : 'line-clamp-5'}`}>
               {section.content}
             </p>
           )}
@@ -1465,8 +1581,8 @@ function renderAdaptiveSection(section: WidgetAdaptiveSection, gridSize: { w: nu
                 const detail = record ? toStringValue(record.description || record.caption || record.note) : '';
                 return (
                   <div key={`${label}-${index}`} className="rounded-xl bg-widget-bg/65 px-2.5 py-2">
-                    <div className="text-[11px] font-medium text-app-text-secondary">{label}</div>
-                    {detail && <div className="mt-1 text-[10px] text-app-text-subtle">{detail}</div>}
+                    <div className={`${density.labelTextClass} font-semibold text-app-text-secondary`}>{label}</div>
+                    {detail && <div className="mt-1 text-[11px] leading-relaxed text-app-text-muted">{detail}</div>}
                   </div>
                 );
               })}
@@ -1480,6 +1596,7 @@ function renderAdaptiveSection(section: WidgetAdaptiveSection, gridSize: { w: nu
 
 function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onDrillDown, filterContext, onRuntimeDataChange }: { workspaceId: string; widget: Widget; useDemoDataFallback?: boolean; gridSize: { w: number; h: number }; onDrillDown?: (context: Record<string, unknown>, dimension: string) => void; filterContext?: Record<string, unknown>; onRuntimeDataChange?: (snapshot: RuntimeWidgetSnapshot | null) => void }) {
   const { data: liveData, loading, error, source } = useWidgetData(workspaceId, widget, useDemoDataFallback, filterContext);
+  const density = getDensityProfile(gridSize);
 
   // 使用动态数据（如果存在），否则回退到 widget.data
   const displayData = liveData || widget.data || {};
@@ -1551,8 +1668,8 @@ function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onD
         const contentText = d.content.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
         return (
           <div className="h-full flex flex-col">
-            <p className="text-xs text-app-text-secondary leading-relaxed line-clamp-4 flex-1">{contentText}</p>
-            <div className="flex items-center gap-1.5 text-[10px] text-app-text-subtle mt-2">
+            <p className="flex-1 text-[13px] leading-6 text-app-text-secondary line-clamp-4">{contentText}</p>
+            <div className="mt-2 flex items-center gap-1.5 text-[11px] text-app-text-muted">
               <FileText className="w-3 h-3" />
               <span>点击查看详情</span>
             </div>
@@ -1596,10 +1713,10 @@ function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onD
       if (variant === 'mini' || gridSize.h <= 1) {
         return (
           <div className="h-full flex flex-col justify-center px-3">
-            <span className="text-[10px] text-app-text-subtle uppercase tracking-wider">{widget.title}</span>
+            <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-app-text-muted">{widget.title}</span>
             <span className="text-lg font-bold text-app-text tracking-tight tabular-nums mt-0.5">{valueStr}</span>
             {!isEmptyValue(changeStr) && (
-              <span className={`text-[10px] mt-0.5 ${isPositive ? 'text-emerald-500' : isNegative ? 'text-red-500' : 'text-app-text-subtle'}`}>
+              <span className={`mt-0.5 text-[11px] ${isPositive ? 'text-emerald-500' : isNegative ? 'text-red-500' : 'text-app-text-muted'}`}>
                 {isPositive ? '▲' : isNegative ? '▼' : '—'} {changeStr}
               </span>
             )}
@@ -1635,10 +1752,10 @@ function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onD
           <div className={`h-full flex flex-col justify-center rounded-xl border ${cfg.border} ${cfg.bg} p-4`}>
             <div className="flex items-center gap-2">
               <div className={`w-2.5 h-2.5 rounded-full ${cfg.dot} ${status === 'danger' || status === 'warning' ? 'animate-pulse' : ''}`} />
-              <span className="text-xs text-app-text-subtle">{widget.title}</span>
+              <span className="text-[13px] text-app-text-muted">{widget.title}</span>
             </div>
             <span className={`text-2xl font-bold tracking-tight tabular-nums mt-2 ${cfg.text}`}>{valueStr}</span>
-            {!isEmptyValue(changeStr) && <span className="text-xs text-app-text-subtle mt-1">{changeStr}</span>}
+            {!isEmptyValue(changeStr) && <span className="mt-1 text-[12px] text-app-text-muted">{changeStr}</span>}
           </div>
         );
       }
@@ -1647,14 +1764,14 @@ function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onD
       if (variant === 'compare') {
         return (
           <div className="h-full flex flex-col justify-center rounded-xl border border-app-border-subtle bg-app-surface-subtle p-4">
-            <span className="text-[10px] text-app-text-subtle uppercase tracking-wider">{widget.title}</span>
+            <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-app-text-muted">{widget.title}</span>
             <div className="flex items-baseline gap-3 mt-2">
               <span className="text-2xl font-bold text-app-text tracking-tight tabular-nums">{valueStr}</span>
-              <span className="text-xs text-app-text-subtle">{compareLabel}</span>
+              <span className="text-[12px] text-app-text-muted">{compareLabel}</span>
               <span className="text-lg font-medium text-app-text-muted tabular-nums">{compareValue}</span>
             </div>
             {!isEmptyValue(changeStr) && (
-              <span className={`text-xs mt-1 ${isPositive ? 'text-emerald-500' : isNegative ? 'text-red-500' : 'text-app-text-subtle'}`}>
+              <span className={`mt-1 text-[12px] ${isPositive ? 'text-emerald-500' : isNegative ? 'text-red-500' : 'text-app-text-muted'}`}>
                 {changeStr}
               </span>
             )}
@@ -1688,7 +1805,7 @@ function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onD
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0 flex-1">
               <div
-                className={`${valueSize} font-bold tracking-tight tabular-nums leading-none ${thresholdColor ? thresholdColor.text : 'text-app-text'} cursor-pointer hover:opacity-80 transition-opacity`}
+                className={`${valueSize} bi-tabular font-semibold tracking-tight leading-none ${thresholdColor ? thresholdColor.text : 'text-app-text'} cursor-pointer transition-opacity hover:opacity-80`}
                 onClick={(e) => {
                   e.stopPropagation();
                   onDrillDown?.({ metric: widget.title, value: numericValue ?? valueStr }, `${widget.title}: ${valueStr}`);
@@ -1698,18 +1815,18 @@ function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onD
                 {valueStr}
               </div>
               {caption && (
-                <span className={`mt-1.5 block text-[11px] text-app-text-subtle/80 ${isCompact ? '' : ''}`}>{caption}</span>
+                <span className="mt-1.5 block text-[12px] leading-relaxed text-app-text-muted">{caption}</span>
               )}
             </div>
             {hasSparkline && gridSize.w >= 3 && (
-              <div className={`shrink-0 rounded-2xl border border-app-border-subtle/70 bg-app-surface-subtle/70 px-2.5 py-2 ${isCompact ? 'w-20' : 'w-28'}`}>
+              <div className={`shrink-0 rounded-md border border-app-border-subtle bg-app-surface-subtle/65 px-2.5 py-2 ${isCompact ? 'w-20' : 'w-28'}`}>
                 <Sparkline values={sparkline.values!} color={isPositive ? 'hsl(var(--success))' : trend === 'down' ? 'hsl(var(--destructive))' : 'hsl(var(--info))'} height={isCompact ? 26 : 32} />
               </div>
             )}
           </div>
 
           {showChange && (
-            <div className={`flex items-center gap-1.5 ${isCompact ? 'text-[11px]' : 'text-xs'}`}>
+            <div className={`flex items-center gap-1.5 ${isCompact ? 'text-[12px]' : 'text-[13px]'}`}>
               <span className={`inline-flex items-center justify-center w-5 h-5 rounded-md ${trendIconBg}`}>
                 {isPositive ? <TrendingUp className="w-3 h-3 text-emerald-500" /> : isNegative ? <TrendingDown className="w-3 h-3 text-red-500" /> : <ArrowRight className="w-3 h-3 text-app-text-subtle" />}
               </span>
@@ -1719,13 +1836,13 @@ function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onD
 
           {showComparison && (
             <div className="grid grid-cols-2 gap-2">
-              <div className="rounded-2xl border border-app-border-subtle/70 bg-app-surface-subtle/65 px-3 py-2.5">
-                <div className="text-[10px] uppercase tracking-[0.15em] text-app-text-subtle">当前</div>
-                <div className="mt-1 text-sm font-semibold tabular-nums text-app-text-secondary">{valueStr}</div>
+              <div className="rounded-md border border-app-border-subtle bg-app-surface-subtle/55 px-3 py-2.5">
+                <div className="text-[11px] font-medium uppercase tracking-[0.12em] text-app-text-muted">当前</div>
+                <div className="bi-tabular mt-1 text-[15px] font-semibold text-app-text-secondary">{valueStr}</div>
               </div>
-              <div className="rounded-2xl border border-app-border-subtle/70 bg-app-surface-subtle/65 px-3 py-2.5">
-                <div className="text-[10px] uppercase tracking-[0.15em] text-app-text-subtle">{compareLabel}</div>
-                <div className="mt-1 text-sm font-semibold tabular-nums text-app-text-secondary">{compareValue}</div>
+              <div className="rounded-md border border-app-border-subtle bg-app-surface-subtle/55 px-3 py-2.5">
+                <div className="text-[11px] font-medium uppercase tracking-[0.12em] text-app-text-muted">{compareLabel}</div>
+                <div className="bi-tabular mt-1 text-[15px] font-semibold text-app-text-secondary">{compareValue}</div>
               </div>
             </div>
           )}
@@ -1739,11 +1856,11 @@ function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onD
           {showSummary && (
             <div className="space-y-1.5 mt-auto">
               {normalizedSummaries.slice(0, gridSize.h >= 4 ? 3 : 2).map((item, index) => (
-                <div key={`${item.label}-${index}`} className="flex items-start gap-2 rounded-xl bg-widget-bg/60 px-2.5 py-2">
+                <div key={`${item.label}-${index}`} className="flex items-start gap-2 rounded-md bg-app-surface-subtle/55 px-2.5 py-2">
                   <div className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary/60" />
                   <div className="min-w-0">
-                    <div className="text-[11px] text-app-text-secondary">{item.label}</div>
-                    {item.detail && <div className="mt-0.5 text-[10px] text-app-text-subtle">{item.detail}</div>}
+                    <div className="text-[12px] font-medium text-app-text-secondary">{item.label}</div>
+                    {item.detail && <div className="mt-0.5 text-[11px] leading-relaxed text-app-text-muted">{item.detail}</div>}
                   </div>
                 </div>
               ))}
@@ -1763,16 +1880,32 @@ function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onD
         return <EmptyWidgetState title={widget.title} source={dataSource} error={error} />;
       }
       const max = Math.max(...values, 1);
-      const maxItems = gridSize.h <= 2 ? 3 : gridSize.h <= 3 ? 5 : labels.length;
+      const styleConfig = d.styleConfig && typeof d.styleConfig === 'object' ? d.styleConfig as Record<string, unknown> : {};
+      const donutConfig = styleConfig.donut && typeof styleConfig.donut === 'object' ? styleConfig.donut as Record<string, unknown> : {};
+      const requestedVariant = String(styleConfig.variant || d.variant || 'auto');
+      const configuredMaxSlices = Number(donutConfig.maxSlices);
+      const donutMaxSlices = Number.isFinite(configuredMaxSlices) ? Math.max(2, Math.min(8, Math.floor(configuredMaxSlices))) : 5;
+      const maxItems = gridSize.h <= 2 ? 3 : gridSize.h <= 3 ? 5 : requestedVariant === 'donut' ? Math.min(labels.length, donutMaxSlices) : labels.length;
       const showValues = gridSize.w >= 4;
       const slicedLabels = labels.slice(0, maxItems);
       const slicedValues = values.slice(0, maxItems);
       const total = slicedValues.reduce((a, b) => a + b, 0);
 
-      // 数据点≤5且grid足够大时，用环形图；否则用条形图
-      const useDonut = slicedLabels.length <= 5 && gridSize.w >= 4 && gridSize.h >= 3 && total > 0;
+      const enoughRoomForDonut = gridSize.w >= 4 && gridSize.h >= 3;
+      const compactDonut = gridSize.w < 5 || gridSize.h < 4;
+      const autoDonut = labels.length <= donutMaxSlices && total > 0;
+      const useDonut = requestedVariant === 'bar'
+        ? false
+        : requestedVariant === 'donut'
+          ? enoughRoomForDonut && total > 0
+          : autoDonut && enoughRoomForDonut;
 
       if (useDonut) {
+        const innerRatio = Number(donutConfig.innerRatio);
+        const safeInnerRatio = Number.isFinite(innerRatio) ? Math.max(0.42, Math.min(0.72, innerRatio)) : 0.58;
+        const donutSize = gridSize.w >= 7 && gridSize.h >= 5 ? 126 : gridSize.w >= 6 && gridSize.h >= 4 ? 108 : gridSize.w >= 5 ? 92 : 76;
+        const holeSize = Math.round(donutSize * safeInnerRatio);
+        const legendLimit = compactDonut ? Math.min(slicedLabels.length, 4) : Math.min(slicedLabels.length, donutMaxSlices);
         // 构建 conic-gradient
         let acc = 0;
         const segments = slicedValues.map((v) => {
@@ -1782,31 +1915,39 @@ function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onD
           return { start, end: acc };
         });
         const gradient = segments.map((s, i) => {
-          const colors = ['#6366f1', '#10b981', '#f59e0b', '#f43f5e', '#8b5cf6'];
-          return `${colors[i % colors.length]} ${s.start}% ${s.end}%`;
+          const style = getVizStyle(i);
+          return `${style.hex} ${s.start}% ${s.end}%`;
         }).join(', ');
 
         return (
-          <div className="h-full flex items-center gap-5">
-            <div className="relative shrink-0" style={{ width: '72px', height: '72px' }}>
+          <div className={`h-full min-h-0 ${gridSize.w >= 6 ? 'grid grid-cols-[auto_minmax(0,1fr)] items-center gap-5' : 'flex items-center gap-4'}`}>
+            <div className="relative shrink-0" style={{ width: `${donutSize}px`, height: `${donutSize}px` }}>
               <div className="w-full h-full rounded-full" style={{ background: `conic-gradient(${gradient})` }} />
-              <div className="absolute inset-0 m-auto w-11 h-11 rounded-full bg-widget-bg flex items-center justify-center shadow-sm">
-                <span className="text-[10px] font-bold text-app-text-secondary tabular-nums">{total}</span>
+              <div
+                className="absolute inset-0 m-auto flex items-center justify-center rounded-full bg-widget-bg shadow-sm ring-1 ring-app-border-subtle/60"
+                style={{ width: `${holeSize}px`, height: `${holeSize}px` }}
+              >
+                <span className={`${density.metaTextClass} font-bold text-app-text-secondary tabular-nums`}>{total}</span>
               </div>
             </div>
-            <div className="flex-1 space-y-2 min-w-0">
-              {slicedLabels.map((label, i) => {
-                const colors = ['bg-indigo-500', 'bg-emerald-500', 'bg-amber-500', 'bg-rose-500', 'bg-violet-500'];
+            <div className="min-w-0 flex-1 space-y-2 overflow-hidden">
+              {slicedLabels.slice(0, legendLimit).map((label, i) => {
+                const style = getVizStyle(i);
                 const pct = total > 0 ? Math.round((slicedValues[i] / total) * 100) : 0;
                 return (
                   <div key={i} className="flex items-center gap-2.5 group">
-                    <div className={`w-2 h-2 rounded-sm ${colors[i % colors.length]}`} />
-                    <span className="text-[11px] text-app-text-muted truncate flex-1">{label}</span>
-                    <span className="text-[11px] text-app-text-secondary font-semibold tabular-nums">{slicedValues[i]}</span>
-                    <span className="text-[10px] text-app-text-subtle w-7 text-right tabular-nums">{pct}%</span>
+                    <div className={`h-2 w-2 rounded-sm ${style.dotClass}`} />
+                    <span className={`${density.labelTextClass} min-w-0 truncate flex-1 text-app-text-muted`}>{label}</span>
+                    <span className={`${density.labelTextClass} bi-tabular font-semibold text-app-text-secondary`}>{slicedValues[i]}</span>
+                    <span className={`w-7 text-right ${density.metaTextClass} bi-tabular text-app-text-subtle`}>{pct}%</span>
                   </div>
                 );
               })}
+              {slicedLabels.length > legendLimit && (
+                <div className={`${density.metaTextClass} text-app-text-subtle`}>
+                  另 {slicedLabels.length - legendLimit} 项已折叠
+                </div>
+              )}
             </div>
           </div>
         );
@@ -1815,23 +1956,23 @@ function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onD
       return (
         <div className="space-y-2">
           {slicedLabels.map((label, i) => {
-            const barColors = ['from-indigo-500 to-indigo-400', 'from-emerald-500 to-emerald-400', 'from-amber-500 to-amber-400', 'from-rose-500 to-rose-400', 'from-violet-500 to-violet-400'];
+            const style = getVizStyle(i);
             const pct = max > 0 ? (slicedValues[i] / max) * 100 : 0;
             return (
               <div
                 key={i}
-                className="group flex items-center gap-2.5 cursor-pointer rounded-lg px-1 -mx-1 py-0.5 hover:bg-app-surface-hover transition-colors"
+                className="group flex cursor-pointer items-center gap-2.5 rounded-md px-2 py-1.5 transition-colors hover:bg-app-surface-hover"
                 onClick={(e) => {
                   e.stopPropagation();
                   onDrillDown?.({ category: label, value: slicedValues[i] }, `${widget.title} / ${label}`);
                 }}
                 title={`下钻: ${label}`}
               >
-                {gridSize.w >= 3 && <span className="text-[11px] text-app-text-muted w-9 text-right shrink-0 truncate">{label}</span>}
-                <div className="flex-1 h-2.5 bg-app-surface-subtle rounded-full overflow-hidden">
-                  <div className={`h-full rounded-full bg-gradient-to-r ${barColors[i % barColors.length]} transition-all duration-500 ease-out`} style={{ width: `${pct}%` }} />
+                {gridSize.w >= 3 && <span className={`w-9 shrink-0 truncate text-right ${density.labelTextClass} text-app-text-muted`}>{label}</span>}
+                <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-app-surface-subtle">
+                  <div className={`h-full rounded-full bg-gradient-to-r ${style.gradientClass} transition-all duration-500 ease-out`} style={{ width: `${pct}%` }} />
                 </div>
-                {showValues && <span className="text-[11px] text-app-text-secondary font-medium w-10 text-right tabular-nums">{slicedValues[i]}</span>}
+                {showValues && <span className={`w-10 text-right ${density.labelTextClass} bi-tabular font-semibold text-app-text-secondary`}>{slicedValues[i]}</span>}
               </div>
             );
           })}
@@ -1867,31 +2008,34 @@ function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onD
       const columns = allColumns.slice(0, maxCols);
       const rows = allRows.slice(0, maxRows);
       return (
-        <div className="space-y-1">
+        <div className="h-full min-h-0 overflow-hidden rounded-md border border-app-border-subtle bg-app-surface/60">
           {/* 表头 */}
           {columns.length > 0 && (
-            <div className="flex items-center gap-3 px-2 pb-1.5 border-b border-app-border-subtle/60">
+            <div className="grid border-b border-app-border-subtle bg-app-surface-subtle/70 px-3 py-2" style={{ gridTemplateColumns: `repeat(${columns.length}, minmax(0, 1fr))`, columnGap: '12px' }}>
               {columns.map((col, j) => (
-                <span key={j} className="text-[10px] font-semibold text-app-text-subtle uppercase tracking-wider truncate">{col}</span>
+                <span key={j} className={`truncate text-[11px] font-semibold uppercase tracking-[0.12em] text-app-text-muted ${j > 0 ? 'text-right' : ''}`}>{col}</span>
               ))}
             </div>
           )}
-          {rows.map((row, i) => (
-            <div
-              key={i}
-              className="flex items-center gap-3 p-2 rounded-xl bg-app-surface-subtle/50 hover:bg-app-surface-hover transition-colors cursor-pointer border border-transparent hover:border-app-border-subtle/60"
-              onClick={(e) => {
-                e.stopPropagation();
-                const keyValue = row[0] || '';
-                onDrillDown?.({ rowKey: keyValue, rowIndex: i }, `${widget.title} / ${keyValue}`);
-              }}
-              title={`下钻: ${row[0] || ''}`}
-            >
-              {row.slice(0, maxCols).map((cell, j) => (
-                <span key={j} className={`text-[11px] truncate ${j === 0 ? 'font-semibold text-app-text-secondary' : 'text-app-text-muted'}`}>{cell}</span>
-              ))}
-            </div>
-          ))}
+          <div className="divide-y divide-app-border-subtle/70">
+            {rows.map((row, i) => (
+              <div
+                key={i}
+                className="grid cursor-pointer px-3 py-2 transition-colors hover:bg-app-surface-hover"
+                style={{ gridTemplateColumns: `repeat(${Math.min(maxCols, row.length)}, minmax(0, 1fr))`, columnGap: '12px' }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const keyValue = row[0] || '';
+                  onDrillDown?.({ rowKey: keyValue, rowIndex: i }, `${widget.title} / ${keyValue}`);
+                }}
+                title={`下钻: ${row[0] || ''}`}
+              >
+                {row.slice(0, maxCols).map((cell, j) => (
+                  <span key={j} className={`truncate text-[12px] ${j === 0 ? 'font-semibold text-app-text-secondary' : 'bi-tabular text-right text-app-text-muted'}`}>{cell}</span>
+                ))}
+              </div>
+            ))}
+          </div>
         </div>
       );
     }
@@ -1906,11 +2050,11 @@ function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onD
       const maxStages = gridSize.h <= 2 ? 2 : gridSize.h <= 3 ? 3 : stages.length;
       const visibleStages = stages.slice(0, maxStages);
       return (
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           {visibleStages.map((stage, i) => (
-            <div key={i} className="flex items-center gap-3 p-2.5 rounded-xl bg-app-surface-subtle border border-app-border-subtle/50 hover:border-app-border/60 transition-colors">
-              <div className="w-7 h-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center text-[11px] font-bold shrink-0">{i + 1}</div>
-              <span className="text-xs text-app-text-secondary font-medium">{stage}</span>
+            <div key={i} className="flex items-center gap-3 rounded-md border border-app-border-subtle bg-app-surface-subtle/55 p-2.5 transition-colors hover:border-app-border-hover">
+              <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-primary/10 text-[11px] font-semibold text-primary">{i + 1}</div>
+              <span className="text-[13px] text-app-text-secondary font-medium">{stage}</span>
               {gridSize.w > 2 && i < visibleStages.length - 1 && <ArrowRight className="w-3.5 h-3.5 text-app-text-subtle ml-auto" />}
             </div>
           ))}
@@ -1942,7 +2086,7 @@ function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onD
                   {gridSize.h > 2 && i < visibleSteps.length - 1 && <div className={`w-px flex-1 my-1 ${completed ? 'bg-emerald-500/25' : 'bg-app-border-subtle'}`} />}
                 </div>
                 <div className="pb-4 pt-0.5">
-                  <span className={`text-xs ${completed ? 'text-app-text-muted line-through opacity-70' : active ? 'text-app-text-secondary font-semibold' : 'text-app-text-muted'}`}>{stepStr.replace('✓', '').replace('→', '').trim()}</span>
+                  <span className={`text-[13px] ${completed ? 'text-app-text-muted line-through opacity-70' : active ? 'text-app-text-secondary font-semibold' : 'text-app-text-muted'}`}>{stepStr.replace('✓', '').replace('→', '').trim()}</span>
                 </div>
               </div>
             );
@@ -1963,39 +2107,63 @@ function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onD
       return (
         <div className="space-y-1.5">
           {visibleItems.map((item, i) => (
-            <div key={i} className="flex items-start gap-2.5 p-2.5 rounded-xl bg-app-surface-subtle/60 border border-transparent hover:border-app-border-subtle transition-colors">
+            <div key={i} className="flex items-start gap-2.5 rounded-md border border-transparent bg-app-surface-subtle/55 p-2.5 transition-colors hover:border-app-border-subtle">
               <div className={`w-1.5 h-1.5 rounded-full mt-1.5 shrink-0 ${String(item).includes('严重') || String(item).includes('错误') || String(item).includes('失败') ? 'bg-red-500' : String(item).includes('警告') || String(item).includes('注意') ? 'bg-amber-500' : 'bg-primary/60'}`} />
-              <span className="text-xs text-app-text-secondary leading-relaxed">{item}</span>
+              <span className="text-[13px] leading-6 text-app-text-secondary">{item}</span>
             </div>
           ))}
         </div>
       );
     }
     case 'report': {
-      const d = (displayData || {}) as Record<string, unknown>;
-      const summary = (d.summary || d.content || d.description || '') as string;
-      // 兼容 LLM 可能用的别名：highlights / keyPoints / metrics / stats / overview
-      const highlights = (d.highlights || d.keyPoints || d.metrics || d.stats || d.overview) as Array<{ label?: string; value?: string; name?: string; title?: string; key?: string; val?: string; num?: string }> | undefined;
-      const clampClass = gridSize.h <= 2 ? 'line-clamp-2' : gridSize.h === 3 ? 'line-clamp-3' : 'line-clamp-6';
+      const reportData = (displayData || {}) as Record<string, unknown>;
+      const report = buildReportDisplayData(reportData, 'report');
+      const summary = report.summary;
+      const highlights = report.highlights;
+      const sections = extractReportSections(reportData);
+      const metricBadges = extractPreviewMetrics([
+        summary,
+        ...highlights.map((item) => `${item.label} ${item.value}`),
+        ...sections.map((section) => `${section.title} ${section.summary}`),
+      ].join(' '));
+      const showVisualSummary = metricBadges.length > 0 || sections.length > 0;
       return (
-        <div className="space-y-3 h-full flex flex-col">
+        <div className="flex h-full min-h-0 flex-col gap-2.5">
           {summary && (
-            <p className={`text-xs text-app-text-secondary leading-relaxed ${clampClass}`}>{summary}</p>
+            <div className="shrink-0 rounded-md border border-app-border-subtle bg-app-surface-subtle/45 px-3 py-2.5">
+              <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-app-text-muted">摘要</div>
+              <p className="line-clamp-2 text-[13px] leading-6 text-app-text-secondary">{summary}</p>
+            </div>
           )}
-          {gridSize.w >= 4 && highlights && highlights.length > 0 && (
-            <div className="space-y-2">
-              {(highlights as unknown[])
-                .filter((h): h is Record<string, unknown> => h != null && typeof h === 'object')
-                .slice(0, 3)
-                .map((h, i) => {
-                  const label = String(h.label || h.name || h.title || h.key || '');
-                  const value = String(h.value || h.val || h.num || '—');
-                  return (
-                    <div key={i} className="flex items-start gap-2 p-2 rounded-lg bg-app-surface-subtle/60">
-                      <div className="w-4 h-4 rounded bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
-                        <span className="text-[10px] font-bold text-primary">{i + 1}</span>
+
+          {showVisualSummary && gridSize.w >= 4 && (
+            <div className="shrink-0 space-y-2">
+              {metricBadges.length > 0 && (
+                <div className="grid gap-2 sm:grid-cols-3">
+                  {metricBadges.slice(0, 3).map((metric, index) => {
+                    const style = getVizStyle(index);
+                    return (
+                      <div key={`${metric}-${index}`} className={`rounded-md border px-2.5 py-2 ${style.badgeClass}`}>
+                        <div className="truncate text-[12px] font-semibold">{metric}</div>
                       </div>
-                      <span className="text-[11px] text-app-text-secondary leading-snug">
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto pr-1 sidebar-scroll">
+            {highlights.length > 0 && highlights.slice(0, gridSize.h <= 3 ? 3 : 5).map((h, i) => {
+                  const style = getVizStyle(i);
+                  const label = h.label;
+                  const value = h.value || '—';
+                  return (
+                    <div key={i} className="flex items-start gap-2 rounded-md border border-app-border-subtle bg-app-surface/70 px-2.5 py-2">
+                      <div className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-sm ${style.badgeClass}`}>
+                        <span className="text-[10px] font-bold">{i + 1}</span>
+                      </div>
+                      <span className="text-[12px] leading-6 text-app-text-secondary">
                         {label}
                         {label ? '：' : ''}
                         {value}
@@ -2003,11 +2171,26 @@ function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onD
                     </div>
                   );
                 })}
-            </div>
-          )}
-          <div className="flex items-center gap-1.5 text-[10px] text-app-text-subtle mt-auto">
+
+            {sections.length > 0 && sections.slice(0, gridSize.h <= 3 ? 4 : 8).map((section, index) => {
+              const style = getVizStyle(index);
+              return (
+                <div key={`${section.title}-${index}`} className="rounded-md border border-app-border-subtle bg-app-surface/70 px-3 py-2">
+                  <div className="flex items-center gap-2">
+                    <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${style.dotClass}`} />
+                    <span className="truncate text-[12px] font-semibold text-app-text-secondary">{section.title}</span>
+                  </div>
+                  {section.summary && (
+                    <p className="mt-1 line-clamp-2 text-[12px] leading-5 text-app-text-muted">{section.summary}</p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="flex shrink-0 items-center gap-1.5 pt-1 text-[11px] text-app-text-muted">
             <FileText className="w-3 h-3" />
-            <span>点击阅读全文</span>
+            <span>{report.html || report.detailUrl ? '点击查看完整报告' : '点击阅读全文'}</span>
           </div>
         </div>
       );
@@ -2028,10 +2211,10 @@ function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onD
           {metrics.length > 0 && (
             <div className="flex flex-wrap gap-2">
               {metrics.slice(0, maxMetrics).map((m, i) => {
-                const colors = ['bg-primary/8 border-primary/15 text-primary', 'bg-emerald-500/8 border-emerald-500/15 text-emerald-500', 'bg-amber-500/8 border-amber-500/15 text-amber-500', 'bg-rose-500/8 border-rose-500/15 text-rose-500'];
+                const style = getVizStyle(i);
                 return (
-                  <div key={i} className={`px-2.5 py-1.5 rounded-lg border ${colors[i % colors.length]}`}>
-                    <span className="text-[11px] font-semibold">{m}</span>
+                  <div key={i} className={`rounded-lg border px-2.5 py-1.5 ${style.badgeClass}`}>
+                    <span className="text-[12px] font-semibold">{m}</span>
                   </div>
                 );
               })}
@@ -2043,13 +2226,13 @@ function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onD
             <div className="rounded-xl bg-app-surface-subtle/60 border border-app-border-subtle overflow-hidden">
               <div className="flex items-center gap-2 px-3 py-1.5 border-b border-app-border-subtle/50">
                 {tableRows[0].slice(0, 3).map((cell, j) => (
-                  <span key={j} className="text-[10px] font-semibold text-app-text-subtle uppercase tracking-wider truncate flex-1">{cell}</span>
+                  <span key={j} className="truncate flex-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-app-text-muted">{cell}</span>
                 ))}
               </div>
               {tableRows.slice(1, 2).map((row, i) => (
                 <div key={i} className="flex items-center gap-2 px-3 py-1.5">
                   {row.slice(0, 3).map((cell, j) => (
-                    <span key={j} className="text-[11px] text-app-text-muted truncate flex-1">{cell}</span>
+                    <span key={j} className="truncate flex-1 text-[12px] text-app-text-muted">{cell}</span>
                   ))}
                 </div>
               ))}
@@ -2062,7 +2245,7 @@ function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onD
               {listItems.slice(0, 2).map((item, i) => (
                 <div key={i} className="flex items-start gap-2">
                   <div className="w-1 h-1 rounded-full mt-1.5 shrink-0 bg-primary/50" />
-                  <span className="text-[11px] text-app-text-muted truncate">{item}</span>
+                  <span className="truncate text-[12px] text-app-text-muted">{item}</span>
                 </div>
               ))}
             </div>
@@ -2070,7 +2253,7 @@ function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onD
 
           {/* 摘要 */}
           {text && (
-            <p className={`text-xs text-app-text-secondary leading-relaxed flex-1 ${clampClass}`}>{text}</p>
+            <p className={`flex-1 text-[13px] leading-6 text-app-text-secondary ${clampClass}`}>{text}</p>
           )}
 
           {/* 章节速览 */}
@@ -2079,13 +2262,13 @@ function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onD
               {headings.slice(0, 2).map((h, i) => (
                 <div key={i} className="flex items-center gap-2">
                   <div className="w-1 h-1 rounded-full bg-primary/40" />
-                  <span className="text-[10px] text-app-text-subtle truncate">{h}</span>
+                  <span className="truncate text-[11px] text-app-text-muted">{h}</span>
                 </div>
               ))}
             </div>
           )}
 
-          <div className="flex items-center gap-1.5 text-[10px] text-app-text-subtle mt-auto pt-1">
+          <div className="mt-auto flex items-center gap-1.5 pt-1 text-[11px] text-app-text-muted">
             <FileText className="w-3 h-3" />
             <span>点击阅读完整报告</span>
           </div>
@@ -2114,13 +2297,13 @@ function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onD
         <div className="h-full flex flex-col justify-center gap-3">
           <div className="flex items-center justify-between">
             <span className="text-2xl font-bold text-app-text tracking-tight tabular-nums">{label}</span>
-            <span className="text-xs font-semibold text-app-text-subtle tabular-nums">{Math.round(pct)}%</span>
+            <span className="text-[12px] font-semibold text-app-text-muted tabular-nums">{Math.round(pct)}%</span>
           </div>
           <div className={`${barHeight} w-full bg-app-surface-subtle rounded-full overflow-hidden`}>
             <div className={`h-full rounded-full ${barColor} transition-all duration-700 shadow-sm`} style={{ width: `${pct}%` }} />
           </div>
           {gridSize.h > 2 && Boolean(d.caption || d.description) && (
-            <span className="text-[11px] text-app-text-subtle">{String(d.caption || d.description || '')}</span>
+            <span className="text-[12px] leading-relaxed text-app-text-muted">{String(d.caption || d.description || '')}</span>
           )}
         </div>
       );
@@ -2160,12 +2343,12 @@ function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onD
             const label = String(item.label || item.name || item.title || '');
             const value = String(item.value || item.val || item.desc || '—');
             return (
-              <div key={i} className={`flex items-center justify-between p-2.5 rounded-xl ${cfg.bg} border border-transparent hover:border-app-border-subtle transition-colors`}>
+              <div key={i} className={`flex items-center justify-between rounded-md border border-transparent p-2.5 ${cfg.bg} transition-colors hover:border-app-border-subtle`}>
                 <div className="flex items-center gap-2.5">
                   <div className={`w-2 h-2 rounded-full ${cfg.dot} ${st === 'danger' || st === 'critical' || st === 'error' ? 'animate-pulse' : ''}`} />
-                  <span className="text-xs text-app-text-secondary font-medium">{label}</span>
+                  <span className="text-[13px] text-app-text-secondary font-medium">{label}</span>
                 </div>
-                <span className={`text-[11px] font-semibold ${cfg.text} tabular-nums`}>{value}</span>
+                <span className={`bi-tabular text-[12px] font-semibold ${cfg.text}`}>{value}</span>
               </div>
             );
           })}
@@ -2186,17 +2369,17 @@ function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onD
       return (
         <div className="h-full flex flex-col gap-3">
           {showHeadline && (
-            <div className="rounded-2xl border border-app-border-subtle/70 bg-gradient-to-br from-app-surface-subtle/80 via-widget-bg to-widget-bg px-3.5 py-3">
+            <div className="rounded-2xl border border-app-border-subtle/70 bg-gradient-to-br from-app-surface-subtle/80 via-widget-bg to-widget-bg px-4 py-3.5">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
                   {headline.eyebrow && (
-                    <div className="text-[10px] uppercase tracking-[0.18em] text-app-text-subtle">{headline.eyebrow}</div>
+                    <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-app-text-muted">{headline.eyebrow}</div>
                   )}
                   {headline.title && (
-                    <div className="mt-1 text-sm font-semibold text-app-text-secondary">{headline.title}</div>
+                    <div className="mt-1 text-[16px] font-semibold text-app-text-secondary">{headline.title}</div>
                   )}
                   {headline.subtitle && (
-                    <p className={`mt-1.5 text-[11px] leading-relaxed text-app-text-secondary ${gridSize.h <= 2 ? 'line-clamp-2' : 'line-clamp-3'}`}>
+                    <p className={`mt-1.5 text-[12px] leading-6 text-app-text-secondary ${gridSize.h <= 2 ? 'line-clamp-2' : 'line-clamp-3'}`}>
                       {headline.subtitle}
                     </p>
                   )}
@@ -2261,14 +2444,14 @@ function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onD
               {htmlPreview.metrics.length > 0 && (
                 <div className="flex flex-wrap gap-2">
                   {htmlPreview.metrics.slice(0, gridSize.w <= 3 ? 2 : 4).map((metric, index) => (
-                    <span key={`${metric}-${index}`} className="rounded-full border border-primary/15 bg-primary/8 px-2 py-1 text-[10px] font-medium text-primary">
+                    <span key={`${metric}-${index}`} className="rounded-full border border-primary/15 bg-primary/8 px-2 py-1 text-[11px] font-medium text-primary">
                       {metric}
                     </span>
                   ))}
                 </div>
               )}
               {htmlPreview.headings.length > 0 && (
-                <div className="text-[11px] font-semibold text-app-text-secondary">{htmlPreview.headings[0]}</div>
+                <div className="text-[13px] font-semibold text-app-text-secondary">{htmlPreview.headings[0]}</div>
               )}
             </div>
           )}
@@ -2276,13 +2459,13 @@ function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onD
           {normalized && (
             <div className="space-y-2 overflow-hidden">
               {normalized.headings.slice(0, 2).map((heading, index) => (
-                <h4 key={`${heading}-${index}`} className={index === 0 ? 'text-sm font-semibold text-app-text-secondary' : 'text-[11px] font-semibold text-app-text-muted'}>
+                <h4 key={`${heading}-${index}`} className={index === 0 ? 'text-[15px] font-semibold text-app-text-secondary' : 'text-[13px] font-semibold text-app-text-muted'}>
                   {heading}
                 </h4>
               ))}
 
               {normalized.paragraphs.length > 0 && (
-                <div className={`text-xs leading-relaxed text-app-text-secondary ${clampClass}`}>
+                <div className={`text-[13px] leading-6 text-app-text-secondary ${clampClass}`}>
                   {normalized.paragraphs.slice(0, 2).map((paragraph, index) => {
                     const bolded = paragraph.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
                     const sanitized = DOMPurify.sanitize(bolded, { ALLOWED_TAGS: ['strong', 'em', 'code', 'br'] });
@@ -2296,13 +2479,13 @@ function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onD
                   {normalized.bullets.slice(0, gridSize.h <= 2 ? 2 : 3).map((item, index) => (
                     <div key={`${item}-${index}`} className="flex items-start gap-2 rounded-xl bg-app-surface-subtle/60 px-2.5 py-2">
                       <div className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary/55" />
-                      <span className="text-[11px] leading-relaxed text-app-text-secondary">{item}</span>
+                      <span className="text-[12px] leading-6 text-app-text-secondary">{item}</span>
                     </div>
                   ))}
                   {normalized.ordered.slice(0, Math.max(0, (gridSize.h <= 2 ? 2 : 3) - normalized.bullets.length)).map((item, index) => (
                     <div key={`${item}-${index}`} className="flex items-start gap-2 rounded-xl bg-app-surface-subtle/60 px-2.5 py-2">
-                      <span className="mt-0.5 text-[10px] font-semibold text-app-text-subtle">{index + 1}.</span>
-                      <span className="text-[11px] leading-relaxed text-app-text-secondary">{item}</span>
+                      <span className="mt-0.5 text-[11px] font-semibold text-app-text-muted">{index + 1}.</span>
+                      <span className="text-[12px] leading-6 text-app-text-secondary">{item}</span>
                     </div>
                   ))}
                 </div>
@@ -2338,7 +2521,7 @@ function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onD
       const showLabel = gridSize.h > 2;
       return (
         <div
-          className="h-full flex flex-col items-center justify-center cursor-pointer hover:opacity-80 transition-opacity"
+          className="flex h-full cursor-pointer flex-col items-center justify-center rounded-2xl bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.82),rgba(246,243,241,0.55))] hover:opacity-80 transition-opacity"
           onClick={(e) => {
             e.stopPropagation();
             onDrillDown?.({ gauge: widget.title, value, pct: Math.round(pct) }, `${widget.title}: ${value}${unit}`);
@@ -2354,7 +2537,7 @@ function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onD
             <text x={cx} y={cy + 2} textAnchor="middle" className="fill-app-text" fontSize="14" fontWeight="700">{value}{unit}</text>
           </svg>
           {showLabel && (
-            <span className="text-[10px] text-app-text-subtle mt-1">{Math.round(pct)}%</span>
+            <span className="mt-1 text-[11px] text-app-text-muted">{Math.round(pct)}%</span>
           )}
         </div>
       );
@@ -2371,28 +2554,28 @@ function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onD
         rate: s.rate !== undefined ? s.rate : undefined,
       }));
       const maxValue = Math.max(...stages.map((s) => s.value), 1);
-      const funnelColors = ['#6366f1', '#818cf8', '#a5b4fc', '#c7d2fe', '#e0e7ff'];
       const maxStages = gridSize.h <= 2 ? 3 : gridSize.h <= 3 ? 4 : stages.length;
       const visible = stages.slice(0, maxStages);
       return (
         <div className="h-full flex flex-col justify-center space-y-1.5">
           {visible.map((stage, i) => {
+            const style = getVizStyle(i);
             const widthPct = maxValue > 0 ? (stage.value / maxValue) * 100 : 0;
             const prevValue = i > 0 ? visible[i - 1].value : stage.value;
             const dropRate = i > 0 && prevValue > 0 ? Math.round((1 - stage.value / prevValue) * 100) : undefined;
             return (
               <div key={i} className="flex items-center gap-3">
                 <div className="flex-1 flex items-center">
-                  <div className="h-6 rounded-md flex items-center justify-center text-[10px] font-semibold text-white shadow-sm" style={{ width: `${Math.max(widthPct, 12)}%`, backgroundColor: funnelColors[i % funnelColors.length], minWidth: '36px', transition: 'width 0.6s cubic-bezier(0.4,0,0.2,1)' }}>
+                  <div className="flex h-6 items-center justify-center rounded-md text-[11px] font-semibold text-white shadow-sm" style={{ width: `${Math.max(widthPct, 12)}%`, background: `linear-gradient(90deg, ${style.hex}, rgba(255,255,255,0.28))`, minWidth: '36px', transition: 'width 0.6s cubic-bezier(0.4,0,0.2,1)' }}>
                     {stage.value}
                   </div>
                 </div>
                 <div className="w-16 shrink-0 text-right">
-                  <span className="text-[11px] text-app-text-secondary font-medium truncate block">{stage.name}</span>
+                  <span className="block truncate text-[12px] font-medium text-app-text-secondary">{stage.name}</span>
                   {stage.rate !== undefined ? (
-                    <span className="text-[10px] text-app-text-subtle tabular-nums">转化率 {stage.rate}%</span>
+                    <span className="text-[11px] text-app-text-muted tabular-nums">转化率 {stage.rate}%</span>
                   ) : dropRate !== undefined ? (
-                    <span className="text-[10px] text-red-500 tabular-nums">↓ {dropRate}%</span>
+                    <span className="text-[11px] text-red-500 tabular-nums">↓ {dropRate}%</span>
                   ) : null}
                 </div>
               </div>
@@ -2429,7 +2612,7 @@ function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onD
       });
       return (
         <div className="h-full flex items-center justify-center">
-          <svg viewBox="0 0 100 100" className="w-full h-full" style={{ maxHeight: '140px' }}>
+          <svg viewBox="0 0 100 100" className="h-full w-full" style={{ maxHeight: '140px' }}>
             {/* 网格 */}
             {grids.map((gp, i) => (
               <polygon key={i} points={gp} fill="none" stroke="currentColor" strokeWidth="0.5" className="text-app-border-subtle" />
@@ -2440,19 +2623,19 @@ function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onD
               return <line key={i} x1={cx} y1={cy} x2={cx + r * Math.cos(angle)} y2={cy + r * Math.sin(angle)} stroke="currentColor" strokeWidth="0.5" className="text-app-border-subtle" />;
             })}
             {/* 数据面 */}
-            <polygon points={points} fill="rgba(99,102,241,0.15)" stroke="#6366f1" strokeWidth="1.5" />
+            <polygon points={points} fill="rgba(193, 18, 31, 0.12)" stroke="hsl(var(--primary))" strokeWidth="1.5" />
             {/* 数据点 */}
             {values.map((v, i) => {
               const angle = (Math.PI * 2 * i) / n - Math.PI / 2;
               const vr = (v / 100) * r;
-              return <circle key={i} cx={cx + vr * Math.cos(angle)} cy={cy + vr * Math.sin(angle)} r="2" fill="#6366f1" />;
+              return <circle key={i} cx={cx + vr * Math.cos(angle)} cy={cy + vr * Math.sin(angle)} r="2" fill="hsl(var(--primary))" />;
             })}
             {/* 标签 */}
             {labels.map((label, i) => {
               const angle = (Math.PI * 2 * i) / n - Math.PI / 2;
               const lx = cx + (r + 10) * Math.cos(angle);
               const ly = cy + (r + 10) * Math.sin(angle);
-              return <text key={i} x={lx} y={ly} textAnchor="middle" dominantBaseline="middle" fontSize="7" className="fill-app-text-muted">{label}</text>;
+              return <text key={i} x={lx} y={ly} textAnchor="middle" dominantBaseline="middle" fontSize="8" className="fill-app-text-muted">{label}</text>;
             })}
           </svg>
         </div>
@@ -2475,10 +2658,9 @@ function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onD
       const range = maxV - minV || 1;
       const cellColor = (v: number) => {
         const intensity = (v - minV) / range;
-        // 从浅蓝到主色蓝
-        const rr = Math.round(224 - intensity * 90);
-        const gg = Math.round(232 - intensity * 140);
-        const bb = Math.round(255 - intensity * 60);
+        const rr = Math.round(249 - intensity * 56);
+        const gg = Math.round(242 - intensity * 170);
+        const bb = Math.round(239 - intensity * 158);
         return `rgb(${rr},${gg},${bb})`;
       };
       const cellW = Math.max(24, Math.min(48, Math.floor(200 / xLabels.length)));
@@ -2490,18 +2672,18 @@ function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onD
             <div className="flex">
               <div className="w-12 shrink-0" />
               {xLabels.map((x, i) => (
-                <div key={i} className="text-[9px] text-app-text-subtle text-center px-0.5" style={{ width: cellW }}>{x}</div>
+                <div key={i} className="px-0.5 text-center text-[10px] font-medium text-app-text-muted" style={{ width: cellW }}>{x}</div>
               ))}
             </div>
             {/* 数据行 */}
             {yLabels.map((y, yi) => (
               <div key={yi} className="flex items-center">
-                <div className="w-12 shrink-0 text-[9px] text-app-text-subtle truncate pr-1">{y}</div>
+                <div className="w-12 shrink-0 truncate pr-1 text-[10px] font-medium text-app-text-muted">{y}</div>
                 {xLabels.map((x, xi) => {
                   const cell = rawRows.find((r) => (r.x || r.column || r.label) === x && (r.y || r.row || '') === y);
                   const v = cell ? Number(cell.value ?? 0) : 0;
                   return (
-                    <div key={xi} className="rounded-sm m-0.5 flex items-center justify-center text-[9px] font-medium" style={{ width: cellW - 4, height: cellH - 4, backgroundColor: cellColor(v), color: (v - minV) / range > 0.5 ? '#fff' : '#334155' }} title={`${x}${y ? ` / ${y}` : ''}: ${v}`}>
+                    <div key={xi} className="m-0.5 flex items-center justify-center rounded-md text-[10px] font-semibold shadow-[inset_0_0_0_1px_rgba(255,255,255,0.28)]" style={{ width: cellW - 4, height: cellH - 4, backgroundColor: cellColor(v), color: (v - minV) / range > 0.46 ? '#fff' : '#334155' }} title={`${x}${y ? ` / ${y}` : ''}: ${v}`}>
                       {v}
                     </div>
                   );
@@ -2527,8 +2709,8 @@ function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onD
       return (
         <div className="h-full flex flex-col justify-center gap-2.5">
           <div className="flex items-center justify-between">
-            <span className="text-xs text-app-text-secondary font-medium">{label}</span>
-            <span className={`text-sm font-bold tabular-nums ${th.text}`}>{value}{target > 0 ? <span className="text-app-text-subtle font-normal text-xs ml-1">/ {target}</span> : ''}</span>
+            <span className="text-[13px] font-medium text-app-text-secondary">{label}</span>
+            <span className={`text-[15px] font-bold tabular-nums ${th.text}`}>{value}{target > 0 ? <span className="ml-1 text-[12px] font-normal text-app-text-subtle">/ {target}</span> : ''}</span>
           </div>
           <div className="relative h-3 bg-app-surface-subtle rounded-full overflow-hidden">
             {/* 背景区间 */}
@@ -2544,7 +2726,7 @@ function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onD
             {target > 0 && (
               <div className="absolute top-0 bottom-0 flex flex-col items-center" style={{ left: `${targetPct}%`, transform: 'translateX(-50%)' }}>
                 <div className="w-0.5 h-full bg-red-500/80" />
-                <span className="text-[8px] text-red-500 mt-0.5 font-medium">目标</span>
+                <span className="mt-0.5 text-[9px] font-medium text-red-500">目标</span>
               </div>
             )}
           </div>
@@ -2578,11 +2760,11 @@ function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onD
           {visible.map((alert, i) => {
             const cfg = levelConfig[alert.level] || levelConfig.info;
             return (
-              <div key={i} className={`flex items-start gap-2 p-2 rounded-lg border ${cfg.bg} ${cfg.border}`}>
-                <div className={`w-2 h-2 rounded-full mt-1 shrink-0 ${cfg.dot}`} />
+              <div key={i} className={`flex items-start gap-2 rounded-md border px-3 py-2.5 ${cfg.bg} ${cfg.border}`}>
+                <div className={`mt-1 h-2 w-2 shrink-0 rounded-full ${cfg.dot}`} />
                 <div className="flex-1 min-w-0">
-                  <span className="text-[11px] text-app-text-secondary leading-snug block">{alert.message}</span>
-                  {alert.time && <span className="text-[9px] text-app-text-subtle mt-0.5 block">{alert.time}</span>}
+                  <span className={`${density.bodyTextClass} block text-app-text-secondary`}>{alert.message}</span>
+                  {alert.time && <span className={`mt-0.5 block ${density.metaTextClass} text-app-text-subtle`}>{alert.time}</span>}
                 </div>
               </div>
             );
@@ -2602,18 +2784,18 @@ function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onD
       return (
         <div className="space-y-1.5">
           {points.slice(0, gridSize.h <= 2 ? 3 : 5).map((p, i) => (
-            <div key={i} className="flex items-center gap-2.5 p-2.5 rounded-xl bg-app-surface-subtle border border-app-border-subtle/50 hover:border-app-border/60 transition-colors">
-              <div className="w-7 h-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center text-[11px] font-bold shrink-0">{i + 1}</div>
-              <span className="text-xs text-app-text-secondary font-medium flex-1 truncate">{p.name}</span>
+            <div key={i} className="flex items-center gap-2.5 rounded-md border border-app-border-subtle bg-app-surface-subtle/55 p-2.5 transition-colors hover:border-app-border-hover">
+              <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-primary/10 text-[11px] font-semibold text-primary">{i + 1}</div>
+              <span className="flex-1 truncate text-[13px] font-medium text-app-text-secondary">{p.name}</span>
               <div className="flex items-center gap-2.5">
                 <div className="w-20 h-1.5 bg-app-surface-hover rounded-full overflow-hidden">
                   <div className="h-full rounded-full bg-gradient-to-r from-primary/80 to-primary transition-all duration-700" style={{ width: `${(p.value / maxV) * 100}%` }} />
                 </div>
-                <span className="text-[11px] text-app-text-secondary font-semibold tabular-nums w-9 text-right">{p.value}</span>
+                <span className="w-9 text-right text-[12px] font-semibold tabular-nums text-app-text-secondary">{p.value}</span>
               </div>
             </div>
           ))}
-          <div className="flex items-center gap-1.5 text-[10px] text-app-text-subtle px-1 mt-1">
+          <div className="mt-1 flex items-center gap-1.5 px-1 text-[11px] text-app-text-muted">
             <AlertCircle className="w-3 h-3" />
             <span>地图可视化需引入地图库（ECharts/MapLibre）</span>
           </div>
@@ -2633,7 +2815,7 @@ function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onD
             {stages.map((stage, i) => (
               <div key={i} className="flex items-center gap-3 p-2.5 rounded-xl bg-app-surface-subtle border border-app-border-subtle/50 hover:border-app-border/60 transition-colors">
                 <div className="w-7 h-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center text-[11px] font-bold shrink-0">{i + 1}</div>
-                <span className="text-xs text-app-text-secondary font-medium">{stage}</span>
+                <span className="text-[13px] font-medium text-app-text-secondary">{stage}</span>
                 {i < stages.length - 1 && <ArrowRight className="w-3.5 h-3.5 text-app-text-subtle ml-auto" />}
               </div>
             ))}
@@ -2650,7 +2832,7 @@ function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onD
             {items.map((item, i) => (
               <div key={i} className="flex items-start gap-2.5 p-2.5 rounded-xl bg-app-surface-subtle/60 border border-transparent hover:border-app-border-subtle transition-colors">
                 <div className="w-1.5 h-1.5 rounded-full mt-1.5 shrink-0 bg-primary/50" />
-                <span className="text-xs text-app-text-secondary">{item}</span>
+                <span className="text-[13px] leading-6 text-app-text-secondary">{item}</span>
               </div>
             ))}
           </div>
@@ -2679,7 +2861,7 @@ function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onD
             {rows.map((row, i) => (
               <div key={i} className="flex items-center gap-3 p-2 rounded-xl bg-app-surface-subtle/50 hover:bg-app-surface-hover transition-colors border border-transparent hover:border-app-border-subtle/60">
                 {row.map((cell, j) => (
-                  <span key={j} className={`text-[11px] ${j === 0 ? 'font-semibold text-app-text-secondary' : 'text-app-text-muted'}`}>{cell}</span>
+                  <span key={j} className={`text-[12px] ${j === 0 ? 'font-semibold text-app-text-secondary' : 'text-app-text-muted'}`}>{cell}</span>
                 ))}
               </div>
             ))}
@@ -2696,15 +2878,18 @@ function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onD
         const max = Math.max(...values, 1);
         return (
           <div className="space-y-2">
-            {labels.map((label, i) => (
-              <div key={i} className="flex items-center gap-2.5 group">
-                <span className="text-[11px] text-app-text-muted w-9 text-right shrink-0">{label}</span>
-                <div className="flex-1 h-2.5 bg-app-surface-subtle rounded-full overflow-hidden">
-                  <div className="h-full rounded-full bg-gradient-to-r from-primary/70 to-primary/40 transition-all duration-500" style={{ width: `${(values[i] / max) * 100}%` }} />
+            {labels.map((label, i) => {
+              const style = getVizStyle(i);
+              return (
+                <div key={i} className="group flex items-center gap-2.5">
+                  <span className={`w-9 shrink-0 text-right ${density.labelTextClass} text-app-text-muted`}>{label}</span>
+                  <div className="flex-1 h-2.5 overflow-hidden rounded-full bg-app-surface-subtle">
+                    <div className={`h-full rounded-full bg-gradient-to-r ${style.gradientClass} transition-all duration-500`} style={{ width: `${(values[i] / max) * 100}%` }} />
+                  </div>
+                  <span className={`w-10 text-right ${density.labelTextClass} font-semibold tabular-nums text-app-text-secondary`}>{values[i]}</span>
                 </div>
-                <span className="text-[11px] text-app-text-secondary font-medium w-10 text-right tabular-nums">{values[i]}</span>
-              </div>
-            ))}
+              );
+            })}
           </div>
         );
       }
@@ -2716,7 +2901,7 @@ function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onD
           <div>
             <div className="text-2xl font-bold text-app-text tracking-tight">{value}</div>
             {Boolean(d.change || d.变化) && (
-              <div className="flex items-center gap-1 mt-2 text-xs text-app-text-muted">
+              <div className="mt-2 flex items-center gap-1 text-[12px] text-app-text-muted">
                 <span>{String(d.change || d.变化)}</span>
               </div>
             )}
@@ -2734,25 +2919,28 @@ function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onD
           <div className="space-y-3 h-full flex flex-col">
             {metrics.length > 0 && (
               <div className="flex flex-wrap gap-2">
-                {metrics.slice(0, maxMetrics).map((m, i) => (
-                  <div key={i} className="px-2.5 py-1.5 rounded-lg bg-primary/8 border border-primary/15">
-                    <span className="text-[11px] font-semibold text-primary">{m}</span>
-                  </div>
-                ))}
+                {metrics.slice(0, maxMetrics).map((m, i) => {
+                  const style = getVizStyle(i);
+                  return (
+                    <div key={i} className={`rounded-lg border px-2.5 py-1.5 ${style.badgeClass}`}>
+                      <span className="text-[12px] font-semibold">{m}</span>
+                    </div>
+                  );
+                })}
               </div>
             )}
-            {text && <p className={`text-xs text-app-text-secondary leading-relaxed flex-1 ${clampClass}`}>{text}</p>}
+            {text && <p className={`flex-1 text-[13px] leading-6 text-app-text-secondary ${clampClass}`}>{text}</p>}
             {gridSize.h > 2 && headings.length > 0 && (
               <div className="space-y-1">
                 {headings.slice(0, 3).map((h, i) => (
                   <div key={i} className="flex items-center gap-2">
                     <div className="w-1 h-1 rounded-full bg-primary/40" />
-                    <span className="text-[10px] text-app-text-subtle truncate">{h}</span>
+                    <span className="truncate text-[11px] text-app-text-muted">{h}</span>
                   </div>
                 ))}
               </div>
             )}
-            <div className="flex items-center gap-1.5 text-[10px] text-app-text-subtle mt-auto pt-1">
+            <div className="mt-auto flex items-center gap-1.5 pt-1 text-[11px] text-app-text-muted">
               <FileText className="w-3 h-3" />
               <span>点击查看完整报告</span>
             </div>
@@ -2766,8 +2954,8 @@ function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onD
       if (summary) {
         return (
           <div className="space-y-2">
-            <p className={`text-xs text-app-text-secondary leading-relaxed ${summaryClampClass}`}>{summary}</p>
-            <div className="flex items-center gap-1.5 text-[10px] text-app-text-subtle">
+            <p className={`text-[13px] leading-6 text-app-text-secondary ${summaryClampClass}`}>{summary}</p>
+            <div className="flex items-center gap-1.5 text-[11px] text-app-text-muted">
               <FileText className="w-3 h-3" />
               <span>点击阅读全文</span>
             </div>
@@ -2797,12 +2985,12 @@ function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onD
             return (
               <div className="space-y-2">
                 {keyLabels[key] === undefined && (
-                  <p className="text-[10px] text-app-text-subtle">{key}</p>
+                  <p className="text-[11px] text-app-text-muted">{key}</p>
                 )}
                 {val.map((v, i) => (
                   <div key={i} className="flex items-start gap-2.5 p-2.5 rounded-xl bg-app-surface-subtle/60 border border-transparent hover:border-app-border-subtle transition-colors">
                     <div className="w-1.5 h-1.5 rounded-full mt-1.5 shrink-0 bg-primary/50" />
-                    <span className="text-xs text-app-text-secondary">{v}</span>
+                    <span className="text-[13px] leading-6 text-app-text-secondary">{v}</span>
                   </div>
                 ))}
               </div>
@@ -2814,8 +3002,8 @@ function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onD
       // 8. 最终兜底：友好空状态
       return (
         <div className="h-full flex flex-col items-center justify-center text-app-text-subtle">
-          <div className="text-xs mb-1">暂无数据</div>
-          <div className="text-[10px] text-app-text-subtle">组件类型：{widget.type}</div>
+          <div className="mb-1 text-[13px] font-medium">暂无数据</div>
+          <div className="text-[11px] text-app-text-muted">组件类型：{widget.type}</div>
         </div>
       );
     }
@@ -2830,6 +3018,48 @@ function agentModeLabel(mode: string): string {
     'llm-only': 'LLM 驱动',
   };
   return labels[mode] || mode;
+}
+
+function extractPreviewMetrics(text: string): string[] {
+  const source = text.replace(/\s+/g, ' ').trim();
+  if (!source) return [];
+  const metrics: string[] = [];
+  const metricPatterns = [
+    /[¥$€]\s*\d[\d,]*(?:\.\d+)?\s*(?:万|亿|千|百万|千万|港币|人民币|美元|欧元)?/g,
+    /\d[\d,]*(?:\.\d+)?\s*(?:亿港币|亿人民币|亿元|亿|万港币|万元|万|%|pct|pp|倍|人)/g,
+    /[+-]\d+(?:\.\d+)?%/g,
+  ];
+  for (const pattern of metricPatterns) {
+    let match;
+    while ((match = pattern.exec(source)) !== null) {
+      const value = match[0].trim();
+      if (value && !metrics.includes(value) && metrics.length < 8) {
+        metrics.push(value);
+      }
+    }
+  }
+  return metrics;
+}
+
+function extractReportSections(data: Record<string, unknown>): Array<{ title: string; summary: string }> {
+  const rawSections = data.sections || data.chapters || data.blocks;
+  if (!Array.isArray(rawSections)) return [];
+  return rawSections
+    .map((section, index) => {
+      if (typeof section === 'string') {
+        return { title: `章节 ${index + 1}`, summary: section.trim() };
+      }
+      const record = toRecord(section);
+      if (!record) return null;
+      const title = toStringValue(record.title || record.name || record.label || record.heading || record.chapter);
+      const summary = toStringValue(record.summary || record.description || record.content || record.text || record.value);
+      if (!title && !summary) return null;
+      return {
+        title: title || `章节 ${index + 1}`,
+        summary,
+      };
+    })
+    .filter((section): section is { title: string; summary: string } => section !== null);
 }
 
 /** 从 HTML 中提取预览信息：指标、表格、列表、摘要、标题 */

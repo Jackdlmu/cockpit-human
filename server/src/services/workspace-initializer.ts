@@ -306,7 +306,8 @@ ${widgetDesc}
 - list: { items: any[] }
 - kanban: { stages: string[] }
 - timeline: { steps: string[] }
-- report: { summary: string, highlights: [{label:string,value:string}] }
+- report: { summary: string, highlights: [{label:string,value:string}], detail?: { content: string, contentType: "html"|"markdown"|"text" }, html?: string }
+- html: { html: string, title?: string }
 - progress: { value: number, max: number, label: string }
 - status: { items: [{ label: string, status: "green"|"yellow"|"red", value: string }] }
 - gauge: { value: number, min: number, max: number, unit: string, thresholds?: [{value:number,color:string}] }
@@ -322,7 +323,8 @@ ${widgetDesc}
 1. 严格遵循用户的初始化要求，如果要求真实数据则优先使用工具/联网结果，不要编造
 2. 数据必须与驾驶舱主题高度相关，数值合理且有业务逻辑
 3. 直接输出纯 JSON，不要任何 markdown 格式或其他文字
-${groundingGuide ? `4. 请额外遵守以下场景约束：\n${groundingGuide}` : ''}`;
+4. 如果组件标题或初始化要求包含“完整报告 / HTML报告 / 点击查看详情 / 全部详情”等语义，必须把完整正文写入 data.html 或 data.detail.content；不要只返回 detailUrl: true 这类布尔标记
+${groundingGuide ? `5. 请额外遵守以下场景约束：\n${groundingGuide}` : ''}`;
 
   const messages: ChatMessage[] = [
     { role: 'system', content: systemPrompt },

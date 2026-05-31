@@ -11,6 +11,11 @@ import { Input } from '@/components/ui/input';
 
 interface Props {
   connections: Connection[];
+  adminStatus: {
+    configured: boolean;
+    localFallbackEnabled: boolean;
+    requiresKey: boolean;
+  } | null;
   onCreate: (data: CreateConnectionInput) => Promise<Connection>;
   onUpdate: (id: string, data: Partial<Connection>) => Promise<Connection>;
   onDelete: (id: string) => Promise<void>;
@@ -22,6 +27,7 @@ interface Props {
 
 export default function ConnectionList({
   connections,
+  adminStatus,
   onCreate,
   onUpdate,
   onDelete,
@@ -64,27 +70,35 @@ export default function ConnectionList({
   return (
     <div className="space-y-4">
       <div className="rounded-xl bg-white/[0.02] border border-white/[0.06] p-3 space-y-2">
-        <div className="text-[11px] text-white/45">
-          连接配置属于管理员操作。若服务端已启用 `ADMIN_KEY`，请先在这里填写管理员密钥。
-        </div>
-        <div className="flex items-center gap-2">
-          <Input
-            type="password"
-            value={adminKey}
-            onChange={(e) => setAdminKey(e.target.value)}
-            placeholder="输入管理员密钥"
-            className="h-8 text-xs bg-app-surface border-app-border-subtle text-app-text-secondary placeholder:text-app-text-subtle"
-          />
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            onClick={handleSaveAdminKey}
-            className="h-8 text-xs border-app-border-subtle text-app-text-muted hover:bg-app-surface-hover hover:text-app-text-secondary"
-          >
-            保存密钥
-          </Button>
-        </div>
+        {adminStatus?.localFallbackEnabled ? (
+          <div className="text-[11px] leading-5 text-emerald-400">
+            本地开发管理已启用，可直接新增、测试和维护连接。上线部署时请在服务端配置 ADMIN_KEY。
+          </div>
+        ) : (
+          <>
+            <div className="text-[11px] text-white/45">
+              连接配置属于管理员操作。请填写服务端配置的 ADMIN_KEY 后再保存、测试或删除连接。
+            </div>
+            <div className="flex items-center gap-2">
+              <Input
+                type="password"
+                value={adminKey}
+                onChange={(e) => setAdminKey(e.target.value)}
+                placeholder="输入管理员密钥"
+                className="h-8 text-xs bg-app-surface border-app-border-subtle text-app-text-secondary placeholder:text-app-text-subtle"
+              />
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={handleSaveAdminKey}
+                className="h-8 text-xs border-app-border-subtle text-app-text-muted hover:bg-app-surface-hover hover:text-app-text-secondary"
+              >
+                保存密钥
+              </Button>
+            </div>
+          </>
+        )}
       </div>
 
       {/* 统计 */}

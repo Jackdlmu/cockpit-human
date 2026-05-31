@@ -28,21 +28,51 @@ function safeCompare(left: string, right: string): boolean {
   return crypto.timingSafeEqual(leftBuffer, rightBuffer);
 }
 
+function isLocalRequest(req: Request): boolean {
+  const address = req.ip || req.socket.remoteAddress || '';
+  return (
+    address === '127.0.0.1' ||
+    address === '::1' ||
+    address === '::ffff:127.0.0.1' ||
+    address.includes('localhost')
+  );
+}
+
+export function isLocalAdminFallbackEnabled(req: Request): boolean {
+  return !isAdminConfigured() && process.env.NODE_ENV !== 'production' && isLocalRequest(req);
+}
+
+export function getAdminAuthStatus(req: Request) {
+  return {
+    configured: isAdminConfigured(),
+    localFallbackEnabled: isLocalAdminFallbackEnabled(req),
+    requiresKey: isAdminConfigured(),
+  };
+}
+
 export function isAdminConfigured(): boolean {
   return getConfiguredAdminKey().length > 0;
 }
 
 export function isAdminRequest(req: Request): boolean {
+  if (isLocalAdminFallbackEnabled(req)) {
+    return true;
+  }
   const configuredKey = getConfiguredAdminKey();
   const providedKey = extractProvidedKey(req);
   return Boolean(configuredKey && providedKey && safeCompare(configuredKey, providedKey));
 }
 
 export function requireAdmin(req: Request, res: Response, next: NextFunction): void {
+  if (isLocalAdminFallbackEnabled(req)) {
+    next();
+    return;
+  }
+
   const configuredKey = getConfiguredAdminKey();
   if (!configuredKey) {
     res.status(503).json({
-      error: '管理员能力未启用，请先在服务端配置 ADMIN_KEY',
+      error: '管理员能力未启用。生产环境请在服务端配置 ADMIN_KEY；本地开发请从 localhost 或 127.0.0.1 访问。',
       code: 'ADMIN_NOT_CONFIGURED',
       status: 503,
     });

@@ -6,6 +6,7 @@ import type { Connection, CreateConnectionInput } from '@/types';
 import { toast } from 'sonner';
 import {
   getConnections,
+  getConnectionAdminStatus,
   createConnection as apiCreate,
   updateConnection as apiUpdate,
   deleteConnection as apiDelete,
@@ -17,6 +18,11 @@ import {
 
 export function useConnections() {
   const [connections, setConnections] = useState<Connection[]>([]);
+  const [adminStatus, setAdminStatus] = useState<{
+    configured: boolean;
+    localFallbackEnabled: boolean;
+    requiresKey: boolean;
+  } | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -24,8 +30,12 @@ export function useConnections() {
     setLoading(true);
     setError(null);
     try {
-      const data = await getConnections();
+      const [data, status] = await Promise.all([
+        getConnections(),
+        getConnectionAdminStatus().catch(() => null),
+      ]);
       setConnections(data.connections);
+      setAdminStatus(status);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : '获取连接列表失败');
     } finally {
@@ -107,6 +117,7 @@ export function useConnections() {
 
   return {
     connections,
+    adminStatus,
     loading,
     error,
     refresh,

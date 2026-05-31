@@ -11,8 +11,9 @@ import { eventBus } from './event-bus';
 import { inferWidgetType } from './widget-type-inferer';
 import type { Connection } from '../connection/types';
 import { createWorkspaceWithLifecycle } from './workspace-creation';
-import { normalizeWidgets } from './widget-normalizer';
+import { normalizeWidgetDataPayload, normalizeWidgets } from './widget-normalizer';
 import { contextBuilder } from './context-builder';
+import { applyRecommendedWidgetData, recommendWidgetSize, recommendWidgetType } from './widget-recommendation';
 
 // ── 工具定义 ──
 
@@ -484,16 +485,16 @@ export class CockpitMetaAgent {
 
           if (llmConnector && llmConnector.chat) {
             try {
-              const existingWidgets = (ws.widgets || []).map((w: any) =>
+              const existingWidgetSummary = (ws.widgets || []).map((w: any) =>
                 `  - ${w.title} (${w.type}): position={x:${w.position?.x},y:${w.position?.y},w:${w.position?.w},h:${w.position?.h}}`
               ).join('\n');
 
               const parsePrompt = `你是驾驶舱组件解析器。根据用户指令，提取要添加的所有组件，返回 JSON 数组。
 
 当前驾驶舱已有组件：
-${existingWidgets || '  (无)'}
+${existingWidgetSummary || '  (无)'}
 
-【重要】组件类型(type)只允许以下 18 种标准值，不能自行发明其他类型：
+【重要】组件类型(type)只能使用以下标准值，不能自行发明其他类型：
 - metric（指标/仪表/数据卡/数字）
 - chart（图表/折线图/柱状图/饼图/趋势图）
 - table（表格/数据表）
@@ -514,13 +515,20 @@ ${existingWidgets || '  (无)'}
 - adaptive（智能自适应容器/智能摘要面板）
 - sparkline（迷你趋势图）
 
+数据与视觉选择规则：
+- 单值 KPI 用 metric；value+target 用 bullet；value+min/max 用 gauge；label+value 进度用 progress。
+- 2-5 个分类占比用 chart，并在 data.styleConfig 写入 {"variant":"donut","donut":{"innerRatio":0.58,"maxSlices":5}}。
+- 超过 5 个分类优先 chart bar；超过 10 个分类或需要明细查看时优先 table。
+- rows/cells 且含 x/y/value 用 heatmap；stages/steps 含 value/rate 用 funnel；alerts/events 用 alert。
+- HTML 正文必须用 html，并保留 data.html/data.detail.content/detailUrl/reportUrl，不要把完整 HTML 改写成摘要。
+- summary/highlights/keyPoints 用 report；复杂多块摘要用 adaptive。
+
 布局规则（网格 12 列宽）：
-- metric/progress: w=4 h=2
-- status/list/alert: w=4-5 h=3
-- chart/table/kanban/timeline/funnel/heatmap/map/adaptive: w=6 h=4
-- radar: w=5 h=4
-- gauge: w=4 h=3
-- report/html: w=8 h=4
+- metric/progress: w=3 h=2；多指标 metric 可 w=4 h=3。
+- chart donut/bar: 至少 w=6 h=4，分类很多时 w=8 h=5。
+- table: 常规 w=6 h=4，多列或多行 w=8-12 h=5-6。
+- report/html: 常规 w=8 h=4，长报告/完整 HTML 用 w=12 h=6。
+- timeline 可 w=8 h=4；heatmap/map/funnel/adaptive 建议 w=6-7 h=4。
 - 位置需避免与现有组件重叠，y 坐标优先放在最下方空行
 
 用户指令："""${cmd}"""
@@ -543,20 +551,22 @@ ${existingWidgets || '  (无)'}
                   .map((w: any, i: number) => {
                     const normType = this.normalizeWidgetType(w.type, w.data);
                     const normData = this.normalizeWidgetData(w.data || this.defaultWidgetData(normType), normType);
+                    const finalType = recommendWidgetType(normType, normData);
+                    const finalData = applyRecommendedWidgetData(finalType, normData);
                     // 防御 LLM/连接器返回异常 title（如字符数组或截断字符串）
                     let title = w.title;
                     if (Array.isArray(title)) title = title.join('');
                     title = String(title || '').trim();
                     if (title.length === 0 || title.length === 1) {
                       // 单字 title 尝试从指令上下文推断，否则使用类型默认名
-                      title = this.widgetTypeLabel(normType);
+                      title = this.widgetTypeLabel(finalType);
                     }
                     return {
                       id: `w-${Date.now()}-${i}`,
-                      type: normType,
+                      type: finalType,
                       title,
-                      position: w.position || this.calcWidgetPosition(normType, existingWidgets, [], i),
-                      data: normData,
+                      position: w.position || this.calcWidgetPosition(finalType, ws.widgets || [], [], i, finalData),
+                      data: finalData,
                     };
                   });
               }
@@ -712,13 +722,16 @@ ${widgetDesc}
             const newWidgets = inputWidgets.map((w: any, i: number) => {
               const lifted = this.liftWidgetPayload(w);
               const normType = this.normalizeWidgetType(lifted.type, lifted.data);
+              const normData = this.normalizeWidgetData(lifted.data || this.defaultWidgetData(normType), normType);
+              const finalType = recommendWidgetType(normType, normData);
+              const finalData = applyRecommendedWidgetData(finalType, normData);
               return {
                 ...lifted,
                 id: lifted.id || `w-${Date.now()}-${i}`,
-                type: normType,
+                type: finalType,
                 title: String(lifted.title || '新组件'),
-                position: lifted.position || this.calcWidgetPosition(normType, ws.widgets || [], [], i),
-                data: this.normalizeWidgetData(lifted.data || this.defaultWidgetData(normType), normType),
+                position: lifted.position || this.calcWidgetPosition(finalType, ws.widgets || [], [], i, finalData),
+                data: finalData,
               };
             });
             const updated = await workspaceStore.updateWorkspace(wsId, {
@@ -751,7 +764,8 @@ ${widgetDesc}
               'stages', 'statuses', 'columns', 'phases',
               'steps', 'milestones', 'events', 'nodes',
               'items', 'tasks', 'todos',
-              'summary', 'highlights', 'keyPoints', 'metrics', 'stats', 'overview', 'detail', 'fullContent', 'content', 'html',
+              'summary', 'highlights', 'keyPoints', 'metrics', 'stats', 'overview', 'detail', 'fullContent', 'detailContent', 'content', 'html', 'detailHtml', 'fullHtml', 'htmlContent', 'reportHtml',
+              'detailUrl', 'reportUrl', 'htmlUrl', 'reportPath', 'htmlPath', 'filePath', 'reportFile', 'fileName', 'filename',
               'label', 'color', 'colors', 'metric', 'primaryMetric', 'headline', 'sections', 'blocks', 'cards',
               'min', 'max', 'unit', 'thresholds', 'percentage', 'percent', 'current',
               'indicators', 'dimensions', 'scores',
@@ -1181,11 +1195,13 @@ ${widgetDesc}
             .map((widget) => {
               const lifted = this.liftWidgetPayload(widget as Record<string, unknown>);
               const type = this.normalizeWidgetType(String(lifted.type || ''), lifted.data);
+              const data = this.normalizeWidgetData(lifted.data || this.defaultWidgetData(type), type);
+              const finalType = recommendWidgetType(type, data);
               return {
                 ...lifted,
-                type,
-                title: String(lifted.title || this.widgetTypeLabel(type)),
-                data: this.normalizeWidgetData(lifted.data || this.defaultWidgetData(type), type),
+                type: finalType,
+                title: String(lifted.title || this.widgetTypeLabel(finalType)),
+                data: applyRecommendedWidgetData(finalType, data),
               };
             }),
           { idPrefix: 'w' }
@@ -1367,11 +1383,13 @@ ${widgetDesc}
       .map((item) => {
         const lifted = this.liftWidgetPayload(item as Record<string, unknown>);
         const type = this.normalizeWidgetType(String(lifted.type || ''), lifted.data);
+        const data = this.normalizeWidgetData(lifted.data || this.defaultWidgetData(type), type);
+        const finalType = recommendWidgetType(type, data);
         return {
           ...lifted,
-          type,
-          title: String(lifted.title || this.widgetTypeLabel(type)),
-          data: this.normalizeWidgetData(lifted.data || this.defaultWidgetData(type), type),
+          type: finalType,
+          title: String(lifted.title || this.widgetTypeLabel(finalType)),
+          data: applyRecommendedWidgetData(finalType, data),
         };
       });
 
@@ -1386,12 +1404,14 @@ ${widgetDesc}
 
     const knownDataFields = new Set([
       'value', 'change', 'trend', 'caption', 'variant', 'accentColor', 'status',
+      'styleConfig', 'visualMapping',
       'labels', 'values', 'categories', 'series', 'datasets', 'names', 'xaxis', 'xAxis', 'yaxis', 'yAxis',
       'rows', 'columns', 'records', 'entries',
       'stages', 'statuses', 'phases',
       'steps', 'milestones', 'events', 'nodes',
       'items', 'tasks', 'todos',
-      'summary', 'highlights', 'keyPoints', 'metrics', 'stats', 'overview', 'detail', 'fullContent', 'content', 'html',
+      'summary', 'highlights', 'keyPoints', 'metrics', 'stats', 'overview', 'detail', 'fullContent', 'detailContent', 'content', 'html', 'detailHtml', 'fullHtml', 'htmlContent', 'reportHtml',
+      'detailUrl', 'reportUrl', 'htmlUrl', 'reportPath', 'htmlPath', 'filePath', 'reportFile', 'fileName', 'filename',
       'label', 'color', 'colors', 'metric', 'primaryMetric', 'headline', 'sections', 'blocks', 'cards',
       'min', 'max', 'unit', 'thresholds', 'percentage', 'percent', 'current',
       'indicators', 'dimensions', 'scores',
@@ -1430,7 +1450,7 @@ ${widgetDesc}
   private normalizeWidgetType(raw: string, data?: Record<string, unknown>): string {
     const map: Record<string, string> = {
       'data': 'data', 'metric': 'metric', '指标': 'metric', '仪表': 'metric', '数据卡': 'metric',
-      '数字': 'metric', 'kpi': 'metric', '指标卡': 'metric', '数值': 'metric', '指标卡': 'metric',
+      '数字': 'metric', 'kpi': 'metric', '指标卡': 'metric', '数值': 'metric',
       'metric-card': 'data', 'data-card': 'data', 'metriccard': 'data', '指标卡片': 'data',
       'chart': 'chart', '图表': 'chart', '折线图': 'chart', '柱状图': 'chart',
       '饼图': 'chart', '趋势图': 'chart', '统计图': 'chart', '可视化': 'chart',
@@ -1509,15 +1529,17 @@ ${widgetDesc}
       const typeKey = match[1] || 'metric';
       const title = match[2]?.trim() || '新组件';
       const type = this.normalizeWidgetType(typeKey);
+      const data = this.normalizeWidgetData(this.defaultWidgetData(type), type);
+      const finalData = applyRecommendedWidgetData(type, data);
 
       // 计算位置：避免重叠，放在最下方
-      const pos = this.calcWidgetPosition(type, existingWidgets, widgets, idx);
+      const pos = this.calcWidgetPosition(type, existingWidgets, widgets, idx, finalData);
       widgets.push({
         id: `w-${Date.now()}-${idx}`,
         type,
         title,
         position: pos,
-        data: this.normalizeWidgetData(this.defaultWidgetData(type), type),
+        data: finalData,
       });
       idx++;
     }
@@ -1526,26 +1548,8 @@ ${widgetDesc}
   }
 
   // ── 辅助：计算组件位置（避免重叠）─
-  private calcWidgetPosition(type: string, existing: any[], pending: any[], idx: number): { x: number; y: number; w: number; h: number } {
-    const sizeMap: Record<string, { w: number; h: number }> = {
-      metric: { w: 3, h: 2 },
-      chart: { w: 6, h: 4 },
-      table: { w: 6, h: 4 },
-      kanban: { w: 6, h: 4 },
-      timeline: { w: 9, h: 4 },
-      gauge: { w: 3, h: 3 },
-      funnel: { w: 6, h: 4 },
-      radar: { w: 6, h: 4 },
-      heatmap: { w: 6, h: 4 },
-      bullet: { w: 6, h: 2 },
-      alert: { w: 6, h: 4 },
-      map: { w: 6, h: 4 },
-      adaptive: { w: 6, h: 4 },
-      list: { w: 6, h: 4 },
-      report: { w: 8, h: 4 },
-      html: { w: 8, h: 4 },
-    };
-    const { w, h } = sizeMap[type] || { w: 3, h: 2 };
+  private calcWidgetPosition(type: string, existing: any[], pending: any[], idx: number, data?: Record<string, unknown>): { x: number; y: number; w: number; h: number } {
+    const { w, h } = recommendWidgetSize(type, data);
 
     // 收集所有已占用的格子（现有 + 待添加）
     const all = [...existing, ...pending];
@@ -1682,7 +1686,7 @@ ${widgetDesc}
       if ('cities' in d && !('points' in d)) d.points = d.cities;
     }
 
-    return d;
+    return normalizeWidgetDataPayload(d, type);
   }
 
   // ── 辅助：默认组件数据 ──

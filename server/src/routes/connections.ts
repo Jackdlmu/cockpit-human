@@ -5,10 +5,15 @@ import { Router } from 'express';
 import { connectionManager } from '../connection/manager';
 import type { CreateConnectionInput, UpdateConnectionInput } from '../connection/types';
 import type { Request, Response, NextFunction } from 'express';
-import { requireAdmin, resolveRequestActor } from '../security/admin-auth';
+import { getAdminAuthStatus, requireAdmin, resolveRequestActor } from '../security/admin-auth';
 import { recordAuditEvent } from '../services/audit-log';
 
 const router = Router();
+
+// GET /api/connections/admin-status → 管理员能力状态
+router.get('/admin-status', (req: Request, res: Response) => {
+  res.json(getAdminAuthStatus(req));
+});
 
 // GET /api/connections → 列出所有连接
 router.get('/', async (_req: Request, res: Response, next: NextFunction) => {

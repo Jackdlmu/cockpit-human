@@ -213,6 +213,8 @@ export interface WidgetCatalogItem {
   schemaHint?: {
     recommendedDataShape?: Record<string, unknown>;
     layoutAdvice?: string;
+    styleConfig?: Record<string, unknown>;
+    visualMapping?: Record<string, unknown>;
   };
   template: Partial<Widget>;
   isBuiltin?: boolean;

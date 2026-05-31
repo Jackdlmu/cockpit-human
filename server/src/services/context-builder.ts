@@ -124,10 +124,40 @@ export class ContextBuilder {
         const change = w.data.change ? ` (${w.data.change})` : '';
         highlights.push(`${w.title}: ${w.data.value}${change}`);
       }
+      if (type === 'metric' && Array.isArray(w.data?.metrics) && w.data.metrics.length > 0) {
+        const metricSummary = w.data.metrics
+          .slice(0, 4)
+          .map((item: any) => {
+            const label = String(item?.label || item?.title || '').trim();
+            const value = String(item?.value || '').trim();
+            if (!label && !value) return '';
+            return `${label}${value ? ` ${value}` : ''}`.trim();
+          })
+          .filter(Boolean)
+          .join('；');
+        if (metricSummary) {
+          highlights.push(`${w.title}: ${metricSummary}`);
+        }
+      }
       // chart 类型提取最新数据点
       if (type === 'chart' && w.data?.values?.length > 0) {
         const last = w.data.values[w.data.values.length - 1];
         highlights.push(`${w.title}: 最新值 ${last}`);
+      }
+      if (type === 'chart' && Array.isArray(w.data?.labels) && Array.isArray(w.data?.values) && w.data.labels.length > 0 && w.data.values.length > 0) {
+        const chartSummary = w.data.labels
+          .slice(0, Math.min(4, w.data.values.length))
+          .map((label: unknown, index: number) => {
+            const left = String(label ?? '').trim();
+            const right = String(w.data.values[index] ?? '').trim();
+            if (!left && !right) return '';
+            return `${left}${right ? ` ${right}` : ''}`.trim();
+          })
+          .filter(Boolean)
+          .join('；');
+        if (chartSummary) {
+          highlights.push(`${w.title}: ${chartSummary}`);
+        }
       }
       if (type === 'table' && Array.isArray(w.data?.rows) && w.data.rows.length > 0) {
         const firstRow = Array.isArray(w.data.rows[0])
@@ -143,6 +173,21 @@ export class ContextBuilder {
       }
       if (type === 'report' && typeof w.data?.summary === 'string' && w.data.summary.trim()) {
         highlights.push(`${w.title}: ${w.data.summary.trim().slice(0, 80)}`);
+      }
+      if (type === 'report' && Array.isArray(w.data?.highlights) && w.data.highlights.length > 0) {
+        const reportHighlights = w.data.highlights
+          .slice(0, 4)
+          .map((item: any) => {
+            const label = String(item?.label || item?.title || '').trim();
+            const value = String(item?.value || item?.summary || '').trim();
+            if (!label && !value) return '';
+            return `${label}${value ? ` ${value}` : ''}`.trim();
+          })
+          .filter(Boolean)
+          .join('；');
+        if (reportHighlights) {
+          highlights.push(`${w.title}: ${reportHighlights}`);
+        }
       }
       if (type === 'status' && Array.isArray(w.data?.items) && w.data.items.length > 0) {
         const firstStatus = w.data.items[0] as Record<string, unknown>;

@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, afterEach } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
+import { http, HttpResponse } from 'msw';
 import { server } from '@/mocks/server';
 import { useAgents, useAgentDetail, useWorkspaces, useWorkspaceDetail } from './useApiData';
 
@@ -69,6 +70,23 @@ describe('useWorkspaces', () => {
 
     expect(result.current.workspaces).toHaveLength(1);
     expect(result.current.workspaces[0].name).toBe('Test Cockpit');
+  });
+
+  it('sorts workspaces by created time descending', async () => {
+    server.use(
+      http.get('http://localhost:3001/api/workspaces', () => HttpResponse.json({
+        workspaces: [
+          { id: 'ws-old', name: '旧驾驶舱', createdAt: '2026-05-28T10:00:00.000Z', status: 'running', agentIds: [], widgets: [] },
+          { id: 'ws-new', name: '新驾驶舱', createdAt: '2026-05-31T10:00:00.000Z', status: 'running', agentIds: [], widgets: [] },
+          { id: 'ws-mid', name: '中间驾驶舱', createdAt: '2026-05-30T10:00:00.000Z', status: 'running', agentIds: [], widgets: [] },
+        ],
+      }))
+    );
+    const { result } = renderHook(() => useWorkspaces());
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    expect(result.current.workspaces.map((workspace) => workspace.id)).toEqual(['ws-new', 'ws-mid', 'ws-old']);
   });
 });
 

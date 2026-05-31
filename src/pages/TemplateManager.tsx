@@ -46,6 +46,7 @@ import {
   updateWidgetCatalogItem,
 } from '@/api/client';
 import { toast } from 'sonner';
+import { TemplatePreviewCanvas, WidgetPreviewCard } from '@/components/WidgetPreviewCanvas';
 
 const WIDGET_TYPES: WidgetType[] = [
   'metric', 'chart', 'table', 'kanban', 'timeline', 'list', 'report',
@@ -82,6 +83,75 @@ const ICON_OPTIONS = [
   'Gauge', 'Radar', 'Grid3X3', 'Map', 'Filter', 'Code2',
 ];
 
+const TEMPLATE_EXTENSION_EXAMPLE = `{
+  "id": "custom-finance-review",
+  "name": "经营复盘模板",
+  "description": "面向财务经营复盘的驾驶舱模板",
+  "icon": "BarChart3",
+  "color": "#dc2626",
+  "agentMode": "llm-only",
+  "widgets": [
+    {
+      "id": "revenue-summary",
+      "type": "metric",
+      "title": "收入达成",
+      "position": { "x": 0, "y": 0, "w": 4, "h": 2 },
+      "data": { "value": "82%", "change": "+4.8%", "trend": "up" },
+      "dataIntent": {
+        "domain": "finance",
+        "metricKey": "revenue_attainment",
+        "sourcePreference": "real-time",
+        "required": true
+      }
+    },
+    {
+      "id": "cashflow-report",
+      "type": "html",
+      "title": "现金流分析报告",
+      "position": { "x": 0, "y": 2, "w": 8, "h": 5 },
+      "data": {
+        "reportFile": "full-report.html"
+      }
+    }
+  ]
+}`;
+
+const WIDGET_EXTENSION_EXAMPLE = `{
+  "id": "custom-donut-health",
+  "name": "经营健康环形图",
+  "type": "chart",
+  "category": "图表",
+  "icon": "PieChart",
+  "color": "#2563eb",
+  "description": "用于展示少量分类占比，并在中心显示总量或健康分。",
+  "agentDescription": "当数据是 2-5 个分类占比、贡献结构或健康分构成时优先选择。超过 6 个分类请改用条形图或表格。",
+  "useCases": ["收入结构", "成本构成", "健康度评分"],
+  "tags": ["donut", "ratio", "composition"],
+  "schemaHint": {
+    "recommendedDataShape": {
+      "labels": ["订阅收入", "实施服务", "其他"],
+      "values": [62, 28, 10],
+      "centerLabel": "总收入",
+      "centerValue": "91.82亿"
+    },
+    "layoutAdvice": "建议 w=5-6, h=4；分类超过 5 个时不要使用环形图。",
+    "styleConfig": {
+      "variant": "donut",
+      "donut": { "innerRatio": 0.58, "legendRatio": 0.42 },
+      "palette": ["#2563eb", "#06b6d4", "#f59e0b"]
+    }
+  },
+  "template": {
+    "type": "chart",
+    "title": "经营健康结构",
+    "position": { "x": 0, "y": 0, "w": 6, "h": 4 },
+    "data": {
+      "labels": ["订阅", "服务", "生态"],
+      "values": [62, 28, 10]
+    }
+  }
+}`;
+
 type TabKey = 'templates' | 'widgets';
 type DeleteTarget =
   | { kind: 'template'; id: string; name: string; builtin: boolean }
@@ -115,6 +185,8 @@ export function TemplateManager({ onBack }: TemplateManagerProps) {
   const [widgetEditorMode, setWidgetEditorMode] = useState<'create' | 'edit' | 'duplicate'>('create');
   const [editingWidget, setEditingWidget] = useState<WidgetCatalogItem | null>(null);
   const [widgetDetailTarget, setWidgetDetailTarget] = useState<WidgetCatalogItem | null>(null);
+  const [widgetPreviewTarget, setWidgetPreviewTarget] = useState<WidgetCatalogItem | null>(null);
+  const [templatePreviewTarget, setTemplatePreviewTarget] = useState<CockpitTemplate | null>(null);
 
   const [createTarget, setCreateTarget] = useState<CockpitTemplate | null>(null);
   const [createName, setCreateName] = useState('');
@@ -333,8 +405,8 @@ export function TemplateManager({ onBack }: TemplateManagerProps) {
   }
 
   return (
-    <div className="flex h-screen w-screen flex-col overflow-hidden bg-app-bg">
-      <div className="flex items-center justify-between border-b border-app-border-subtle px-6 py-4">
+    <div className="bi-page flex h-screen w-screen flex-col overflow-hidden">
+      <div className="bi-toolbar flex items-center justify-between px-6 py-4">
         <div className="flex items-center gap-3">
           <button onClick={onBack} className="rounded-lg p-2 text-app-text-muted transition-colors hover:bg-app-surface-subtle">
             <ArrowLeft className="h-4 w-4" />
@@ -368,10 +440,10 @@ export function TemplateManager({ onBack }: TemplateManagerProps) {
       </div>
 
       <div className="border-b border-app-border-subtle px-6 py-3">
-        <div className="inline-flex rounded-2xl border border-app-border-subtle bg-app-surface-subtle/40 p-1">
+        <div className="inline-flex rounded-lg border border-app-border-subtle bg-app-surface-subtle/70 p-1">
           <button
             onClick={() => setActiveTab('templates')}
-            className={`rounded-xl px-4 py-2 text-sm transition-colors ${
+            className={`rounded-md px-4 py-2 text-sm transition-colors ${
               activeTab === 'templates'
                 ? 'bg-app-surface text-app-text shadow-sm'
                 : 'text-app-text-muted hover:text-app-text'
@@ -381,7 +453,7 @@ export function TemplateManager({ onBack }: TemplateManagerProps) {
           </button>
           <button
             onClick={() => setActiveTab('widgets')}
-            className={`rounded-xl px-4 py-2 text-sm transition-colors ${
+            className={`rounded-md px-4 py-2 text-sm transition-colors ${
               activeTab === 'widgets'
                 ? 'bg-app-surface text-app-text shadow-sm'
                 : 'text-app-text-muted hover:text-app-text'
@@ -402,6 +474,7 @@ export function TemplateManager({ onBack }: TemplateManagerProps) {
             templates={templates}
             stats={templateStats}
             onEdit={openEditTemplate}
+            onPreview={setTemplatePreviewTarget}
             onDuplicate={openDuplicateTemplate}
             onDelete={(item) => setDeleteTarget({ kind: 'template', id: item.id, name: item.name, builtin: !!item.isBuiltin })}
             onRename={handleRenameTemplate}
@@ -414,6 +487,7 @@ export function TemplateManager({ onBack }: TemplateManagerProps) {
           <WidgetsSection
             widgets={widgets}
             stats={widgetStats}
+            onPreview={setWidgetPreviewTarget}
             onView={setWidgetDetailTarget}
             onEdit={openEditWidget}
             onDuplicate={openDuplicateWidget}
@@ -452,6 +526,44 @@ export function TemplateManager({ onBack }: TemplateManagerProps) {
             } else {
               openEditWidget(widgetDetailTarget);
             }
+          }}
+        />
+      )}
+
+      {widgetPreviewTarget && (
+        <WidgetPreviewModal
+          item={widgetPreviewTarget}
+          onClose={() => setWidgetPreviewTarget(null)}
+          onEdit={() => {
+            const target = widgetPreviewTarget;
+            setWidgetPreviewTarget(null);
+            if (!target) return;
+            if (target.isBuiltin) {
+              openDuplicateWidget(target);
+            } else {
+              openEditWidget(target);
+            }
+          }}
+          onShowDetail={() => {
+            const target = widgetPreviewTarget;
+            setWidgetPreviewTarget(null);
+            if (target) setWidgetDetailTarget(target);
+          }}
+        />
+      )}
+
+      {templatePreviewTarget && (
+        <TemplatePreviewModal
+          template={templatePreviewTarget}
+          onClose={() => setTemplatePreviewTarget(null)}
+          onEdit={() => {
+            setTemplatePreviewTarget(null);
+            openEditTemplate(templatePreviewTarget);
+          }}
+          onCreateCockpit={() => {
+            setCreateTarget(templatePreviewTarget);
+            setCreateName(templatePreviewTarget.name);
+            setTemplatePreviewTarget(null);
           }}
         />
       )}
@@ -546,6 +658,7 @@ function TemplatesSection({
   templates,
   stats,
   onEdit,
+  onPreview,
   onDuplicate,
   onDelete,
   onRename,
@@ -554,6 +667,7 @@ function TemplatesSection({
   templates: CockpitTemplate[];
   stats: { total: number; builtin: number; custom: number };
   onEdit: (template: CockpitTemplate) => void;
+  onPreview: (template: CockpitTemplate) => void;
   onDuplicate: (template: CockpitTemplate) => void;
   onDelete: (template: CockpitTemplate) => void;
   onRename: (id: string, name: string) => void;
@@ -571,6 +685,7 @@ function TemplatesSection({
 
   return (
     <div className="space-y-5">
+      <TemplateExtensionGuide />
       <SummaryCards
         cards={[
           { label: '模板总数', value: String(stats.total), detail: '系统模板 + 自定义模板' },
@@ -584,6 +699,7 @@ function TemplatesSection({
             key={template.id}
             template={template}
             onEdit={() => onEdit(template)}
+            onPreview={() => onPreview(template)}
             onDelete={() => onDelete(template)}
             onRename={(name) => onRename(template.id, name)}
             onCopy={() => onDuplicate(template)}
@@ -598,6 +714,7 @@ function TemplatesSection({
 function WidgetsSection({
   widgets,
   stats,
+  onPreview,
   onView,
   onEdit,
   onDuplicate,
@@ -605,6 +722,7 @@ function WidgetsSection({
 }: {
   widgets: WidgetCatalogItem[];
   stats: { total: number; builtin: number; custom: number };
+  onPreview: (widget: WidgetCatalogItem) => void;
   onView: (widget: WidgetCatalogItem) => void;
   onEdit: (widget: WidgetCatalogItem) => void;
   onDuplicate: (widget: WidgetCatalogItem) => void;
@@ -622,6 +740,7 @@ function WidgetsSection({
 
   return (
     <div className="space-y-5">
+      <WidgetExtensionGuide />
       <SummaryCards
         cards={[
           { label: '组件总数', value: String(stats.total), detail: '预制组件 + 自定义组件' },
@@ -634,6 +753,7 @@ function WidgetsSection({
           <WidgetCatalogCard
             key={widget.id}
             item={widget}
+            onPreview={() => onPreview(widget)}
             onView={() => onView(widget)}
             onEdit={() => (widget.isBuiltin ? onDuplicate(widget) : onEdit(widget))}
             onDuplicate={() => onDuplicate(widget)}
@@ -645,11 +765,95 @@ function WidgetsSection({
   );
 }
 
+function GuidePanel({
+  title,
+  description,
+  bullets,
+  example,
+}: {
+  title: string;
+  description: string;
+  bullets: string[];
+  example: string;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <section className="bi-panel max-w-7xl px-5 py-4">
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        className="flex w-full items-start justify-between gap-4 text-left"
+      >
+        <div>
+          <div className="text-sm font-semibold text-app-text">{title}</div>
+          <div className="mt-1 text-xs leading-5 text-app-text-muted">{description}</div>
+        </div>
+        {open ? <ChevronUp className="mt-0.5 h-4 w-4 text-app-text-subtle" /> : <ChevronDown className="mt-0.5 h-4 w-4 text-app-text-subtle" />}
+      </button>
+      {open && (
+        <div className="mt-4 grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
+          <div className="rounded-lg border border-app-border-subtle bg-app-surface-subtle/45 p-4">
+            <div className="text-[11px] font-medium uppercase tracking-[0.16em] text-app-text-subtle">使用说明</div>
+            <ul className="mt-3 space-y-2">
+              {bullets.map((item) => (
+                <li key={item} className="flex gap-2 text-xs leading-5 text-app-text-muted">
+                  <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-red-400" />
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div className="min-w-0 rounded-lg border border-app-border-subtle bg-app-surface-subtle/45 p-4">
+            <div className="text-[11px] font-medium uppercase tracking-[0.16em] text-app-text-subtle">JSON 示例</div>
+            <pre className="mt-3 max-h-[360px] overflow-auto rounded-xl bg-[#111827] p-4 text-[11px] leading-5 text-slate-100">
+              <code>{example}</code>
+            </pre>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function TemplateExtensionGuide() {
+  return (
+    <GuidePanel
+      title="模板扩展配置与轻开发说明"
+      description="管理员可以通过复制系统模板、调整 widgets 数组、配置 dataIntent/dataSource 和默认布局，来控制 YonClaw 或本地智能体生成驾驶舱时的初始结构。"
+      bullets={[
+        '优先复制系统模板再扩展，避免直接改动预制模板；模板 JSON 可通过高级 JSON 面板整体维护。',
+        'widgets.position 使用 12 列网格，x/y/w/h 分别表示列位置、行位置、宽度和高度；报告和复杂图表建议 w>=6、h>=4。',
+        'dataIntent 用于告诉智能体业务语义和取数优先级；dataSource 用于绑定明确接口或查询。',
+        'HTML 报告必须传 data.html、data.detail.content，或 reportFile/reportUrl/htmlUrl；不要只传 detailUrl=true。',
+        '动态生成模板时，尽量让核心指标在首屏左上，趋势/占比图在中部，报告类内容放宽区域或下方详情。',
+      ]}
+      example={TEMPLATE_EXTENSION_EXAMPLE}
+    />
+  );
+}
+
+function WidgetExtensionGuide() {
+  return (
+    <GuidePanel
+      title="组件扩展配置、样式与数据适配说明"
+      description="组件目录用于告诉管理员和智能体：什么数据应选择什么组件、推荐尺寸是多少，以及自定义样式如何影响渲染。"
+      bullets={[
+        'schemaHint.recommendedDataShape 描述输入数据格式，智能体会据此选择和填充组件。',
+        'schemaHint.layoutAdvice 描述默认尺寸和排版建议，会影响动态生成时的 w/h 选择。',
+        'schemaHint.styleConfig 可作为轻量样式扩展入口，例如环形图内径、图例比例、色板、密度和强调字段。',
+        '环形图适合 2-5 个分类占比；超过 5 个分类建议条形图或表格，避免图例挤压。',
+        '自定义组件建议先复制预制组件，改名称、schemaHint 和 template.data，再用预览验证遮挡、比例和空数据状态。',
+      ]}
+      example={WIDGET_EXTENSION_EXAMPLE}
+    />
+  );
+}
+
 function SummaryCards({ cards }: { cards: Array<{ label: string; value: string; detail: string }> }) {
   return (
     <div className="grid max-w-5xl grid-cols-1 gap-3 md:grid-cols-3">
       {cards.map((card) => (
-        <div key={card.label} className="rounded-2xl border border-app-border-subtle bg-app-surface p-4">
+        <div key={card.label} className="bi-panel p-4">
           <div className="text-[11px] uppercase tracking-[0.16em] text-app-text-subtle">{card.label}</div>
           <div className="mt-2 text-2xl font-semibold text-app-text">{card.value}</div>
           <div className="mt-1 text-xs text-app-text-muted">{card.detail}</div>
@@ -661,7 +865,7 @@ function SummaryCards({ cards }: { cards: Array<{ label: string; value: string; 
 
 function EmptyState({ title, description, icon }: { title: string; description: string; icon: ReactNode }) {
   return (
-    <div className="flex h-full flex-col items-center justify-center rounded-3xl border border-dashed border-app-border-subtle bg-app-surface-subtle/20 px-6 py-16 text-center">
+    <div className="flex h-full flex-col items-center justify-center rounded-lg border border-dashed border-app-border-subtle bg-app-surface-subtle/20 px-6 py-16 text-center">
       {icon}
       <div className="mt-3 text-sm font-medium text-app-text">{title}</div>
       <div className="mt-1 text-xs text-app-text-subtle">{description}</div>
@@ -672,6 +876,7 @@ function EmptyState({ title, description, icon }: { title: string; description: 
 function TemplateCard({
   template,
   onEdit,
+  onPreview,
   onDelete,
   onRename,
   onCopy,
@@ -679,6 +884,7 @@ function TemplateCard({
 }: {
   template: CockpitTemplate;
   onEdit: () => void;
+  onPreview: () => void;
   onDelete: () => void;
   onRename: (name: string) => void;
   onCopy: () => void;
@@ -695,9 +901,9 @@ function TemplateCard({
   };
 
   return (
-    <div className="rounded-xl border border-app-border-subtle bg-app-surface p-4 shadow-[0_1px_3px_rgba(0,0,0,0.18)] transition-colors hover:border-app-border hover:shadow-[0_2px_6px_rgba(0,0,0,0.22)]">
-      <div className="mb-3 flex items-start justify-between">
-        <div className="min-w-0 flex-1">
+    <div className="rounded-lg border border-app-border-subtle bg-app-surface p-4 shadow-sm transition-colors hover:border-app-border-hover hover:shadow-md">
+      <div className="mb-3">
+        <div className="min-w-0">
           {isEditingName ? (
             <input
               value={nameInput}
@@ -708,24 +914,29 @@ function TemplateCard({
               autoFocus
             />
           ) : (
-            <div className="group flex items-center gap-2">
+            <div className="group flex min-w-0 items-start gap-2">
               <h3
-                className="cursor-pointer text-sm font-medium text-app-text transition-colors hover:text-red-400"
+                className="min-w-0 flex-1 truncate cursor-pointer text-[18px] font-semibold leading-[1.35] text-app-text transition-colors hover:text-red-400"
                 onClick={() => setIsEditingName(true)}
               >
                 {template.name}
               </h3>
-              <Edit3 className="h-3 w-3 cursor-pointer text-app-text-subtle opacity-0 transition-opacity group-hover:opacity-100" onClick={() => setIsEditingName(true)} />
-              {template.isBuiltin && (
-                <span className="rounded border border-app-border-subtle bg-app-surface-subtle px-1.5 py-0.5 text-[10px] text-app-text-muted">系统</span>
-              )}
+              <Edit3 className="mt-1 h-3 w-3 shrink-0 cursor-pointer text-app-text-subtle opacity-0 transition-opacity group-hover:opacity-100" onClick={() => setIsEditingName(true)} />
             </div>
           )}
-          <p className="mt-0.5 text-xs text-app-text-subtle">ID: {template.id} · 领域: {template.domain}</p>
+          <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-app-text-subtle">
+            {template.isBuiltin && (
+              <span className="shrink-0 whitespace-nowrap rounded border border-app-border-subtle bg-app-surface-subtle px-1.5 py-0.5 text-[10px] text-app-text-muted">系统</span>
+            )}
+            <span className="whitespace-nowrap">ID: {template.id}</span>
+            <span className="hidden text-app-text-subtle/60 sm:inline">·</span>
+            <span className="whitespace-nowrap">领域: {template.domain}</span>
+          </div>
         </div>
 
-        <div className="ml-2 flex gap-1">
+        <div className="mt-3 flex items-center justify-end gap-1 border-t border-app-border-subtle/70 pt-3">
           <IconButton title="创建驾驶舱" onClick={onCreateCockpit} accent="emerald"><Rocket className="h-3.5 w-3.5" /></IconButton>
+          <IconButton title="预览模板" onClick={onPreview}><Eye className="h-3.5 w-3.5" /></IconButton>
           <IconButton title="复制为自定义模板" onClick={onCopy}><Copy className="h-3.5 w-3.5" /></IconButton>
           <IconButton title="编辑" onClick={onEdit}><Edit3 className="h-3.5 w-3.5" /></IconButton>
           <IconButton title="删除" onClick={onDelete} accent="red"><Trash2 className="h-3.5 w-3.5" /></IconButton>
@@ -747,22 +958,24 @@ function TemplateCard({
 
 function WidgetCatalogCard({
   item,
+  onPreview,
   onView,
   onEdit,
   onDuplicate,
   onDelete,
 }: {
   item: WidgetCatalogItem;
+  onPreview: () => void;
   onView: () => void;
   onEdit: () => void;
   onDuplicate: () => void;
   onDelete: () => void;
 }) {
   return (
-    <div className="rounded-xl border border-app-border-subtle bg-app-surface p-4 shadow-[0_1px_3px_rgba(0,0,0,0.18)] transition-colors hover:border-app-border hover:shadow-[0_2px_6px_rgba(0,0,0,0.22)]">
+    <div className="rounded-lg border border-app-border-subtle bg-app-surface p-4 shadow-sm transition-colors hover:border-app-border-hover hover:shadow-md">
       <div className="mb-3 flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-start gap-3">
-          <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-app-border-subtle" style={{ backgroundColor: `${item.color}18` }}>
+          <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-app-border-subtle bg-app-surface-subtle" style={{ backgroundColor: `${item.color}18` }}>
             <WorkspaceIcon icon={item.icon} color={item.color} className="h-4 w-4" />
           </div>
           <div className="min-w-0">
@@ -779,7 +992,8 @@ function WidgetCatalogCard({
         </div>
 
         <div className="flex gap-1">
-          <IconButton title="查看详情" onClick={onView}><Eye className="h-3.5 w-3.5" /></IconButton>
+          <IconButton title="预览组件" onClick={onPreview}><Eye className="h-3.5 w-3.5" /></IconButton>
+          <IconButton title="查看详情" onClick={onView}><FileJson className="h-3.5 w-3.5" /></IconButton>
           <IconButton title="复制组件" onClick={onDuplicate}><Copy className="h-3.5 w-3.5" /></IconButton>
           <IconButton title="编辑组件" onClick={onEdit}><Edit3 className="h-3.5 w-3.5" /></IconButton>
           {!item.isBuiltin && (
@@ -801,6 +1015,171 @@ function WidgetCatalogCard({
       <div className="mt-3 rounded-lg border border-app-border-subtle bg-app-surface-subtle/40 px-3 py-2">
         <div className="text-[10px] uppercase tracking-[0.16em] text-app-text-subtle">面向智能体说明</div>
         <div className="mt-1 line-clamp-3 text-xs leading-5 text-app-text-muted">{item.agentDescription}</div>
+      </div>
+
+      <button
+        type="button"
+        onClick={onPreview}
+        className="mt-3 flex w-full items-center justify-between rounded-lg border border-app-border-subtle bg-app-surface-subtle/45 px-3 py-2.5 text-left transition-colors hover:border-app-border-hover hover:bg-app-surface-subtle"
+      >
+        <span className="text-sm font-medium text-app-text-secondary">查看组件预览</span>
+        <span className="text-[11px] text-app-text-subtle">自动补充演示数据</span>
+      </button>
+    </div>
+  );
+}
+
+function buildWidgetPreviewTemplate(item: WidgetCatalogItem) {
+  return {
+    id: item.template.id || item.id,
+    type: item.template.type || item.type,
+    title: item.template.title || item.name,
+    position: item.template.position || { x: 0, y: 0, w: 6, h: 4 },
+    data: item.template.data || {},
+    dataSource: item.template.dataSource,
+    dataIntent: item.template.dataIntent,
+    detail: item.template.detail,
+    link: item.template.link,
+  };
+}
+
+function WidgetPreviewModal({
+  item,
+  onClose,
+  onEdit,
+  onShowDetail,
+}: {
+  item: WidgetCatalogItem;
+  onClose: () => void;
+  onEdit: () => void;
+  onShowDetail: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-app-overlay/80 p-4 backdrop-blur-sm">
+      <div className="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-[28px] border border-app-border-subtle bg-app-surface shadow-[0_30px_80px_rgba(15,23,42,0.18)]">
+        <div className="flex items-center justify-between border-b border-app-border-subtle px-6 py-4">
+          <div className="flex min-w-0 items-center gap-4">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-app-border-subtle bg-app-surface-subtle/60" style={{ backgroundColor: `${item.color}14` }}>
+              <WorkspaceIcon icon={item.icon} color={item.color} className="h-5 w-5" />
+            </div>
+            <div className="min-w-0">
+              <h3 className="truncate text-base font-semibold text-app-text">{item.name}</h3>
+              <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-app-text-subtle">
+                <span>{WIDGET_TYPE_LABELS[item.type]}</span>
+                <span>·</span>
+                <span>{item.category}</span>
+                <span>·</span>
+                <span>{item.id}</span>
+                {item.isBuiltin && (
+                  <>
+                    <span>·</span>
+                    <span className="rounded-full border border-app-border-subtle bg-app-surface-subtle px-2 py-0.5 text-[10px] text-app-text-muted">预制组件</span>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <button onClick={onShowDetail} className="rounded-lg border border-app-border-subtle px-3 py-1.5 text-xs text-app-text-muted transition-colors hover:bg-app-surface-subtle hover:text-app-text">
+              查看详情
+            </button>
+            <button onClick={onEdit} className="rounded-lg border border-app-border-subtle px-3 py-1.5 text-xs text-app-text-muted transition-colors hover:bg-app-surface-subtle hover:text-app-text">
+              {item.isBuiltin ? '基于此扩展' : '编辑组件'}
+            </button>
+            <button onClick={onClose} className="text-app-text-subtle transition-colors hover:text-app-text-muted"><X className="h-4 w-4" /></button>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-6">
+          <div className="mb-4 flex flex-wrap items-center gap-2">
+            <span className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1 text-[11px] text-emerald-600">
+              预览已自动补充演示数据
+            </span>
+            {item.tags.slice(0, 6).map((tag) => (
+              <span key={tag} className="rounded-full border border-app-border-subtle bg-app-surface-subtle px-2.5 py-1 text-[11px] text-app-text-muted">
+                {tag}
+              </span>
+            ))}
+          </div>
+
+          <TemplatePreviewCanvas widgets={[buildWidgetPreviewTemplate(item)]} rowHeight={56} />
+
+          <div className="mt-4 grid gap-4 lg:grid-cols-2">
+            <div className="rounded-2xl border border-app-border-subtle bg-app-surface-subtle/35 px-4 py-3">
+              <div className="mb-2 text-[11px] uppercase tracking-[0.16em] text-app-text-subtle">组件说明</div>
+              <div className="text-sm leading-6 text-app-text-muted">{item.description || '当前组件未填写说明。'}</div>
+            </div>
+            <div className="rounded-2xl border border-app-border-subtle bg-app-surface-subtle/35 px-4 py-3">
+              <div className="mb-2 text-[11px] uppercase tracking-[0.16em] text-app-text-subtle">面向智能体说明</div>
+              <div className="text-sm leading-6 text-app-text-muted">{item.agentDescription || '当前组件未填写智能体说明。'}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TemplatePreviewModal({
+  template,
+  onClose,
+  onEdit,
+  onCreateCockpit,
+}: {
+  template: CockpitTemplate;
+  onClose: () => void;
+  onEdit: () => void;
+  onCreateCockpit: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-app-overlay/80 p-4 backdrop-blur-sm">
+      <div className="flex max-h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-[28px] border border-app-border-subtle bg-app-surface shadow-[0_30px_80px_rgba(15,23,42,0.18)]">
+        <div className="flex items-center justify-between border-b border-app-border-subtle px-6 py-4">
+          <div className="flex min-w-0 items-center gap-4">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-app-border-subtle bg-app-surface-subtle/60" style={{ backgroundColor: `${template.color}14` }}>
+              <WorkspaceIcon icon={template.icon} color={template.color} className="h-5 w-5" />
+            </div>
+            <div className="min-w-0">
+              <h3 className="truncate text-base font-semibold text-app-text">{template.name}</h3>
+              <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-app-text-subtle">
+                <span>{template.domain}</span>
+                <span>·</span>
+                <span>{template.widgets.length} 个组件</span>
+                <span>·</span>
+                <span>{template.keywords.length} 个关键词</span>
+                {template.initPrompt && (
+                  <>
+                    <span>·</span>
+                    <span className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 text-[10px] text-emerald-500">带初始化任务</span>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <button onClick={onEdit} className="rounded-lg border border-app-border-subtle px-3 py-1.5 text-xs text-app-text-muted transition-colors hover:bg-app-surface-subtle hover:text-app-text">
+              编辑模板
+            </button>
+            <button onClick={onCreateCockpit} className="rounded-lg bg-red-500 px-3 py-1.5 text-xs text-white transition-colors hover:bg-red-600">
+              用此模板创建驾驶舱
+            </button>
+            <button onClick={onClose} className="text-app-text-subtle transition-colors hover:text-app-text-muted"><X className="h-4 w-4" /></button>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-6">
+          <div className="mb-4 flex flex-wrap gap-2">
+            {template.keywords.map((keyword) => (
+              <span key={keyword} className="rounded-full border border-app-border-subtle bg-app-surface-subtle px-2.5 py-1 text-[11px] text-app-text-muted">
+                {keyword}
+              </span>
+            ))}
+          </div>
+          <TemplatePreviewCanvas widgets={template.widgets} />
+          <div className="mt-4 rounded-2xl border border-app-border-subtle bg-app-surface-subtle/35 px-4 py-3 text-sm leading-6 text-app-text-muted">
+            {template.description || '当前模板未填写描述。'}
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -1076,6 +1455,17 @@ function TemplateEditor({
               </section>
 
               <section>
+                <h4 className="mb-3 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-app-text-muted">
+                  <Eye className="h-3.5 w-3.5" /> 模板预览
+                </h4>
+                <TemplatePreviewCanvas
+                  widgets={data.widgets}
+                  rowHeight={54}
+                  emptyMessage="当前模板还没有组件，添加后即可看到真实布局预览。"
+                />
+              </section>
+
+              <section>
                 <button
                   onClick={() => setShowJson(!showJson)}
                   className="flex items-center gap-1.5 text-xs text-app-text-subtle transition-colors hover:text-app-text-muted"
@@ -1298,6 +1688,13 @@ function WidgetCatalogEditor({
 
           <section>
             <h4 className="mb-3 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-app-text-muted">
+              <Eye className="h-3.5 w-3.5" /> 组件预览
+            </h4>
+            <WidgetPreviewCard widget={data.template} className="min-h-[360px]" />
+          </section>
+
+          <section>
+            <h4 className="mb-3 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-app-text-muted">
               <Database className="h-3.5 w-3.5" /> 智能体选用建议
             </h4>
             <Field label="推荐数据结构说明">
@@ -1405,6 +1802,9 @@ function WidgetDetailModal({
         </div>
 
         <div className="flex-1 overflow-y-auto p-5 space-y-5">
+          <DetailBlock title="组件预览">
+            <TemplatePreviewCanvas widgets={[buildWidgetPreviewTemplate(item)]} rowHeight={56} />
+          </DetailBlock>
           <DetailBlock title="组件说明">{item.description}</DetailBlock>
           <DetailBlock title="面向智能体的说明">{item.agentDescription}</DetailBlock>
           <DetailBlock title="适用场景">{item.useCases.join('、') || '未填写'}</DetailBlock>

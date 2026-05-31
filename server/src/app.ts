@@ -1,5 +1,9 @@
 import express from 'express';
 import cors from 'cors';
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { createAdapter } from './adapters';
 import { connectionManager } from './connection/manager';
 import agentsRouter from './routes/agents';
@@ -36,6 +40,54 @@ export function createApp(): express.Express {
   }));
 
   app.use(express.json({ limit: '1mb' }));
+
+  const reportsDir = process.env.REPORTS_DIR || path.resolve(process.cwd(), 'server/data/reports');
+  const localReportRoots = (process.env.LOCAL_REPORT_ROOTS
+    ? process.env.LOCAL_REPORT_ROOTS.split(path.delimiter)
+    : [
+        reportsDir,
+        path.join(os.homedir(), 'Library/Application Support/yonclaw'),
+        path.join(os.homedir(), '.yonclaw'),
+      ])
+    .map((root) => path.resolve(root));
+
+  app.use('/reports', express.static(reportsDir, {
+    extensions: ['html'],
+    setHeaders: (res, filePath) => {
+      if (filePath.toLowerCase().endsWith('.html')) {
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      }
+    },
+  }));
+
+  app.get('/reports/local', (req, res) => {
+    const rawPath = typeof req.query.path === 'string' ? req.query.path.trim() : '';
+    if (!rawPath) {
+      return res.status(400).json({ error: 'Missing report path', code: 'MISSING_REPORT_PATH' });
+    }
+
+    let reportPath: string;
+    try {
+      reportPath = rawPath.startsWith('file://') ? fileURLToPath(rawPath) : rawPath;
+    } catch {
+      return res.status(400).json({ error: 'Invalid report path', code: 'INVALID_REPORT_PATH' });
+    }
+
+    const resolvedPath = path.resolve(reportPath);
+    const ext = path.extname(resolvedPath).toLowerCase();
+    const allowed = localReportRoots.some((root) => resolvedPath === root || resolvedPath.startsWith(`${root}${path.sep}`));
+    if (!allowed || !['.html', '.htm'].includes(ext)) {
+      return res.status(403).json({ error: 'Report path is not allowed', code: 'REPORT_PATH_FORBIDDEN' });
+    }
+
+    if (!fs.existsSync(resolvedPath) || !fs.statSync(resolvedPath).isFile()) {
+      return res.status(404).json({ error: 'Report not found', code: 'REPORT_NOT_FOUND' });
+    }
+
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-store');
+    return res.sendFile(resolvedPath);
+  });
 
   app.use((req: express.Request, _res, next) => {
     (req as express.Request & { adapter: typeof adapter }).adapter = adapter;

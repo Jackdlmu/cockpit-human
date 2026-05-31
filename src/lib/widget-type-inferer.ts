@@ -16,25 +16,46 @@ export function inferWidgetType(data: Record<string, unknown>): string {
 
   // 1. HTML 报告（最高优先级）
   const hasHtmlField = typeof d.html === 'string' && (d.html as string).length > 20;
+  const hasDetailHtmlField = typeof d.detailHtml === 'string' && (d.detailHtml as string).length > 20;
+  const hasFullHtmlField = typeof d.fullHtml === 'string' && (d.fullHtml as string).length > 20;
+  const hasHtmlContentField = typeof d.htmlContent === 'string' && (d.htmlContent as string).length > 20;
+  const hasReportHtmlField = typeof d.reportHtml === 'string' && (d.reportHtml as string).length > 20;
   const hasHtmlContent = typeof d.content === 'string' && /<[a-z][\s\S]*?>/i.test(d.content as string) && (d.content as string).length > 100;
   const hasHtmlBody = typeof d.body === 'string' && /<[a-z][\s\S]*?>/i.test(d.body as string);
-  if (hasHtmlField || hasHtmlContent || hasHtmlBody) return 'html';
+  if (hasHtmlField || hasDetailHtmlField || hasFullHtmlField || hasHtmlContentField || hasReportHtmlField || hasHtmlContent || hasHtmlBody) return 'html';
 
-  // 2. 指标卡
-  if (typeof d.value === 'string' || typeof d.value === 'number') {
-    if (typeof d.value === 'string' && (d.value as string).length > 50) {
-      // 长文本，继续检查
-    } else {
-      return 'metric';
-    }
+  // 2. 子弹图/仪表盘/进度：这些也有 value，必须先于指标卡判断
+  if (typeof d.target === 'number' && typeof d.value === 'number') {
+    return 'bullet';
   }
-
-  // 3. 进度
+  if ((typeof d.min === 'number' || typeof d.max === 'number') && typeof d.value === 'number') {
+    return 'gauge';
+  }
   if ((typeof d.value === 'number' || typeof d.max === 'number') && d.label !== undefined) {
     return 'progress';
   }
 
-  // 4. 图表
+  // 3. 漏斗图（stages 数组含 name+value）
+  const funnelStages = d.stages || d.steps || d.phases;
+  if (Array.isArray(funnelStages) && funnelStages.length > 0) {
+    const first = funnelStages[0];
+    if (typeof first === 'object' && first !== null &&
+      (('value' in first) || ('rate' in first))) {
+      return 'funnel';
+    }
+  }
+
+  // 4. 热力图（cells/rows 含 x+y+value）
+  const cellsSource = d.cells || d.rows;
+  if (Array.isArray(cellsSource) && cellsSource.length > 0) {
+    const first = cellsSource[0];
+    if (typeof first === 'object' && first !== null &&
+      (('x' in first && 'y' in first) || ('column' in first && 'row' in first))) {
+      return 'heatmap';
+    }
+  }
+
+  // 5. 图表
   const hasLabels = Array.isArray(d.labels) || Array.isArray(d.categories) || Array.isArray(d.dimensions) || Array.isArray(d.names) || Array.isArray(d.xaxis) || Array.isArray(d.xAxis);
   const hasValues = Array.isArray(d.values) || Array.isArray(d.data) || Array.isArray(d.series) || Array.isArray(d.datasets) || Array.isArray(d.yValues) || Array.isArray(d.yaxis) || Array.isArray(d.yAxis) || Array.isArray(d.numbers);
   if (hasLabels || hasValues) {
@@ -85,36 +106,6 @@ export function inferWidgetType(data: Record<string, unknown>): string {
     return 'list';
   }
 
-  // 10. 仪表盘（gauge 字段或 min/max/value 三元组）
-  if ((typeof d.min === 'number' || typeof d.max === 'number') && typeof d.value === 'number') {
-    return 'gauge';
-  }
-
-  // 11. 漏斗图（stages 数组含 name+value）
-  const funnelStages = d.stages || d.steps || d.phases;
-  if (Array.isArray(funnelStages) && funnelStages.length > 0) {
-    const first = funnelStages[0];
-    if (typeof first === 'object' && first !== null &&
-      (('value' in first) || ('rate' in first))) {
-      return 'funnel';
-    }
-  }
-
-  // 12. 热力图（cells/rows 含 x+y+value）
-  const cellsSource = d.cells || d.rows;
-  if (Array.isArray(cellsSource) && cellsSource.length > 0) {
-    const first = cellsSource[0];
-    if (typeof first === 'object' && first !== null &&
-      (('x' in first && 'y' in first) || ('column' in first && 'row' in first))) {
-      return 'heatmap';
-    }
-  }
-
-  // 13. 子弹图（target 字段）
-  if (typeof d.target === 'number' && typeof d.value === 'number') {
-    return 'bullet';
-  }
-
   // 14. 地图（points/locations 含 lat/lng 或 name+value）
   const pointsSource = d.points || d.locations || d.regions;
   if (Array.isArray(pointsSource) && pointsSource.length > 0) {
@@ -126,7 +117,14 @@ export function inferWidgetType(data: Record<string, unknown>): string {
   if (Array.isArray(d.highlights) && d.highlights.length > 0) return 'report';
   if (Array.isArray(d.keyPoints) && d.keyPoints.length > 0) return 'report';
 
-  // 16. 纯文本/Markdown
+  // 16. 指标卡
+  if (typeof d.value === 'string' || typeof d.value === 'number') {
+    if (!(typeof d.value === 'string' && (d.value as string).length > 50)) {
+      return 'metric';
+    }
+  }
+
+  // 17. 纯文本/Markdown
   const longContent = typeof d.content === 'string' && (d.content as string).length > 20;
   const longText = typeof d.text === 'string' && (d.text as string).length > 20;
   const longMarkdown = typeof d.markdown === 'string' && (d.markdown as string).length > 20;

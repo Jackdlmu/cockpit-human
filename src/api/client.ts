@@ -1,6 +1,9 @@
 import type { Agent, Connection, CreateConnectionInput, Workspace, CockpitTemplate, WidgetCatalogItem } from '@/types';
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3001/api';
+export const API_BASE_ORIGIN = /^https?:\/\//i.test(API_BASE)
+  ? new URL(API_BASE).origin
+  : (typeof window !== 'undefined' ? window.location.origin : '');
 
 async function fetchJson<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
@@ -71,6 +74,10 @@ export function deleteWorkspace(id: string) {
 // ─── Connections ───
 export function getConnections() {
   return fetchJson<{ connections: Connection[] }>('/connections');
+}
+
+export function getConnectionAdminStatus() {
+  return fetchJson<{ configured: boolean; localFallbackEnabled: boolean; requiresKey: boolean }>('/connections/admin-status');
 }
 
 export function createConnection(data: CreateConnectionInput) {

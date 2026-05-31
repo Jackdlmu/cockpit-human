@@ -6,6 +6,7 @@ import type { ConnectionManager } from '../connection/manager';
 import { applyTransform } from './transform';
 import { getAgentRouter } from './agent-router';
 import { executeTool } from '../tools/registry';
+import { normalizeWidgetDataPayload } from './widget-normalizer';
 
 // 最小化类型定义（兼容模板、存储和前端格式）
 interface WidgetDataSource {
@@ -67,7 +68,7 @@ export async function resolveWidgetData(
       case 'skill':
         return await resolveSkill(dataSource, widget, connectionManager, start, context, useDemoDataFallback);
       case 'query':
-        return await resolveQuery(dataSource, connectionManager, start, context, useDemoDataFallback);
+        return await resolveQuery(dataSource, widget, connectionManager, start, context, useDemoDataFallback);
       case 'event':
         return resolveEvent(widget, start);
       default:
@@ -82,7 +83,11 @@ export async function resolveWidgetData(
 
 /** type='static' */
 function resolveStatic(widget: Widget, start: number): WidgetDataResult {
-  return { data: widget.data ?? null, source: 'static', latency: Date.now() - start };
+  return {
+    data: normalizeWidgetResultData(widget.data ?? null, widget.type),
+    source: 'static',
+    latency: Date.now() - start,
+  };
 }
 
 /** type='skill' —— 调用 agent/skill（通过 AgentRouter 路由） */
@@ -138,7 +143,7 @@ async function resolveSkill(
 
           const transformed = applyTransform(raw, ds.transform);
           return {
-            data: transformed,
+            data: normalizeWidgetResultData(transformed, widget.type),
             source: 'skill',
             latency: Date.now() - start,
             routingInfo: {
@@ -162,7 +167,7 @@ async function resolveSkill(
 
         const parsed = tryParseLLMResponse(raw);
         return {
-          data: parsed ?? raw,
+          data: normalizeWidgetResultData(parsed ?? raw, widget.type),
           source: 'llm-proxy',
           latency: Date.now() - start,
           routingInfo: {
@@ -195,12 +200,17 @@ async function resolveSkill(
   });
 
   const transformed = applyTransform(raw, ds.transform);
-  return { data: transformed, source: 'skill', latency: Date.now() - start };
+  return {
+    data: normalizeWidgetResultData(transformed, widget.type),
+    source: 'skill',
+    latency: Date.now() - start,
+  };
 }
 
 /** type='query' —— 直连查询 */
 async function resolveQuery(
   ds: WidgetDataSource,
+  widget: Widget,
   cm: ConnectionManager,
   start: number,
   context?: Record<string, unknown>,
@@ -250,13 +260,21 @@ async function resolveQuery(
   }
 
   const transformed = applyTransform(raw, ds.transform);
-  return { data: transformed, source: 'query', latency: Date.now() - start };
+  return {
+    data: normalizeWidgetResultData(transformed, widget.type),
+    source: 'query',
+    latency: Date.now() - start,
+  };
 }
 
 /** type='event' —— 返回初始数据，前端通过 WebSocket 实时更新 */
 function resolveEvent(widget: Widget, start: number): WidgetDataResult {
   // event 类型：后端只提供初始数据，实时更新走 EventBus → WebSocket
-  return { data: widget.data ?? null, source: 'event', latency: Date.now() - start };
+  return {
+    data: normalizeWidgetResultData(widget.data ?? null, widget.type),
+    source: 'event',
+    latency: Date.now() - start,
+  };
 }
 
 /** 回退到静态数据 */
@@ -281,7 +299,7 @@ function fallback(
   if (useDemoDataFallback === false) {
     if (widget.data && typeof widget.data === 'object' && !Array.isArray(widget.data) && Object.keys(widget.data).length > 0) {
       return {
-        data: widget.data,
+        data: normalizeWidgetResultData(widget.data, widget.type),
         source: 'fallback',
         latency: Date.now() - start,
       };
@@ -301,7 +319,18 @@ function fallback(
   if (staticData && typeof staticData === 'object' && !Array.isArray(staticData)) {
     (staticData as Record<string, unknown>).__source = 'static';
   }
-  return { data: staticData, source: 'fallback', latency: Date.now() - start };
+  return {
+    data: normalizeWidgetResultData(staticData, widget.type),
+    source: 'fallback',
+    latency: Date.now() - start,
+  };
+}
+
+function normalizeWidgetResultData(data: unknown, widgetType: string): unknown {
+  if (!data || typeof data !== 'object' || Array.isArray(data)) {
+    return data;
+  }
+  return normalizeWidgetDataPayload(data as Record<string, unknown>, widgetType);
 }
 
 /** 根据 widget 类型构建空数据结构 */
