@@ -24,6 +24,7 @@ import {
   ArrowRight,
   ExternalLink,
 } from 'lucide-react';
+import { getTrendSemanticClasses } from '@/lib/visual-adapters';
 
 interface DynamicCardProps {
   card: CardData;
@@ -48,6 +49,10 @@ export function DynamicCard({ card }: DynamicCardProps) {
     default:
       return null;
   }
+}
+
+function trendFromChangeType(changeType?: string) {
+  return changeType === 'positive' ? 'up' : changeType === 'negative' ? 'down' : 'flat';
 }
 
 function CardShell({
@@ -107,6 +112,10 @@ function CardShell({
 /* ─── Data Card ─── */
 function DataCard({ card }: { card: CardData }) {
   const maxVal = Math.max(...(card.chartData?.map((d) => d.value) || [1]));
+  const metricTrendTone = getTrendSemanticClasses(trendFromChangeType(card.metric?.changeType));
+  const metricTrendClass = card.metric?.changeType && card.metric.changeType !== 'neutral'
+    ? `${metricTrendTone.text} ${metricTrendTone.border} ${metricTrendTone.bg}`
+    : 'text-white/40 border-white/10';
 
   return (
     <CardShell card={card}>
@@ -121,13 +130,7 @@ function DataCard({ card }: { card: CardData }) {
           {card.metric.change && (
             <Badge
               variant="outline"
-              className={`mb-1 text-xs ${
-                card.metric.changeType === 'positive'
-                  ? 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10'
-                  : card.metric.changeType === 'negative'
-                    ? 'text-red-400 border-red-500/30 bg-red-500/10'
-                    : 'text-white/40 border-white/10'
-              }`}
+              className={`mb-1 text-xs ${metricTrendClass}`}
             >
               {card.metric.changeType === 'positive' && (
                 <TrendingUp className="w-3 h-3 mr-1" />
@@ -289,6 +292,7 @@ function ChartCard({ card }: { card: CardData }) {
   const data = card.chartData || [];
   const maxVal = Math.max(...data.map((d) => d.value));
   const total = data.reduce((s, d) => s + d.value, 0);
+  const metricTrendTone = getTrendSemanticClasses('up');
 
   return (
     <CardShell card={card}>
@@ -303,7 +307,7 @@ function ChartCard({ card }: { card: CardData }) {
           {card.metric.change && (
             <Badge
               variant="outline"
-              className="mb-1 text-xs text-emerald-400 border-emerald-500/30 bg-emerald-500/10"
+              className={`mb-1 text-xs ${metricTrendTone.text} ${metricTrendTone.border} ${metricTrendTone.bg}`}
             >
               <TrendingUp className="w-3 h-3 mr-1" />
               {card.metric.change}

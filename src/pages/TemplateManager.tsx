@@ -3,7 +3,6 @@ import type { ReactNode } from 'react';
 import type { CockpitTemplate, Widget, WidgetCatalogItem, WidgetType } from '@/types';
 import WorkspaceIcon from '@/components/WorkspaceIcon';
 import {
-  ArrowLeft,
   Bot,
   Copy,
   Database,
@@ -190,11 +189,7 @@ function cloneForForm<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
 }
 
-interface TemplateManagerProps {
-  onBack: () => void;
-}
-
-export function TemplateManager({ onBack }: TemplateManagerProps) {
+export function TemplateManager() {
   const [adminKey, setAdminKey] = useState(localStorage.getItem('adminKey') || '');
   const [inputKey, setInputKey] = useState('');
   const [activeTab, setActiveTab] = useState<TabKey>('templates');
@@ -419,12 +414,6 @@ export function TemplateManager({ onBack }: TemplateManagerProps) {
               进入
             </button>
           </div>
-          <button
-            onClick={onBack}
-            className="mt-4 flex items-center gap-1 text-xs text-app-text-subtle hover:text-app-text-muted"
-          >
-            <ArrowLeft className="h-3 w-3" /> 返回
-          </button>
         </div>
       </div>
     );
@@ -434,9 +423,6 @@ export function TemplateManager({ onBack }: TemplateManagerProps) {
     <div className="bi-page flex h-screen w-screen flex-col overflow-hidden">
       <div className="bi-toolbar flex items-center justify-between px-6 py-4">
         <div className="flex items-center gap-3">
-          <button onClick={onBack} className="rounded-lg p-2 text-app-text-muted transition-colors hover:bg-app-surface-subtle">
-            <ArrowLeft className="h-4 w-4" />
-          </button>
           <div>
             <h1 className="text-base font-semibold text-app-text">模板与组件管理</h1>
             <p className="text-xs text-app-text-subtle">模板维护、组件定义、智能体说明与扩展开发入口</p>

@@ -12,6 +12,8 @@ import {
   computeDivergingBars,
   extractSafeDetailMetadata,
   formatDisplayNumber,
+  getSignedValueSemanticClasses,
+  getTrendSemanticClasses,
   parseDisplayNumber,
   scalarToDisplayText,
 } from '@/lib/visual-adapters';
@@ -191,6 +193,7 @@ function ChartDrillContent({
   const description = scalarToText(data.description || data.summary || data.摘要 || data.subtitle);
   const barItems = computeDivergingBars(labels, values);
   const hasMixedSigns = values.some((item) => item < 0) && values.some((item) => item > 0);
+  const selectedTone = value === undefined ? undefined : getSignedValueSemanticClasses(value);
 
   return (
     <div className="space-y-4">
@@ -205,7 +208,7 @@ function ChartDrillContent({
           </div>
           <div className="shrink-0 text-right">
             <div className="text-xs font-medium text-app-text-muted">数值</div>
-            <div className={`mt-1 text-xl font-semibold tabular-nums ${value !== undefined && value < 0 ? 'text-red-500' : 'text-app-text'}`}>
+            <div className={`mt-1 text-xl font-semibold tabular-nums ${selectedTone?.text || 'text-app-text'}`}>
               {formatChartValue(value)}{unit ? <span className="ml-1 text-xs font-medium text-app-text-muted">{unit}</span> : null}
             </div>
           </div>
@@ -225,11 +228,12 @@ function ChartDrillContent({
               const itemValue = values[index] ?? 0;
               const item = barItems[index];
               const active = label === selectedLabel;
+              const signedTone = getSignedValueSemanticClasses(itemValue);
               return (
                 <div key={`${label}-${index}`} className={`rounded-md px-2 py-1.5 ${active ? 'bg-app-surface-subtle ring-1 ring-app-border-subtle' : ''}`}>
                   <div className="mb-1.5 flex items-center justify-between gap-3">
                     <span className="truncate text-xs font-medium text-app-text-secondary">{label}</span>
-                    <span className={`shrink-0 text-xs font-semibold tabular-nums ${itemValue < 0 ? 'text-red-500' : 'text-app-text-secondary'}`}>
+                    <span className={`shrink-0 text-xs font-semibold tabular-nums ${signedTone.text}`}>
                       {formatChartValue(itemValue)}{unit}
                     </span>
                   </div>
@@ -238,15 +242,15 @@ function ChartDrillContent({
                       <>
                         <div className="absolute bottom-[-2px] top-[-2px] w-px bg-app-border-hover" style={{ left: `${item.zeroPct}%` }} />
                         {item.negativePct > 0 && (
-                          <div className="absolute top-0 h-full rounded-l-full bg-red-400" style={{ left: `${item.zeroPct - item.negativePct}%`, width: `${item.negativePct}%` }} />
+                          <div className={`absolute top-0 h-full rounded-l-full ${signedTone.bar}`} style={{ left: `${item.zeroPct - item.negativePct}%`, width: `${item.negativePct}%` }} />
                         )}
                         {item.positivePct > 0 && (
-                          <div className="absolute top-0 h-full rounded-r-full bg-primary" style={{ left: `${item.zeroPct}%`, width: `${item.positivePct}%` }} />
+                          <div className={`absolute top-0 h-full rounded-r-full ${signedTone.bar}`} style={{ left: `${item.zeroPct}%`, width: `${item.positivePct}%` }} />
                         )}
                       </>
                     ) : (
                       <div
-                        className={`h-full rounded-full ${itemValue < 0 ? 'bg-red-400' : 'bg-primary'}`}
+                        className={`h-full rounded-full ${itemValue < 0 ? signedTone.bar : 'bg-primary'}`}
                         style={{ width: `${Math.max(item.negativePct, item.positivePct, itemValue === 0 ? 2 : 0)}%` }}
                       />
                     )}
@@ -276,7 +280,7 @@ function MetricDetailContent({
   const progressPct = numericValue !== undefined && targetNumber && targetNumber > 0
     ? Math.max(0, Math.min(100, (numericValue / targetNumber) * 100))
     : undefined;
-  const trendTone = metric.trend === 'up' ? 'text-emerald-500' : metric.trend === 'down' ? 'text-red-500' : 'text-app-text-muted';
+  const trendTone = getTrendSemanticClasses(metric.trend);
   const metadata = extractSafeDetailMetadata(data);
 
   return (
@@ -291,7 +295,7 @@ function MetricDetailContent({
             </div>
           </div>
           {(metric.change || metric.trend) && (
-            <div className={`rounded-md border border-app-border-subtle bg-app-surface-subtle px-3 py-2 text-right ${trendTone}`}>
+            <div className={`rounded-md border border-app-border-subtle bg-app-surface-subtle px-3 py-2 text-right ${trendTone.text}`}>
               <div className="text-[11px] font-medium text-app-text-muted">变化</div>
               <div className="mt-1 text-sm font-semibold">{metric.change || trendLabel(metric.trend)}</div>
             </div>

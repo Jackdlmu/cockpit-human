@@ -23,6 +23,82 @@ export interface MetricDetailDisplay {
   secondaryMetrics: Array<{ label: string; value: string; change?: string; trend?: string }>;
 }
 
+export type TrendDirection = 'up' | 'down' | 'flat' | '';
+
+export interface TrendSemanticClasses {
+  text: string;
+  bg: string;
+  border: string;
+  dot: string;
+  icon: string;
+  sparklineColor: string;
+}
+
+const NEUTRAL_TREND_CLASSES: TrendSemanticClasses = {
+  text: 'text-app-text-muted',
+  bg: 'bg-app-surface-subtle',
+  border: 'border-app-border-subtle',
+  dot: 'bg-app-text-subtle',
+  icon: 'text-app-text-subtle',
+  sparklineColor: 'hsl(var(--info))',
+};
+
+export function getTrendSemanticClasses(trend: TrendDirection | string | undefined): TrendSemanticClasses {
+  if (trend === 'up') {
+    return {
+      text: 'text-red-500',
+      bg: 'bg-red-500/8',
+      border: 'border-red-500/15',
+      dot: 'bg-red-500',
+      icon: 'text-red-500',
+      sparklineColor: 'hsl(var(--destructive))',
+    };
+  }
+
+  if (trend === 'down') {
+    return {
+      text: 'text-emerald-500',
+      bg: 'bg-emerald-500/8',
+      border: 'border-emerald-500/15',
+      dot: 'bg-emerald-500',
+      icon: 'text-emerald-500',
+      sparklineColor: 'hsl(var(--success))',
+    };
+  }
+
+  return NEUTRAL_TREND_CLASSES;
+}
+
+export function getSignedValueSemanticClasses(value: number): { text: string; bar: string } {
+  if (value > 0) return { text: 'text-red-500', bar: 'bg-red-400' };
+  if (value < 0) return { text: 'text-emerald-500', bar: 'bg-emerald-400' };
+  return { text: 'text-app-text-secondary', bar: 'bg-app-text-subtle' };
+}
+
+export function isTemporalSeriesLabels(labels: string[]): boolean {
+  if (labels.length < 2) return false;
+  const temporalCount = labels.filter((label) => {
+    const text = label.trim();
+    return (
+      /^(19|20)\d{2}(年)?$/.test(text) ||
+      /^(Q[1-4]|[1-4]季度)$/i.test(text) ||
+      /^((19|20)\d{2})[-/.年](0?[1-9]|1[0-2])月?$/.test(text) ||
+      /^(0?[1-9]|1[0-2])月$/.test(text)
+    );
+  }).length;
+  return temporalCount / labels.length >= 0.6;
+}
+
+export function shouldUseTrendSeriesChart(labels: string[], title = '', requestedVariant = 'auto'): boolean {
+  const variant = requestedVariant.toLowerCase();
+  if (variant === 'bar') return false;
+  if (variant === 'line' || variant === 'trend' || variant === 'sparkline') return true;
+
+  const titleLooksTrend = /趋势|走势|变化|增长|同比|环比|预测|演变|发展/.test(title);
+  if (variant === 'donut' && !titleLooksTrend) return false;
+  return titleLooksTrend && isTemporalSeriesLabels(labels);
+}
+
 export const DETAIL_RESERVED_FIELDS = new Set([
   'chartType', 'variant', 'styleConfig', 'visualMapping',
   'label', 'labels', 'values', 'series', 'datasets', 'categories', 'names',

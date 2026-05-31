@@ -4,6 +4,9 @@ import {
   computeDivergingBars,
   extractSafeDetailMetadata,
   formatDisplayNumber,
+  getSignedValueSemanticClasses,
+  getTrendSemanticClasses,
+  shouldUseTrendSeriesChart,
   parseDisplayNumber,
 } from './visual-adapters';
 
@@ -61,5 +64,19 @@ describe('visual adapters', () => {
     expect(parseDisplayNumber('-4.36亿港币')).toBe(-4.36);
     expect(formatDisplayNumber(67.1)).toBe('67.1');
     expect(formatDisplayNumber(undefined)).toBe('—');
+  });
+
+  it('uses Chinese dashboard trend colors', () => {
+    expect(getTrendSemanticClasses('up').text).toBe('text-red-500');
+    expect(getTrendSemanticClasses('down').text).toBe('text-emerald-500');
+    expect(getSignedValueSemanticClasses(10).bar).toBe('bg-red-400');
+    expect(getSignedValueSemanticClasses(-10).bar).toBe('bg-emerald-400');
+  });
+
+  it('prefers trend charts for temporal trend data', () => {
+    expect(shouldUseTrendSeriesChart(['2022', '2023', '2024', '2025'], '年营业额趋势')).toBe(true);
+    expect(shouldUseTrendSeriesChart(['产品A', '产品B', '产品C'], '收入结构')).toBe(false);
+    expect(shouldUseTrendSeriesChart(['2022', '2023', '2024'], '收入结构', 'donut')).toBe(false);
+    expect(shouldUseTrendSeriesChart(['2022', '2023', '2024'], '收入趋势', 'donut')).toBe(true);
   });
 });

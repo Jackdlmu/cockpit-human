@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { useNavigate, useLocation } from 'react-router';
+import { useLocation } from 'react-router';
 import { WorkspaceView } from '@/components/WorkspaceView';
 import { WorkspaceDetail } from '@/components/WorkspaceDetail';
 import { TemplateManager } from '@/pages/TemplateManager';
@@ -71,7 +71,6 @@ function App() {
     try { return localStorage.getItem('yoncockpit-selected-ws'); }
     catch { return null; }
   });
-  const navigate = useNavigate();
   const location = useLocation();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [detailRefreshKey, setDetailRefreshKey] = useState(0);
@@ -576,7 +575,7 @@ function App() {
   if (location.pathname === '/admin/templates') {
     return (
       <>
-        <TemplateManager onBack={() => navigate('/')} />
+        <TemplateManager />
         <Toaster position="bottom-right" richColors />
       </>
     );

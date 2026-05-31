@@ -19,7 +19,7 @@ import { WidgetLibraryPanel } from './WidgetLibraryPanel';
 import { inferWidgetType, isTypeMismatched } from '@/lib/widget-type-inferer';
 import { getDefaultWidgetSize, normalizeWidget, normalizeWidgets } from '@/lib/widget-normalizer';
 import { buildReportDisplayData } from '@/lib/report-widget';
-import { computeDivergingBars } from '@/lib/visual-adapters';
+import { computeDivergingBars, getSignedValueSemanticClasses, getTrendSemanticClasses, shouldUseTrendSeriesChart } from '@/lib/visual-adapters';
 import { Switch } from '@/components/ui/switch';
 import { AgentAvatar } from '@/components/AgentAvatar';
 import { workspaceCommandStream, cockpitAgentChatStream, updateWorkspace } from '@/api/client';
@@ -57,6 +57,73 @@ function Sparkline({ values, color = '#818cf8', height = 32 }: { values: number[
         return <circle cx={lastX} cy={lastY} r="2" fill={color} />;
       })()}
     </svg>
+  );
+}
+
+function TrendSeriesChart({ labels, values, unit = '', onPointClick }: { labels: string[]; values: number[]; unit?: string; onPointClick?: (label: string, value: number) => void }) {
+  if (labels.length === 0 || values.length === 0) return null;
+  const safeValues = values.map((value) => (Number.isFinite(value) ? value : 0));
+  const min = Math.min(...safeValues);
+  const max = Math.max(...safeValues);
+  const range = max - min || 1;
+  const width = 520;
+  const height = 168;
+  const padX = 36;
+  const padTop = 18;
+  const padBottom = 30;
+  const chartW = width - padX * 2;
+  const chartH = height - padTop - padBottom;
+  const points = safeValues.map((value, index) => {
+    const x = padX + (labels.length === 1 ? chartW / 2 : (index / (labels.length - 1)) * chartW);
+    const y = padTop + chartH - ((value - min) / range) * chartH;
+    return { x, y, value, label: labels[index] };
+  });
+  const path = points.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`).join(' ');
+  const areaPath = `${path} L ${points[points.length - 1].x} ${height - padBottom} L ${points[0].x} ${height - padBottom} Z`;
+  const trend = safeValues[safeValues.length - 1] > safeValues[0] ? 'up' : safeValues[safeValues.length - 1] < safeValues[0] ? 'down' : 'flat';
+  const tone = getTrendSemanticClasses(trend);
+  const stroke = trend === 'down' ? 'hsl(var(--success))' : trend === 'up' ? 'hsl(var(--destructive))' : 'hsl(var(--info))';
+  const showEveryLabel = labels.length <= 6 ? 1 : Math.ceil(labels.length / 6);
+
+  return (
+    <div className="h-full min-h-0">
+      <svg className="h-full min-h-[150px] w-full" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none">
+        {[0, 1, 2].map((step) => {
+          const y = padTop + (chartH / 2) * step;
+          return <line key={step} x1={padX} x2={width - padX} y1={y} y2={y} stroke="currentColor" strokeWidth="1" className="text-app-border-subtle/75" />;
+        })}
+        <path d={areaPath} fill={stroke} opacity="0.08" />
+        <path d={path} fill="none" stroke={stroke} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+        {points.map((point, index) => (
+          <g key={`${point.label}-${index}`}>
+            <circle
+              cx={point.x}
+              cy={point.y}
+              r={index === points.length - 1 ? 4 : 3}
+              fill="hsl(var(--widget-bg))"
+              stroke={stroke}
+              strokeWidth="2"
+              className="cursor-pointer"
+              vectorEffect="non-scaling-stroke"
+              onClick={(event) => {
+                event.stopPropagation();
+                onPointClick?.(point.label, point.value);
+              }}
+            />
+            {(labels.length <= 5 || index === points.length - 1) && (
+              <text x={point.x} y={Math.max(12, point.y - 10)} textAnchor="middle" fontSize="12" className={`fill-current ${tone.text} font-semibold`}>
+                {point.value}{unit}
+              </text>
+            )}
+            {index % showEveryLabel === 0 && (
+              <text x={point.x} y={height - 9} textAnchor="middle" fontSize="11" className="fill-app-text-muted">
+                {point.label}
+              </text>
+            )}
+          </g>
+        ))}
+      </svg>
+    </div>
   );
 }
 
@@ -1476,13 +1543,14 @@ function normalizeUniversalContent(rawContent: string) {
 function renderMetricChip(metric: WidgetMetricItem, index: number) {
   const tone = toneClasses(metric.tone);
   const trendText = metric.change || (metric.trend === 'up' ? '上升' : metric.trend === 'down' ? '下降' : '');
+  const trendTone = getTrendSemanticClasses(metric.trend || '');
   return (
     <div key={`${metric.label}-${index}`} className="rounded-md border border-app-border-subtle bg-app-surface-subtle/55 px-3 py-2.5">
       <div className="flex items-start justify-between gap-2">
         <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-app-text-muted">{metric.label}</span>
         {metric.trend && (
-          <span className={`inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[9px] font-medium ${tone.chip}`}>
-            <span className={`h-1.5 w-1.5 rounded-full ${tone.dot}`} />
+          <span className={`inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[9px] font-medium ${trendTone.bg} ${trendTone.border} ${trendTone.text}`}>
+            <span className={`h-1.5 w-1.5 rounded-full ${trendTone.dot}`} />
             {metric.trend === 'up' ? '上升' : metric.trend === 'down' ? '下降' : '持平'}
           </span>
         )}
@@ -1688,6 +1756,7 @@ function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onD
       const variant = String(d.variant || ''); // 'accent' | 'status' | 'compare' | 'mini'
       const isPositive = trend === 'up';
       const isNegative = trend === 'down';
+      const trendTone = getTrendSemanticClasses(trend);
       const compareValue = String(d.compareValue || d.previous || d.target || '—');
       const compareLabel = String(d.compareLabel || d.previousLabel || d.targetLabel || '对比');
       const consumeFirstMetricAsPrimary = isEmptyValue(d.value) && !primaryMetric && metricItems.length > 0;
@@ -1717,7 +1786,7 @@ function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onD
             <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-app-text-muted">{widget.title}</span>
             <span className="text-lg font-bold text-app-text tracking-tight tabular-nums mt-0.5">{valueStr}</span>
             {!isEmptyValue(changeStr) && (
-              <span className={`mt-0.5 text-[11px] ${isPositive ? 'text-emerald-500' : isNegative ? 'text-red-500' : 'text-app-text-muted'}`}>
+              <span className={`mt-0.5 text-[11px] ${trendTone.text}`}>
                 {isPositive ? '▲' : isNegative ? '▼' : '—'} {changeStr}
               </span>
             )}
@@ -1772,7 +1841,7 @@ function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onD
               <span className="text-lg font-medium text-app-text-muted tabular-nums">{compareValue}</span>
             </div>
             {!isEmptyValue(changeStr) && (
-              <span className={`mt-1 text-[12px] ${isPositive ? 'text-emerald-500' : isNegative ? 'text-red-500' : 'text-app-text-muted'}`}>
+              <span className={`mt-1 text-[12px] ${trendTone.text}`}>
                 {changeStr}
               </span>
             )}
@@ -1786,8 +1855,6 @@ function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onD
         ? (gridSize.w <= 2 ? 'text-xl' : 'text-2xl')
         : (gridSize.w <= 2 ? 'text-2xl' : gridSize.w >= 6 ? 'text-4xl' : 'text-3xl');
       const showChange = gridSize.h > 1 && !isEmptyValue(changeStr);
-      const trendColor = isPositive ? 'text-emerald-500' : isNegative ? 'text-red-500' : 'text-app-text-subtle';
-      const trendIconBg = isPositive ? 'bg-emerald-500/8' : isNegative ? 'bg-red-500/8' : 'bg-app-surface-subtle';
       const sparkline = d.sparkline as { labels?: string[]; values?: number[] } | undefined;
       const hasSparkline = sparkline && Array.isArray(sparkline.values) && sparkline.values.length > 1;
       const numericValue = parseNumericValue(rawPrimaryValue);
@@ -1796,17 +1863,19 @@ function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onD
       const thresholdColor = numericValue !== null
         ? getThresholdColor(numericValue, valueMax, thresholds)
         : null;
+      const hasExplicitThresholds = !!thresholds && thresholds.length > 0;
       const showComparison = !isEmptyValue(compareValue) && compareValue !== '—' && gridSize.w >= 4;
       const showSecondaryMetrics = secondaryMetrics.length > 0 && (gridSize.w >= 4 || gridSize.h >= 3);
       const showSummary = normalizedSummaries.length > 0 && gridSize.h >= 3;
       const maxSecondaryMetrics = gridSize.w >= 6 ? 4 : gridSize.w >= 4 ? 3 : 2;
+      const valueColor = hasExplicitThresholds && thresholdColor ? thresholdColor.text : 'text-app-text';
 
       return (
         <div className="h-full flex flex-col gap-3">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0 flex-1">
               <div
-                className={`${valueSize} bi-tabular font-semibold tracking-tight leading-none ${thresholdColor ? thresholdColor.text : 'text-app-text'} cursor-pointer transition-opacity hover:opacity-80`}
+                className={`${valueSize} bi-tabular font-semibold tracking-tight leading-none ${valueColor} cursor-pointer transition-opacity hover:opacity-80`}
                 onClick={(e) => {
                   e.stopPropagation();
                   onDrillDown?.({ metric: widget.title, value: numericValue ?? valueStr }, `${widget.title}: ${valueStr}`);
@@ -1821,17 +1890,17 @@ function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onD
             </div>
             {hasSparkline && gridSize.w >= 3 && (
               <div className={`shrink-0 rounded-md border border-app-border-subtle bg-app-surface-subtle/65 px-2.5 py-2 ${isCompact ? 'w-20' : 'w-28'}`}>
-                <Sparkline values={sparkline.values!} color={isPositive ? 'hsl(var(--success))' : trend === 'down' ? 'hsl(var(--destructive))' : 'hsl(var(--info))'} height={isCompact ? 26 : 32} />
+                <Sparkline values={sparkline.values!} color={trendTone.sparklineColor} height={isCompact ? 26 : 32} />
               </div>
             )}
           </div>
 
           {showChange && (
             <div className={`flex items-center gap-1.5 ${isCompact ? 'text-[12px]' : 'text-[13px]'}`}>
-              <span className={`inline-flex items-center justify-center w-5 h-5 rounded-md ${trendIconBg}`}>
-                {isPositive ? <TrendingUp className="w-3 h-3 text-emerald-500" /> : isNegative ? <TrendingDown className="w-3 h-3 text-red-500" /> : <ArrowRight className="w-3 h-3 text-app-text-subtle" />}
+              <span className={`inline-flex items-center justify-center w-5 h-5 rounded-md ${trendTone.bg}`}>
+                {isPositive ? <TrendingUp className={`w-3 h-3 ${trendTone.icon}`} /> : isNegative ? <TrendingDown className={`w-3 h-3 ${trendTone.icon}`} /> : <ArrowRight className={`w-3 h-3 ${trendTone.icon}`} />}
               </span>
-              <span className={`font-semibold ${trendColor}`}>{changeStr}</span>
+              <span className={`font-semibold ${trendTone.text}`}>{changeStr}</span>
             </div>
           )}
 
@@ -1883,6 +1952,7 @@ function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onD
       const styleConfig = d.styleConfig && typeof d.styleConfig === 'object' ? d.styleConfig as Record<string, unknown> : {};
       const donutConfig = styleConfig.donut && typeof styleConfig.donut === 'object' ? styleConfig.donut as Record<string, unknown> : {};
       const requestedVariant = String(styleConfig.variant || d.variant || 'auto');
+      const unit = toStringValue(d.unit || d.单位);
       const configuredMaxSlices = Number(donutConfig.maxSlices);
       const donutMaxSlices = Number.isFinite(configuredMaxSlices) ? Math.max(2, Math.min(8, Math.floor(configuredMaxSlices))) : 5;
       const maxItems = gridSize.h <= 2 ? 3 : gridSize.h <= 3 ? 5 : requestedVariant === 'donut' ? Math.min(labels.length, donutMaxSlices) : labels.length;
@@ -1892,15 +1962,27 @@ function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onD
       const total = slicedValues.reduce((a, b) => a + b, 0);
       const barItems = computeDivergingBars(slicedLabels, slicedValues);
       const hasMixedSigns = slicedValues.some((value) => value < 0) && slicedValues.some((value) => value > 0);
+      const useTrendSeries = shouldUseTrendSeriesChart(slicedLabels, widget.title, requestedVariant);
 
       const enoughRoomForDonut = gridSize.w >= 4 && gridSize.h >= 3;
       const compactDonut = gridSize.w < 5 || gridSize.h < 4;
       const autoDonut = labels.length <= donutMaxSlices && total > 0;
-      const useDonut = requestedVariant === 'bar'
+      const useDonut = useTrendSeries || requestedVariant === 'bar'
         ? false
         : requestedVariant === 'donut'
           ? enoughRoomForDonut && total > 0
           : autoDonut && enoughRoomForDonut;
+
+      if (useTrendSeries) {
+        return (
+          <TrendSeriesChart
+            labels={slicedLabels}
+            values={slicedValues}
+            unit={unit}
+            onPointClick={(label, value) => onDrillDown?.({ category: label, value }, `${widget.title} / ${label}`)}
+          />
+        );
+      }
 
       if (useDonut) {
         const innerRatio = Number(donutConfig.innerRatio);
@@ -1959,7 +2041,7 @@ function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onD
         <div className="space-y-2">
           {barItems.map((item, i) => {
             const style = getVizStyle(i);
-            const valueTone = item.value < 0 ? 'text-red-500' : 'text-app-text-secondary';
+            const signedTone = getSignedValueSemanticClasses(item.value);
             return (
               <div
                 key={i}
@@ -1977,25 +2059,25 @@ function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onD
                       <div className="absolute bottom-[-2px] top-[-2px] w-px bg-app-border-hover" style={{ left: `${item.zeroPct}%` }} />
                       {item.negativePct > 0 && (
                         <div
-                          className="absolute top-0 h-full rounded-l-full bg-red-400 transition-all duration-500 ease-out"
+                          className={`absolute top-0 h-full rounded-l-full ${signedTone.bar} transition-all duration-500 ease-out`}
                           style={{ left: `${item.zeroPct - item.negativePct}%`, width: `${item.negativePct}%` }}
                         />
                       )}
                       {item.positivePct > 0 && (
                         <div
-                          className={`absolute top-0 h-full rounded-r-full bg-gradient-to-r ${style.gradientClass} transition-all duration-500 ease-out`}
+                          className={`absolute top-0 h-full rounded-r-full ${signedTone.bar} transition-all duration-500 ease-out`}
                           style={{ left: `${item.zeroPct}%`, width: `${item.positivePct}%` }}
                         />
                       )}
                     </>
                   ) : (
                     <div
-                      className={`h-full rounded-full ${item.value < 0 ? 'bg-red-400' : `bg-gradient-to-r ${style.gradientClass}`} transition-all duration-500 ease-out`}
+                      className={`h-full rounded-full ${item.value < 0 ? signedTone.bar : `bg-gradient-to-r ${style.gradientClass}`} transition-all duration-500 ease-out`}
                       style={{ width: `${Math.max(item.negativePct, item.positivePct, item.value === 0 ? 2 : 0)}%` }}
                     />
                   )}
                 </div>
-                {showValues && <span className={`w-10 text-right ${density.labelTextClass} bi-tabular font-semibold ${valueTone}`}>{item.value}</span>}
+                {showValues && <span className={`w-10 text-right ${density.labelTextClass} bi-tabular font-semibold ${signedTone.text}`}>{item.value}</span>}
               </div>
             );
           })}
@@ -2904,6 +2986,7 @@ function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onD
           <div className="space-y-2">
             {barItems.map((item, i) => {
               const style = getVizStyle(i);
+              const signedTone = getSignedValueSemanticClasses(item.value);
               return (
                 <div key={i} className="group flex items-center gap-2.5">
                   <span className={`w-9 shrink-0 text-right ${density.labelTextClass} text-app-text-muted`}>{item.label}</span>
@@ -2912,20 +2995,20 @@ function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onD
                       <>
                         <div className="absolute bottom-[-2px] top-[-2px] w-px bg-app-border-hover" style={{ left: `${item.zeroPct}%` }} />
                         {item.negativePct > 0 && (
-                          <div className="absolute top-0 h-full rounded-l-full bg-red-400 transition-all duration-500" style={{ left: `${item.zeroPct - item.negativePct}%`, width: `${item.negativePct}%` }} />
+                          <div className={`absolute top-0 h-full rounded-l-full ${signedTone.bar} transition-all duration-500`} style={{ left: `${item.zeroPct - item.negativePct}%`, width: `${item.negativePct}%` }} />
                         )}
                         {item.positivePct > 0 && (
-                          <div className={`absolute top-0 h-full rounded-r-full bg-gradient-to-r ${style.gradientClass} transition-all duration-500`} style={{ left: `${item.zeroPct}%`, width: `${item.positivePct}%` }} />
+                          <div className={`absolute top-0 h-full rounded-r-full ${signedTone.bar} transition-all duration-500`} style={{ left: `${item.zeroPct}%`, width: `${item.positivePct}%` }} />
                         )}
                       </>
                     ) : (
                       <div
-                        className={`h-full rounded-full ${item.value < 0 ? 'bg-red-400' : `bg-gradient-to-r ${style.gradientClass}`} transition-all duration-500`}
+                        className={`h-full rounded-full ${item.value < 0 ? signedTone.bar : `bg-gradient-to-r ${style.gradientClass}`} transition-all duration-500`}
                         style={{ width: `${Math.max(item.negativePct, item.positivePct, item.value === 0 ? 2 : 0)}%` }}
                       />
                     )}
                   </div>
-                  <span className={`w-10 text-right ${density.labelTextClass} font-semibold tabular-nums ${item.value < 0 ? 'text-red-500' : 'text-app-text-secondary'}`}>{item.value}</span>
+                  <span className={`w-10 text-right ${density.labelTextClass} font-semibold tabular-nums ${signedTone.text}`}>{item.value}</span>
                 </div>
               );
             })}
