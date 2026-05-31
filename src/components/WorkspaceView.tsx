@@ -267,10 +267,30 @@ export function WorkspaceView({
       </div>
 
       <div className="mx-auto flex w-full max-w-[1480px] flex-1 flex-col gap-5 px-6 py-5">
-        <section className="bi-panel px-5 py-4">
-          <div className="flex flex-wrap items-start justify-between gap-4">
+        <section
+          className="bi-panel relative overflow-hidden px-5 py-4"
+          style={{
+            backgroundImage: [
+              'linear-gradient(90deg, hsl(var(--app-border-subtle) / 0.36) 1px, transparent 1px)',
+              'linear-gradient(0deg, hsl(var(--app-border-subtle) / 0.28) 1px, transparent 1px)',
+              'linear-gradient(135deg, transparent 0%, transparent 54%, hsl(var(--primary) / 0.055) 54%, transparent 70%)',
+              'linear-gradient(180deg, hsl(var(--app-surface)) 0%, hsl(var(--app-surface-subtle) / 0.62) 100%)',
+            ].join(', '),
+            backgroundSize: '44px 44px, 44px 44px, 100% 100%, 100% 100%',
+            backgroundPosition: '-1px -1px, -1px -1px, center, center',
+          }}
+        >
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-primary/45 via-app-border-subtle to-transparent" />
+          <div className="pointer-events-none absolute bottom-0 left-5 right-5 h-px bg-app-border-subtle/70" />
+          <div className="pointer-events-none absolute left-0 top-5 h-20 w-1 rounded-r-full bg-primary/70" />
+          <div className="pointer-events-none absolute right-8 top-8 hidden w-48 space-y-2 opacity-60 lg:block">
+            <div className="ml-auto h-1 w-36 rounded-full bg-primary/18" />
+            <div className="ml-auto h-1 w-24 rounded-full bg-sky-500/16" />
+            <div className="ml-auto h-1 w-44 rounded-full bg-emerald-500/14" />
+          </div>
+          <div className="relative z-10 flex flex-wrap items-start justify-between gap-4">
             <div className="min-w-0 max-w-[58rem] flex-1">
-              <div className="text-xs font-medium uppercase tracking-[0.16em] text-app-text-muted">Enterprise Cockpit</div>
+              <div className="text-xs font-medium uppercase tracking-[0.24em] text-app-text-muted">Enterprise Cockpit</div>
               <h2 className="mt-2 text-[28px] font-semibold tracking-[-0.03em] text-app-text">
                 面向企业决策与执行的一体化智能驾驶舱
               </h2>
@@ -281,7 +301,7 @@ export function WorkspaceView({
             <button
               type="button"
               onClick={toggleQuickCreateExpanded}
-              className="inline-flex items-center gap-2 rounded-lg border border-app-border-subtle bg-app-surface/90 px-3 py-2 text-[13px] text-app-text-muted transition-colors hover:border-app-border hover:text-app-text-secondary"
+              className="inline-flex items-center gap-2 rounded-lg border border-app-border-subtle bg-app-surface/92 px-3 py-2 text-[13px] text-app-text-muted shadow-sm transition-colors hover:border-app-border hover:bg-app-surface hover:text-app-text-secondary"
             >
               <span>{quickCreateExpanded ? '收起快速创建' : '展开快速创建'}</span>
               <ChevronDown className={`h-3.5 w-3.5 transition-transform ${quickCreateExpanded ? 'rotate-180' : ''}`} />

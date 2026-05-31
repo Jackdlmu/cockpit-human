@@ -2,11 +2,19 @@
 // 侧滑弹窗：展示 widget 详情内容（报告、摘要穿透、HTML 报告等）
 
 import { useState, useEffect } from 'react';
-import { X, Loader2, FileText, ArrowRight, Maximize2, Minimize2, ExternalLink } from 'lucide-react';
+import { X, Loader2, FileText, ArrowRight, Maximize2, Minimize2, ExternalLink, BarChart3 } from 'lucide-react';
 import type { Widget } from '@/types';
 import * as api from '@/api/client';
 import { buildReportDisplayData, shouldRenderReportAsHtml } from '@/lib/report-widget';
 import { normalizeWidgetDataPayload } from '@/lib/widget-normalizer';
+import {
+  buildMetricDetailDisplay,
+  computeDivergingBars,
+  extractSafeDetailMetadata,
+  formatDisplayNumber,
+  parseDisplayNumber,
+  scalarToDisplayText,
+} from '@/lib/visual-adapters';
 
 interface WidgetDetailDrawerProps {
   widget: Widget | null;
@@ -75,7 +83,9 @@ export function WidgetDetailDrawer({ widget, workspaceId, onClose, drillContext,
   const reportDisplay = buildReportDisplayData(mergedData, widget.type);
   const summary = reportDisplay.summary || widget.title;
   const isHtml = shouldRenderReportAsHtml(mergedData, widget.type);
-  const defaultWidth = isHtml || widget.type === 'report' || widget.type === 'html' ? '860px' : '640px';
+  const isChartDrill = widget.type === 'chart' && drillContext && Object.keys(drillContext).length > 0;
+  const isMetricDrill = widget.type === 'metric';
+  const defaultWidth = isHtml || widget.type === 'report' || widget.type === 'html' ? '860px' : isChartDrill || isMetricDrill ? '720px' : '640px';
   const width = isFullscreen ? '100%' : (widget.detail?.width || defaultWidth);
 
   return (
@@ -132,6 +142,14 @@ export function WidgetDetailDrawer({ widget, workspaceId, onClose, drillContext,
             </div>
           ) : isHtml ? (
             <HtmlReportContent data={mergedData} />
+          ) : isChartDrill ? (
+            <div className="h-full overflow-y-auto p-5">
+              <ChartDrillContent data={mergedData} drillContext={drillContext} />
+            </div>
+          ) : isMetricDrill ? (
+            <div className="h-full overflow-y-auto p-5">
+              <MetricDetailContent data={mergedData} title={widget.title} drillContext={drillContext} />
+            </div>
           ) : (
             <div className="h-full overflow-y-auto p-5">
               <ReportContent data={mergedData} summary={summary} />
@@ -153,6 +171,191 @@ export function WidgetDetailDrawer({ widget, workspaceId, onClose, drillContext,
         </div>
       </div>
     </>
+  );
+}
+
+function ChartDrillContent({
+  data,
+  drillContext,
+}: {
+  data: Record<string, unknown>;
+  drillContext?: Record<string, unknown>;
+}) {
+  const labels = getStringList(data.labels || data.categories || data.names || data.xAxis || data.xaxis || data.dimensions);
+  const values = getNumberList(data.values || data.data || data.series || data.yValues || data.yaxis || data.numbers);
+  const selectedLabel = scalarToText(drillContext?.category || drillContext?.label || drillContext?.dimension) || labels[0] || '当前项';
+  const selectedValue = toFiniteNumber(drillContext?.value);
+  const matchedIndex = labels.findIndex((label) => label === selectedLabel);
+  const value = selectedValue ?? (matchedIndex >= 0 ? values[matchedIndex] : values[0]);
+  const unit = scalarToText(data.unit || data.单位);
+  const description = scalarToText(data.description || data.summary || data.摘要 || data.subtitle);
+  const barItems = computeDivergingBars(labels, values);
+  const hasMixedSigns = values.some((item) => item < 0) && values.some((item) => item > 0);
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-lg border border-app-border-subtle bg-app-surface p-4 shadow-sm">
+        <div className="flex items-start gap-3">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-app-border-subtle bg-app-surface-subtle">
+            <BarChart3 className="h-4 w-4 text-app-text-muted" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="text-xs font-medium text-app-text-muted">下钻维度</div>
+            <div className="mt-1 truncate text-base font-semibold text-app-text">{selectedLabel}</div>
+          </div>
+          <div className="shrink-0 text-right">
+            <div className="text-xs font-medium text-app-text-muted">数值</div>
+            <div className={`mt-1 text-xl font-semibold tabular-nums ${value !== undefined && value < 0 ? 'text-red-500' : 'text-app-text'}`}>
+              {formatChartValue(value)}{unit ? <span className="ml-1 text-xs font-medium text-app-text-muted">{unit}</span> : null}
+            </div>
+          </div>
+        </div>
+        {description && (
+          <p className="mt-3 border-t border-app-border-subtle pt-3 text-sm leading-6 text-app-text-secondary">
+            {description}
+          </p>
+        )}
+      </div>
+
+      {labels.length > 0 && values.length > 0 && (
+        <div className="rounded-lg border border-app-border-subtle bg-app-surface p-4 shadow-sm">
+          <div className="mb-3 text-xs font-medium text-app-text-muted">同组数据对比</div>
+          <div className="space-y-2.5">
+            {labels.map((label, index) => {
+              const itemValue = values[index] ?? 0;
+              const item = barItems[index];
+              const active = label === selectedLabel;
+              return (
+                <div key={`${label}-${index}`} className={`rounded-md px-2 py-1.5 ${active ? 'bg-app-surface-subtle ring-1 ring-app-border-subtle' : ''}`}>
+                  <div className="mb-1.5 flex items-center justify-between gap-3">
+                    <span className="truncate text-xs font-medium text-app-text-secondary">{label}</span>
+                    <span className={`shrink-0 text-xs font-semibold tabular-nums ${itemValue < 0 ? 'text-red-500' : 'text-app-text-secondary'}`}>
+                      {formatChartValue(itemValue)}{unit}
+                    </span>
+                  </div>
+                  <div className="relative h-2 rounded-full bg-app-surface-subtle">
+                    {hasMixedSigns ? (
+                      <>
+                        <div className="absolute bottom-[-2px] top-[-2px] w-px bg-app-border-hover" style={{ left: `${item.zeroPct}%` }} />
+                        {item.negativePct > 0 && (
+                          <div className="absolute top-0 h-full rounded-l-full bg-red-400" style={{ left: `${item.zeroPct - item.negativePct}%`, width: `${item.negativePct}%` }} />
+                        )}
+                        {item.positivePct > 0 && (
+                          <div className="absolute top-0 h-full rounded-r-full bg-primary" style={{ left: `${item.zeroPct}%`, width: `${item.positivePct}%` }} />
+                        )}
+                      </>
+                    ) : (
+                      <div
+                        className={`h-full rounded-full ${itemValue < 0 ? 'bg-red-400' : 'bg-primary'}`}
+                        style={{ width: `${Math.max(item.negativePct, item.positivePct, itemValue === 0 ? 2 : 0)}%` }}
+                      />
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MetricDetailContent({
+  data,
+  title,
+  drillContext,
+}: {
+  data: Record<string, unknown>;
+  title: string;
+  drillContext?: Record<string, unknown>;
+}) {
+  const metric = buildMetricDetailDisplay(data, title, drillContext);
+  const numericValue = parseDisplayNumber(metric.value);
+  const targetNumber = parseDisplayNumber(metric.targetValue);
+  const progressPct = numericValue !== undefined && targetNumber && targetNumber > 0
+    ? Math.max(0, Math.min(100, (numericValue / targetNumber) * 100))
+    : undefined;
+  const trendTone = metric.trend === 'up' ? 'text-emerald-500' : metric.trend === 'down' ? 'text-red-500' : 'text-app-text-muted';
+  const metadata = extractSafeDetailMetadata(data);
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-lg border border-app-border-subtle bg-app-surface p-4 shadow-sm">
+        <div className="text-xs font-medium text-app-text-muted">核心指标</div>
+        <div className="mt-2 flex flex-wrap items-end justify-between gap-3">
+          <div className="min-w-0">
+            <div className="text-sm font-medium text-app-text-secondary">{metric.title}</div>
+            <div className="mt-1 text-3xl font-semibold tracking-tight text-app-text tabular-nums">
+              {metric.value}{metric.unit ? <span className="ml-1 text-sm font-medium text-app-text-muted">{metric.unit}</span> : null}
+            </div>
+          </div>
+          {(metric.change || metric.trend) && (
+            <div className={`rounded-md border border-app-border-subtle bg-app-surface-subtle px-3 py-2 text-right ${trendTone}`}>
+              <div className="text-[11px] font-medium text-app-text-muted">变化</div>
+              <div className="mt-1 text-sm font-semibold">{metric.change || trendLabel(metric.trend)}</div>
+            </div>
+          )}
+        </div>
+        {(metric.caption || metric.description) && (
+          <p className="mt-3 border-t border-app-border-subtle pt-3 text-sm leading-6 text-app-text-secondary">
+            {metric.caption || metric.description}
+          </p>
+        )}
+      </div>
+
+      {(metric.comparisonValue || metric.targetValue || metric.status) && (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          {metric.comparisonValue && <MetricInfoCard label={metric.comparisonLabel} value={metric.comparisonValue} />}
+          {metric.targetValue && <MetricInfoCard label={metric.targetLabel} value={metric.targetValue} />}
+          {metric.status && <MetricInfoCard label="状态" value={metric.status} />}
+        </div>
+      )}
+
+      {progressPct !== undefined && (
+        <div className="rounded-lg border border-app-border-subtle bg-app-surface p-4 shadow-sm">
+          <div className="mb-2 flex items-center justify-between text-xs">
+            <span className="font-medium text-app-text-muted">目标达成</span>
+            <span className="font-semibold text-app-text-secondary">{formatDisplayNumber(progressPct)}%</span>
+          </div>
+          <div className="h-2 rounded-full bg-app-surface-subtle">
+            <div className="h-full rounded-full bg-primary" style={{ width: `${progressPct}%` }} />
+          </div>
+        </div>
+      )}
+
+      {metric.secondaryMetrics.length > 0 && (
+        <div className="rounded-lg border border-app-border-subtle bg-app-surface p-4 shadow-sm">
+          <div className="mb-3 text-xs font-medium text-app-text-muted">关联指标</div>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            {metric.secondaryMetrics.map((item, index) => (
+              <div key={`${item.label}-${index}`} className="rounded-md border border-app-border-subtle bg-app-surface-subtle px-3 py-2">
+                <div className="text-[11px] text-app-text-muted">{item.label}</div>
+                <div className="mt-1 text-sm font-semibold text-app-text-secondary">{item.value}</div>
+                {item.change && <div className="mt-1 text-[11px] text-app-text-muted">{item.change}</div>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {Object.keys(metadata).length > 0 && (
+        <div className="grid grid-cols-2 gap-2 border-t border-app-border-subtle pt-3">
+          {Object.entries(metadata).map(([k, v]) => (
+            <MetricInfoCard key={k} label={k} value={v} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MetricInfoCard({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-md border border-app-border-subtle bg-app-surface px-3 py-2 shadow-sm">
+      <div className="text-[11px] text-app-text-muted">{label}</div>
+      <div className="mt-1 text-sm font-semibold text-app-text-secondary">{value}</div>
+    </div>
   );
 }
 
@@ -342,6 +545,34 @@ function normalizeDetailPayload(data: unknown, widgetType: string): Record<strin
     return { content: typeof data === 'string' ? data : '暂无详情内容' };
   }
   return normalizeWidgetDataPayload(data as Record<string, unknown>, widgetType);
+}
+
+function scalarToText(value: unknown): string {
+  return scalarToDisplayText(value);
+}
+
+function toFiniteNumber(value: unknown): number | undefined {
+  return parseDisplayNumber(value);
+}
+
+function getStringList(value: unknown): string[] {
+  return Array.isArray(value) ? value.map((item) => String(item)) : [];
+}
+
+function getNumberList(value: unknown): number[] {
+  if (!Array.isArray(value)) return [];
+  return value.map((item) => toFiniteNumber(item) ?? 0);
+}
+
+function formatChartValue(value: number | undefined): string {
+  return formatDisplayNumber(value);
+}
+
+function trendLabel(trend: string): string {
+  if (trend === 'up') return '上升';
+  if (trend === 'down') return '下降';
+  if (trend === 'flat') return '持平';
+  return '';
 }
 
 function hasInlineOrLinkedDetail(data: Record<string, unknown>): boolean {

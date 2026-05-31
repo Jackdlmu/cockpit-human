@@ -19,6 +19,7 @@ import { WidgetLibraryPanel } from './WidgetLibraryPanel';
 import { inferWidgetType, isTypeMismatched } from '@/lib/widget-type-inferer';
 import { getDefaultWidgetSize, normalizeWidget, normalizeWidgets } from '@/lib/widget-normalizer';
 import { buildReportDisplayData } from '@/lib/report-widget';
+import { computeDivergingBars } from '@/lib/visual-adapters';
 import { Switch } from '@/components/ui/switch';
 import { AgentAvatar } from '@/components/AgentAvatar';
 import { workspaceCommandStream, cockpitAgentChatStream, updateWorkspace } from '@/api/client';
@@ -1879,7 +1880,6 @@ function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onD
       if (labels.length === 0 || values.length === 0) {
         return <EmptyWidgetState title={widget.title} source={dataSource} error={error} />;
       }
-      const max = Math.max(...values, 1);
       const styleConfig = d.styleConfig && typeof d.styleConfig === 'object' ? d.styleConfig as Record<string, unknown> : {};
       const donutConfig = styleConfig.donut && typeof styleConfig.donut === 'object' ? styleConfig.donut as Record<string, unknown> : {};
       const requestedVariant = String(styleConfig.variant || d.variant || 'auto');
@@ -1890,6 +1890,8 @@ function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onD
       const slicedLabels = labels.slice(0, maxItems);
       const slicedValues = values.slice(0, maxItems);
       const total = slicedValues.reduce((a, b) => a + b, 0);
+      const barItems = computeDivergingBars(slicedLabels, slicedValues);
+      const hasMixedSigns = slicedValues.some((value) => value < 0) && slicedValues.some((value) => value > 0);
 
       const enoughRoomForDonut = gridSize.w >= 4 && gridSize.h >= 3;
       const compactDonut = gridSize.w < 5 || gridSize.h < 4;
@@ -1955,24 +1957,45 @@ function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onD
 
       return (
         <div className="space-y-2">
-          {slicedLabels.map((label, i) => {
+          {barItems.map((item, i) => {
             const style = getVizStyle(i);
-            const pct = max > 0 ? (slicedValues[i] / max) * 100 : 0;
+            const valueTone = item.value < 0 ? 'text-red-500' : 'text-app-text-secondary';
             return (
               <div
                 key={i}
                 className="group flex cursor-pointer items-center gap-2.5 rounded-md px-2 py-1.5 transition-colors hover:bg-app-surface-hover"
                 onClick={(e) => {
                   e.stopPropagation();
-                  onDrillDown?.({ category: label, value: slicedValues[i] }, `${widget.title} / ${label}`);
+                  onDrillDown?.({ category: item.label, value: item.value }, `${widget.title} / ${item.label}`);
                 }}
-                title={`下钻: ${label}`}
+                title={`下钻: ${item.label}`}
               >
-                {gridSize.w >= 3 && <span className={`w-9 shrink-0 truncate text-right ${density.labelTextClass} text-app-text-muted`}>{label}</span>}
-                <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-app-surface-subtle">
-                  <div className={`h-full rounded-full bg-gradient-to-r ${style.gradientClass} transition-all duration-500 ease-out`} style={{ width: `${pct}%` }} />
+                {gridSize.w >= 3 && <span className={`w-9 shrink-0 truncate text-right ${density.labelTextClass} text-app-text-muted`}>{item.label}</span>}
+                <div className="relative h-3 flex-1 rounded-full bg-app-surface-subtle">
+                  {hasMixedSigns ? (
+                    <>
+                      <div className="absolute bottom-[-2px] top-[-2px] w-px bg-app-border-hover" style={{ left: `${item.zeroPct}%` }} />
+                      {item.negativePct > 0 && (
+                        <div
+                          className="absolute top-0 h-full rounded-l-full bg-red-400 transition-all duration-500 ease-out"
+                          style={{ left: `${item.zeroPct - item.negativePct}%`, width: `${item.negativePct}%` }}
+                        />
+                      )}
+                      {item.positivePct > 0 && (
+                        <div
+                          className={`absolute top-0 h-full rounded-r-full bg-gradient-to-r ${style.gradientClass} transition-all duration-500 ease-out`}
+                          style={{ left: `${item.zeroPct}%`, width: `${item.positivePct}%` }}
+                        />
+                      )}
+                    </>
+                  ) : (
+                    <div
+                      className={`h-full rounded-full ${item.value < 0 ? 'bg-red-400' : `bg-gradient-to-r ${style.gradientClass}`} transition-all duration-500 ease-out`}
+                      style={{ width: `${Math.max(item.negativePct, item.positivePct, item.value === 0 ? 2 : 0)}%` }}
+                    />
+                  )}
                 </div>
-                {showValues && <span className={`w-10 text-right ${density.labelTextClass} bi-tabular font-semibold text-app-text-secondary`}>{slicedValues[i]}</span>}
+                {showValues && <span className={`w-10 text-right ${density.labelTextClass} bi-tabular font-semibold ${valueTone}`}>{item.value}</span>}
               </div>
             );
           })}
@@ -2875,18 +2898,34 @@ function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onD
       const rawValues = (d.values || []) as unknown[];
       const values = Array.isArray(rawValues) ? rawValues.map((v) => (typeof v === 'number' ? v : Number(v) || 0)) : [];
       if (labels.length > 0 && values.length > 0) {
-        const max = Math.max(...values, 1);
+        const barItems = computeDivergingBars(labels, values);
+        const hasMixedSigns = values.some((value) => value < 0) && values.some((value) => value > 0);
         return (
           <div className="space-y-2">
-            {labels.map((label, i) => {
+            {barItems.map((item, i) => {
               const style = getVizStyle(i);
               return (
                 <div key={i} className="group flex items-center gap-2.5">
-                  <span className={`w-9 shrink-0 text-right ${density.labelTextClass} text-app-text-muted`}>{label}</span>
-                  <div className="flex-1 h-2.5 overflow-hidden rounded-full bg-app-surface-subtle">
-                    <div className={`h-full rounded-full bg-gradient-to-r ${style.gradientClass} transition-all duration-500`} style={{ width: `${(values[i] / max) * 100}%` }} />
+                  <span className={`w-9 shrink-0 text-right ${density.labelTextClass} text-app-text-muted`}>{item.label}</span>
+                  <div className="relative h-2.5 flex-1 rounded-full bg-app-surface-subtle">
+                    {hasMixedSigns ? (
+                      <>
+                        <div className="absolute bottom-[-2px] top-[-2px] w-px bg-app-border-hover" style={{ left: `${item.zeroPct}%` }} />
+                        {item.negativePct > 0 && (
+                          <div className="absolute top-0 h-full rounded-l-full bg-red-400 transition-all duration-500" style={{ left: `${item.zeroPct - item.negativePct}%`, width: `${item.negativePct}%` }} />
+                        )}
+                        {item.positivePct > 0 && (
+                          <div className={`absolute top-0 h-full rounded-r-full bg-gradient-to-r ${style.gradientClass} transition-all duration-500`} style={{ left: `${item.zeroPct}%`, width: `${item.positivePct}%` }} />
+                        )}
+                      </>
+                    ) : (
+                      <div
+                        className={`h-full rounded-full ${item.value < 0 ? 'bg-red-400' : `bg-gradient-to-r ${style.gradientClass}`} transition-all duration-500`}
+                        style={{ width: `${Math.max(item.negativePct, item.positivePct, item.value === 0 ? 2 : 0)}%` }}
+                      />
+                    )}
                   </div>
-                  <span className={`w-10 text-right ${density.labelTextClass} font-semibold tabular-nums text-app-text-secondary`}>{values[i]}</span>
+                  <span className={`w-10 text-right ${density.labelTextClass} font-semibold tabular-nums ${item.value < 0 ? 'text-red-500' : 'text-app-text-secondary'}`}>{item.value}</span>
                 </div>
               );
             })}

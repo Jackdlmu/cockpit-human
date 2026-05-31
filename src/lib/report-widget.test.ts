@@ -67,4 +67,20 @@ describe('report-widget helpers', () => {
     expect(report.metadata.detailHtml).toBeUndefined();
     expect(shouldRenderReportAsHtml(report.normalized, 'report')).toBe(true);
   });
+
+  it('hides chart config fields from generic report metadata', () => {
+    const report = buildReportDisplayData({
+      chartType: 'bar',
+      labels: ['2022', '2023'],
+      values: [-4.36, 1.03],
+      unit: '亿港币',
+      styleConfig: { variant: 'bar' },
+      description: '2025年实现扭亏为盈',
+    }, 'chart');
+
+    expect(report.metadata.chartType).toBeUndefined();
+    expect(report.metadata.labels).toBeUndefined();
+    expect(report.metadata.values).toBeUndefined();
+    expect(report.metadata.styleConfig).toBeUndefined();
+  });
 });

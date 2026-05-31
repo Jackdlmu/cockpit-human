@@ -96,5 +96,8 @@ export function updateWorkspaceInitJob(id: string, patch: Partial<WorkspaceInitJ
 }
 
 export function listRecoverableWorkspaceInitJobs(): WorkspaceInitJob[] {
-  return readJobs().filter((job) => job.status === 'pending' || job.status === 'running');
+  return readJobs().filter((job) => (
+    job.status === 'pending'
+    || (job.status === 'running' && job.attempts < job.maxAttempts)
+  ));
 }

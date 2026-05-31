@@ -343,6 +343,10 @@ function App() {
     if (events.length === 0 || !wsConnected) return;
     const latest = events[events.length - 1];
     if (latest.type === 'system') return;
+    // 重连/刷新服务后会回放历史事件；历史初始化失败不应重新弹出“创建失败”。
+    if (latest._isHistory) {
+      return;
+    }
 
     if (latest.type === 'workspace.created') {
       refreshWorkspaces();
@@ -353,7 +357,12 @@ function App() {
       const payload = latest.payload as Record<string, unknown>;
       const workspaceId = String(payload?.workspaceId || '');
       const sourceWorkspaceId = creationProgressRef.current.workspaceId;
+      const hasActiveCreation = creationProgressRef.current.visible && !creationProgressRef.current.done;
       if (sourceWorkspaceId && workspaceId && sourceWorkspaceId !== workspaceId) {
+        return;
+      }
+      if (!sourceWorkspaceId && !hasActiveCreation) {
+        refreshWorkspaces();
         return;
       }
       const mode = payload?.mode === 'real-data' ? 'real-data' : 'llm';
@@ -382,7 +391,11 @@ function App() {
       const widgetTitle = String(payload?.widgetTitle || '');
       const workspaceId = String(payload?.workspaceId || '');
       const sourceWorkspaceId = creationProgressRef.current.workspaceId;
+      const hasActiveCreation = creationProgressRef.current.visible && !creationProgressRef.current.done;
       if (sourceWorkspaceId && workspaceId && sourceWorkspaceId !== workspaceId) {
+        return;
+      }
+      if (!sourceWorkspaceId && !hasActiveCreation) {
         return;
       }
       setCreationProgress((prev) => ({
@@ -413,7 +426,15 @@ function App() {
       const hasError = result && (result.error || (typeof result.message === 'string' && result.message.includes('失败')));
       const workspaceId = String(payload?.workspaceId || '');
       const sourceWorkspaceId = creationProgressRef.current.workspaceId;
+      const hasActiveCreation = creationProgressRef.current.visible && !creationProgressRef.current.done;
       if (sourceWorkspaceId && workspaceId && sourceWorkspaceId !== workspaceId) {
+        return;
+      }
+      if (!sourceWorkspaceId && !hasActiveCreation) {
+        refreshWorkspaces();
+        if ((payload?.workspaceId as string | undefined) === selectedWorkspaceIdRef.current) {
+          setDetailRefreshKey(k => k + 1);
+        }
         return;
       }
       if (hasError) {
@@ -459,7 +480,15 @@ function App() {
       const resultMessage = typeof result?.message === 'string' ? result.message : '';
       const workspaceId = String(payload?.workspaceId || '');
       const sourceWorkspaceId = creationProgressRef.current.workspaceId;
+      const hasActiveCreation = creationProgressRef.current.visible && !creationProgressRef.current.done;
       if (sourceWorkspaceId && workspaceId && sourceWorkspaceId !== workspaceId) {
+        return;
+      }
+      if (!sourceWorkspaceId && !hasActiveCreation) {
+        refreshWorkspaces();
+        if ((payload?.workspaceId as string | undefined) === selectedWorkspaceIdRef.current) {
+          setDetailRefreshKey(k => k + 1);
+        }
         return;
       }
       setCreationProgress((prev) => ({
@@ -477,12 +506,6 @@ function App() {
       if ((payload?.workspaceId as string | undefined) === selectedWorkspaceIdRef.current) {
         setDetailRefreshKey(k => k + 1);
       }
-      return;
-    }
-
-    // 跳过 layout 调整等频繁事件，避免干扰
-    // 历史事件不触发 toast（重连后拉取的历史记录）
-    if (latest._isHistory) {
       return;
     }
 

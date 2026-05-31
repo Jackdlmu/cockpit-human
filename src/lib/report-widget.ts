@@ -17,6 +17,10 @@ export interface ReportDisplayData {
 }
 
 const REPORT_RESERVED_FIELDS = new Set([
+  'chartType', 'variant', 'styleConfig', 'visualMapping',
+  'label', 'labels', 'values', 'series', 'datasets', 'categories', 'names',
+  'xAxis', 'xaxis', 'yAxis', 'yaxis', 'yValues', 'numbers',
+  'rows', 'columns', 'records', 'entries',
   'summary', 'highlights', 'keyPoints', 'metrics', 'stats', 'overview', 'insights',
   'content', 'text', 'markdown', 'body', 'html', 'detailHtml', 'fullHtml', 'htmlContent', 'reportHtml',
   'detail', 'fullContent', 'detailContent', 'description', 'subtitle',

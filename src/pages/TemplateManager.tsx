@@ -96,12 +96,36 @@ const TEMPLATE_EXTENSION_EXAMPLE = `{
       "type": "metric",
       "title": "收入达成",
       "position": { "x": 0, "y": 0, "w": 4, "h": 2 },
-      "data": { "value": "82%", "change": "+4.8%", "trend": "up" },
+      "data": {
+        "value": "82%",
+        "change": "+4.8%",
+        "trend": "up",
+        "target": "90%",
+        "compareLabel": "同比",
+        "description": "展示收入目标达成情况和同比变化。"
+      },
       "dataIntent": {
         "domain": "finance",
         "metricKey": "revenue_attainment",
         "sourcePreference": "real-time",
         "required": true
+      }
+    },
+    {
+      "id": "profit-gap",
+      "type": "chart",
+      "title": "利润偏差分析",
+      "position": { "x": 4, "y": 0, "w": 4, "h": 3 },
+      "data": {
+        "labels": ["Q1", "Q2", "Q3", "Q4"],
+        "values": [-320, 180, -90, 260],
+        "unit": "万元",
+        "styleConfig": {
+          "variant": "bar",
+          "baseline": "zero",
+          "mode": "diverging",
+          "guidance": "含正负偏差时使用零轴双向条形，不要使用 donut。"
+        }
       }
     },
     {
@@ -137,7 +161,9 @@ const WIDGET_EXTENSION_EXAMPLE = `{
     "layoutAdvice": "建议 w=5-6, h=4；分类超过 5 个时不要使用环形图。",
     "styleConfig": {
       "variant": "donut",
+      "baseline": "zero",
       "donut": { "innerRatio": 0.58, "legendRatio": 0.42 },
+      "guidance": "全为非负且表达占比时使用 donut；如 values 出现负数或差额，请改用 bar + mode=diverging。",
       "palette": ["#2563eb", "#06b6d4", "#f59e0b"]
     }
   },
@@ -824,6 +850,8 @@ function TemplateExtensionGuide() {
         '优先复制系统模板再扩展，避免直接改动预制模板；模板 JSON 可通过高级 JSON 面板整体维护。',
         'widgets.position 使用 12 列网格，x/y/w/h 分别表示列位置、行位置、宽度和高度；报告和复杂图表建议 w>=6、h>=4。',
         'dataIntent 用于告诉智能体业务语义和取数优先级；dataSource 用于绑定明确接口或查询。',
+        '指标卡建议提供 value/change/trend/unit/target/compareLabel/description，详情会按 KPI 语义展示，避免把这些字段写进报告正文。',
+        '含正负值、差额、盈亏、预算偏差的数据使用 bar + baseline=zero + mode=diverging；只有全为非负且 2-5 个分类占比时才使用 donut。',
         'HTML 报告必须传 data.html、data.detail.content，或 reportFile/reportUrl/htmlUrl；不要只传 detailUrl=true。',
         '动态生成模板时，尽量让核心指标在首屏左上，趋势/占比图在中部，报告类内容放宽区域或下方详情。',
       ]}
@@ -841,6 +869,8 @@ function WidgetExtensionGuide() {
         'schemaHint.recommendedDataShape 描述输入数据格式，智能体会据此选择和填充组件。',
         'schemaHint.layoutAdvice 描述默认尺寸和排版建议，会影响动态生成时的 w/h 选择。',
         'schemaHint.styleConfig 可作为轻量样式扩展入口，例如环形图内径、图例比例、色板、密度和强调字段。',
+        'bar 图如包含负数、差额、盈亏或偏差，必须保留 0 基线并使用双向条形；不要用单向长度条表达正负数据。',
+        'metric 组件详情会隐藏内部配置字段，展示中文业务语义；管理员应补充 unit、target、compareLabel 和 description 以增强可读性。',
         '环形图适合 2-5 个分类占比；超过 5 个分类建议条形图或表格，避免图例挤压。',
         '自定义组件建议先复制预制组件，改名称、schemaHint 和 template.data，再用预览验证遮挡、比例和空数据状态。',
       ]}

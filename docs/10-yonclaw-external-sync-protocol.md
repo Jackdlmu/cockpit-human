@@ -174,7 +174,11 @@
   "data": {
     "value": "8,599万元",
     "change": "同比 +14%",
-    "trend": "up"
+    "trend": "up",
+    "unit": "万元",
+    "target": "预算目标",
+    "compareLabel": "同比",
+    "description": "展示净利润规模、同比变化和预算完成情况"
   }
 }
 ```
@@ -188,6 +192,68 @@
   "value": "8,599万元"
 }
 ```
+
+### 5.1 指标卡语义字段
+
+指标卡不要把 `value/change/trend` 当作普通报告 metadata 展示。推荐统一写入：
+
+```json
+{
+  "title": "毛利率",
+  "type": "metric",
+  "data": {
+    "value": "67.1%",
+    "change": "同比提升2.0个百分点",
+    "trend": "up",
+    "unit": "%",
+    "target": "70%",
+    "compareLabel": "同比",
+    "description": "毛利率用于衡量收入扣除直接成本后的盈利能力"
+  }
+}
+```
+
+当前驾驶舱详情会按 KPI 语义展示这些字段，并自动隐藏内部配置字段。
+
+### 5.2 图表正负值与占比适配
+
+含正负值、差额、盈亏、预算偏差的数据必须使用零轴双向条形：
+
+```json
+{
+  "title": "利润偏差分析",
+  "type": "chart",
+  "data": {
+    "labels": ["Q1", "Q2", "Q3", "Q4"],
+    "values": [-320, 180, -90, 260],
+    "unit": "万元",
+    "styleConfig": {
+      "variant": "bar",
+      "baseline": "zero",
+      "mode": "diverging"
+    }
+  }
+}
+```
+
+只有当 `values` 全为非负，并且表达 2-5 个分类占比时，才推荐使用 `donut`：
+
+```json
+{
+  "title": "收入结构",
+  "type": "chart",
+  "data": {
+    "labels": ["订阅收入", "实施服务", "其他"],
+    "values": [62, 28, 10],
+    "styleConfig": {
+      "variant": "donut",
+      "donut": { "innerRatio": 0.58, "legendRatio": 0.42, "maxSlices": 5 }
+    }
+  }
+}
+```
+
+不要用环形图展示负数、盈亏、净额、预算差额或任意可能跨越 0 的指标。
 
 说明：
 

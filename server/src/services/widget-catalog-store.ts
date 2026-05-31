@@ -28,11 +28,16 @@ const BUILTIN_WIDGETS = [
     schemaHint: {
       recommendedDataShape: {
         value: 'string | number',
+        unit: '可选，string，例如 %、万元、天；如果 value 已含单位可省略',
         change: 'string',
         trend: 'up | down | flat',
+        target: '可选，string | number，用于目标达成或阈值对比',
+        compareLabel: '可选，string，例如 同比、环比、预算、上期',
+        compareValue: '可选，string | number，用于详情对比',
+        description: '可选，string，作为详情说明',
         items: '可选，多指标时使用数组',
       },
-      layoutAdvice: '适合宽度 3-4、高度 2-3，优先放在首屏顶部。',
+      layoutAdvice: '适合宽度 3-4、高度 2-3，优先放在首屏顶部。指标详情会按 KPI 语义展示，不要把 value/change/trend 写入报告正文。',
     },
     template: {
       type: 'metric',
@@ -62,8 +67,10 @@ const BUILTIN_WIDGETS = [
       layoutAdvice: '适合宽度 4-6、高度 3-4，避免过窄影响可读性。',
       styleConfig: {
         variant: 'auto | bar | donut',
+        baseline: 'zero',
+        mode: 'standard | diverging',
         donut: { innerRatio: 0.58, legendRatio: 0.42, maxSlices: 5 },
-        guidance: '2-5 个分类占比可用 donut；超过 5 个分类优先 bar/table，避免图例挤压。',
+        guidance: '含正负值、差额、盈亏、预算偏差时必须使用 bar + zero baseline + diverging；2-5 个全非负分类占比可用 donut；超过 5 个分类优先 bar/table。',
       },
     },
     template: {
