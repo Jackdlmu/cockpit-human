@@ -15,6 +15,7 @@ import { getThresholdColor, extractThresholds } from '@/hooks/useThresholdColor'
 import { WidgetInteractionProvider, useWidgetInteraction } from '@/contexts/WidgetInteractionContext';
 import { WidgetDetailDrawer } from './WidgetDetailDrawer';
 import { CanvasGrid } from './CanvasGrid';
+import { GroupedCanvas } from './GroupedCanvas';
 import { WidgetLibraryPanel } from './WidgetLibraryPanel';
 import { BusinessWidgetRenderer } from './business/BusinessWidgetRenderer';
 import { inferWidgetType, isTypeMismatched } from '@/lib/widget-type-inferer';
@@ -28,10 +29,11 @@ import { toast } from 'sonner';
 import {
   Layers, BarChart3, UserPlus, CheckCircle, Monitor, Target,
   ArrowLeft, RefreshCw, Send, Sparkles,
-  ChevronDown, ChevronUp, Trash2,
+  ChevronDown, Trash2,
   ArrowRight, TrendingUp, TrendingDown, ArrowLeftIcon, Loader2, Check,
   FileText, AlertCircle, ExternalLink,
   DollarSign, Code2, Users, Truck, Plus,
+  MessageCircle, X,
 } from 'lucide-react';
 
 /** Sparkline 微型趋势图组件（SVG 纯实现） */
@@ -243,6 +245,64 @@ export function WorkspaceDetail(props: WorkspaceDetailProps) {
       <WorkspaceDetailInner {...props} />
     </WidgetInteractionProvider>
   );
+}
+
+/** 处理组件点击：支持 link 的多种打开方式 */
+function handleWidgetClick(
+  widget: Widget,
+  deps: {
+    onSelectWorkspace?: (id: string) => void;
+    allWorkspaces?: Workspace[];
+    setDetailWidget: (w: Widget | null) => void;
+  }
+) {
+  const link = widget.link;
+  if (!link) {
+    deps.setDetailWidget(widget);
+    return;
+  }
+
+  const openMode = link.openMode || 'drawer';
+
+  // blank: 新标签页打开
+  if (openMode === 'blank') {
+    if (link.type === 'url' && link.url) {
+      window.open(link.url, '_blank');
+      return;
+    }
+    // workspace 在新标签页打开（尝试构造链接）
+    if (link.type === 'workspace' && link.targetId && deps.onSelectWorkspace) {
+      const url = `${window.location.origin}${window.location.pathname}?workspace=${encodeURIComponent(link.targetId)}`;
+      window.open(url, '_blank');
+      return;
+    }
+    // 其他类型 fallback 到 drawer
+  }
+
+  // self: 当前页跳转
+  if (openMode === 'self') {
+    if (link.type === 'url' && link.url) {
+      window.open(link.url, '_self');
+      return;
+    }
+    if (link.type === 'workspace' && deps.onSelectWorkspace) {
+      if (link.targetId) {
+        deps.onSelectWorkspace(link.targetId);
+        return;
+      }
+      if (link.targetTemplate && deps.allWorkspaces) {
+        const targetWs = deps.allWorkspaces.find((w) => w.id === link.targetTemplate || w.name === link.targetTemplate);
+        if (targetWs) {
+          deps.onSelectWorkspace(targetWs.id);
+          return;
+        }
+      }
+    }
+    // fallback 到 drawer
+  }
+
+  // drawer（默认）: 浮层面板
+  deps.setDetailWidget(widget);
 }
 
 function WorkspaceDetailInner({ workspaceId, agents, workspaces: allWorkspaces, onBack, onSelectWorkspace, layoutMode, onRequestDelete }: WorkspaceDetailProps) {
@@ -772,9 +832,10 @@ function WorkspaceDetailInner({ workspaceId, agents, workspaces: allWorkspaces, 
       )}
 
       {/* Dashboard Grid — 画布模式 */}
-      <div className={`flex-1 overflow-y-auto sidebar-scroll p-5 pb-28 ${isEditing ? 'bg-app-surface-subtle/40' : ''}`}>
-        <CanvasGrid
+      {workspace.grouping?.enabled && !isEditing ? (
+        <GroupedCanvas
           widgets={localWidgets}
+          grouping={workspace.grouping}
           isEditing={isEditing}
           onLayoutChange={handleLayoutChange}
           onDeleteWidget={handleDeleteWidget}
@@ -807,35 +868,14 @@ function WorkspaceDetailInner({ workspaceId, agents, workspaces: allWorkspaces, 
               onClick={() => {
                 if (isEditing) return;
                 const safeWidget = normalizeWidget(widget, localWidgets.findIndex((item) => item.id === widget.id)) || widget;
-                if (safeWidget.link) {
-                  const link = safeWidget.link;
-                  if (link.type === 'workspace' && onSelectWorkspace) {
-                    if (link.targetId) {
-                      onSelectWorkspace(link.targetId);
-                    } else if (link.targetTemplate && allWorkspaces) {
-                      const targetWs = allWorkspaces.find((w) => w.id === link.targetTemplate || w.name === link.targetTemplate);
-                      if (targetWs) {
-                        onSelectWorkspace(targetWs.id);
-                      } else {
-                        setDetailWidget(safeWidget);
-                      }
-                    } else {
-                      setDetailWidget(safeWidget);
-                    }
-                  } else if (link.type === 'url' && link.url) {
-                    window.open(link.url, '_blank');
-                  } else if (link.type === 'widget' && link.targetId) {
-                    setDetailWidget(safeWidget);
-                  } else {
-                    setDetailWidget(safeWidget);
-                  }
-                } else {
-                  setDetailWidget(safeWidget);
-                }
+                handleWidgetClick(safeWidget, {
+                  onSelectWorkspace,
+                  allWorkspaces,
+                  setDetailWidget,
+                });
               }}
               onDrillDown={(context, dimension) => {
                 setDrillState({ widget: normalizeWidget(widget, localWidgets.findIndex((item) => item.id === widget.id)) || widget, context, dimension });
-                // 同时设置全局联动过滤
                 Object.entries(context).forEach(([key, value]) => {
                   if (typeof value === 'string' || typeof value === 'number') {
                     setFilter(key, value);
@@ -846,7 +886,62 @@ function WorkspaceDetailInner({ workspaceId, agents, workspaces: allWorkspaces, 
             />
           )}
         />
-      </div>
+      ) : (
+        <div className={`flex-1 overflow-y-auto sidebar-scroll p-5 pb-28 ${isEditing ? 'bg-app-surface-subtle/40' : ''}`}>
+          <CanvasGrid
+            widgets={localWidgets}
+            isEditing={isEditing}
+            onLayoutChange={handleLayoutChange}
+            onDeleteWidget={handleDeleteWidget}
+            renderWidget={(widget) => (
+              <WidgetRenderer
+                workspaceId={workspace.id}
+                widget={widget}
+                useDemoDataFallback={workspace.useDemoDataFallback}
+                isEditing={isEditing}
+                onRename={(title) => handleRenameWidget(widget.id, title)}
+                onRuntimeDataChange={(snapshot) => {
+                  setRuntimeWidgetSnapshots((prev) => {
+                    const current = prev[widget.id];
+                    const next = { ...prev };
+                    if (!snapshot || !snapshot.data || Object.keys(snapshot.data).length === 0) {
+                      if (!current) return prev;
+                      delete next[widget.id];
+                      return next;
+                    }
+                    const sameData = current
+                      && current.title === snapshot.title
+                      && JSON.stringify(current.data) === JSON.stringify(snapshot.data);
+                    if (sameData) {
+                      return prev;
+                    }
+                    next[widget.id] = snapshot;
+                    return next;
+                  });
+                }}
+                onClick={() => {
+                  if (isEditing) return;
+                  const safeWidget = normalizeWidget(widget, localWidgets.findIndex((item) => item.id === widget.id)) || widget;
+                  handleWidgetClick(safeWidget, {
+                    onSelectWorkspace,
+                    allWorkspaces,
+                    setDetailWidget,
+                  });
+                }}
+                onDrillDown={(context, dimension) => {
+                  setDrillState({ widget: normalizeWidget(widget, localWidgets.findIndex((item) => item.id === widget.id)) || widget, context, dimension });
+                  Object.entries(context).forEach(([key, value]) => {
+                    if (typeof value === 'string' || typeof value === 'number') {
+                      setFilter(key, value);
+                    }
+                  });
+                }}
+                filterContext={activeFilters}
+              />
+            )}
+          />
+        </div>
+      )}
 
       {/* Widget Detail Drawer */}
       <WidgetDetailDrawer
@@ -871,57 +966,87 @@ function WorkspaceDetailInner({ workspaceId, agents, workspaces: allWorkspaces, 
         onAdd={handleAddWidget}
       />
 
-      {/* Chat Panel — 底部固定区域 */}
-      <div className="shrink-0 border-t border-app-border-subtle">
-        {/* Chat Messages — 在 Panel 内部向上展开 */}
-        {hasMessages && chatExpanded && (
-          <div className="px-6 pt-3">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] text-app-text-subtle uppercase tracking-wider">
-                会话历史 · {messages.length} 条
-              </span>
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={handleClear}
-                  className="p-1 rounded hover:bg-app-surface-hover text-app-text-subtle hover:text-red-500 transition-colors"
-                  title="清空会话"
-                >
-                  <Trash2 className="w-3 h-3" />
-                </button>
-                <button
-                  onClick={() => setChatExpanded(false)}
-                  className="p-1 rounded hover:bg-app-surface-hover text-app-text-subtle hover:text-app-text-muted transition-colors"
-                  title="折叠"
-                >
-                  <ChevronDown className="w-3.5 h-3.5" />
-                </button>
+      {/* ── Floating Chat ── */}
+      {/* FAB: 收起时显示右下角悬浮按钮 */}
+      {!chatExpanded && (
+        <button
+          onClick={() => setChatExpanded(true)}
+          className="fixed bottom-5 right-5 z-50 flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-red-500 to-orange-500 text-white shadow-lg shadow-red-500/25 transition-all hover:scale-110 hover:shadow-xl hover:shadow-red-500/30 active:scale-95"
+          title="打开智能会话"
+        >
+          <MessageCircle className="h-5 w-5" />
+          {hasMessages && messages.length > 0 && (
+            <span className="absolute -right-0.5 -top-0.5 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-bold text-white shadow-sm">
+              {messages.length}
+            </span>
+          )}
+        </button>
+      )}
+
+      {/* Floating Chat Panel */}
+      {chatExpanded && (
+        <div className="fixed bottom-5 right-5 z-50 flex h-[min(640px,calc(100vh-120px))] w-[min(420px,calc(100vw-32px))] flex-col rounded-2xl border border-app-border-subtle bg-app-surface shadow-2xl shadow-black/20">
+          {/* Panel Header */}
+          <div className="flex items-center justify-between border-b border-app-border-subtle px-4 py-3">
+            <div className="flex items-center gap-2.5">
+              {displayPrimaryAgent ? (
+                displayPrimaryAgent.id === 'cockpit-self' ? (
+                  <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white">
+                    <Sparkles className="h-3.5 w-3.5" />
+                  </div>
+                ) : (
+                  <AgentAvatar agent={displayPrimaryAgent} size="sm" showStatus={false} />
+                )
+              ) : (
+                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white">
+                  <Sparkles className="h-3.5 w-3.5" />
+                </div>
+              )}
+              <div>
+                <div className="text-sm font-medium text-app-text">
+                  {displayPrimaryAgent ? displayPrimaryAgent.name : '智能会话'}
+                </div>
+                <div className="text-[10px] text-app-text-subtle">
+                  {isLoading ? '思考中...' : hasMessages ? `${messages.length} 条会话` : '基于当前驾驶舱上下文'}
+                </div>
               </div>
             </div>
-            <div className="max-h-[200px] overflow-y-auto sidebar-scroll space-y-3 pb-3">
-              {messages.map((msg, i) => (
-                <div key={i} className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : ''}`}>
-                  {msg.role === 'agent' && (
-                    <div className="shrink-0 mt-0.5">
-                      {primaryAgent ? (
-                        <AgentAvatar agent={primaryAgent} size="sm" showStatus={false} />
-                      ) : workspace.orchestration?.mode === 'cockpit-led' || workspace.orchestration?.mode === 'llm-direct' ? (
-                        <div className="w-6 h-6 rounded-full flex items-center justify-center bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white">
-                          <Sparkles className="w-3 h-3" />
-                        </div>
-                      ) : null}
-                    </div>
-                  )}
-                  <div className={`max-w-[80%] px-4 py-2.5 rounded-xl text-sm leading-relaxed ${
-                    msg.role === 'user'
-                      ? 'bg-red-500/15 text-app-text-secondary border border-red-500/10'
-                      : 'bg-app-surface text-app-text-muted border border-app-border-subtle'
-                  }`}>
-                    {msg.content}
-                  </div>
+            <div className="flex items-center gap-1">
+              {hasMessages && (
+                <button
+                  onClick={handleClear}
+                  className="rounded-lg p-1.5 text-app-text-subtle transition-colors hover:bg-app-surface-hover hover:text-red-500"
+                  title="清空会话"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              )}
+              <button
+                onClick={() => setChatExpanded(false)}
+                className="rounded-lg p-1.5 text-app-text-subtle transition-colors hover:bg-app-surface-hover hover:text-app-text-muted"
+                title="收起"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </div>
+
+          {/* Messages */}
+          <div className="flex-1 min-h-0 overflow-y-auto sidebar-scroll space-y-3 p-4">
+            {messages.length === 0 && !isLoading && (
+              <div className="flex flex-col items-center justify-center h-full gap-3 text-app-text-subtle">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-app-surface-subtle border border-app-border-subtle">
+                  <Sparkles className="h-5 w-5" />
                 </div>
-              ))}
-              {isLoading && streaming && (
-                <div className="flex gap-3">
+                <div className="text-xs text-center">
+                  <p className="text-app-text-secondary font-medium mb-1">智能会话助手</p>
+                  <p className="text-app-text-muted">输入自然语言指令，与智能体交互</p>
+                </div>
+              </div>
+            )}
+            {messages.map((msg, i) => (
+              <div key={i} className={`flex gap-2.5 ${msg.role === 'user' ? 'justify-end' : ''}`}>
+                {msg.role === 'agent' && (
                   <div className="shrink-0 mt-0.5">
                     {primaryAgent ? (
                       <AgentAvatar agent={primaryAgent} size="sm" showStatus={false} />
@@ -931,185 +1056,174 @@ function WorkspaceDetailInner({ workspaceId, agents, workspaces: allWorkspaces, 
                       </div>
                     ) : null}
                   </div>
-                  <div className="max-w-[80%] px-4 py-2.5 rounded-xl text-sm leading-relaxed bg-app-surface text-app-text-muted border border-app-border-subtle">
-                    {streaming}
-                    <span className="inline-block w-1.5 h-4 ml-0.5 bg-red-500/60 animate-pulse align-middle" />
-                  </div>
+                )}
+                <div className={`max-w-[85%] px-3.5 py-2 rounded-xl text-sm leading-relaxed ${
+                  msg.role === 'user'
+                    ? 'bg-red-500/15 text-app-text-secondary border border-red-500/10'
+                    : 'bg-app-surface-subtle text-app-text-muted border border-app-border-subtle'
+                }`}>
+                  {msg.content}
                 </div>
-              )}
-              {isLoading && !streaming && (
-                <div className="flex gap-3">
-                  <div className="w-7 h-7 rounded-full bg-gradient-to-br from-red-500/20 to-orange-500/20 flex items-center justify-center shrink-0 mt-0.5">
-                    <Loader2 className="w-3.5 h-3.5 text-red-500 animate-spin" />
-                  </div>
-                  <div className="text-sm text-app-text-muted">思考中...</div>
+              </div>
+            ))}
+            {isLoading && streaming && (
+              <div className="flex gap-2.5">
+                <div className="shrink-0 mt-0.5">
+                  {primaryAgent ? (
+                    <AgentAvatar agent={primaryAgent} size="sm" showStatus={false} />
+                  ) : workspace.orchestration?.mode === 'cockpit-led' || workspace.orchestration?.mode === 'llm-direct' ? (
+                    <div className="w-6 h-6 rounded-full flex items-center justify-center bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white">
+                      <Sparkles className="w-3 h-3" />
+                    </div>
+                  ) : null}
                 </div>
-              )}
-              <div ref={chatEndRef} />
-            </div>
-          </div>
-        )}
-
-        {/* Collapsed hint */}
-        {hasMessages && !chatExpanded && (
-          <div className="px-6 pt-3 flex items-center justify-between">
-            <button
-              onClick={() => setChatExpanded(true)}
-              className="flex items-center gap-1.5 text-[10px] text-app-text-subtle hover:text-app-text-muted transition-colors"
-            >
-              <ChevronUp className="w-3 h-3" />
-              <span>展开会话历史 · {messages.length} 条</span>
-            </button>
-            <button
-              onClick={handleClear}
-              className="p-1 rounded hover:bg-app-surface-hover text-app-text-subtle hover:text-red-500 transition-colors"
-              title="清空会话"
-            >
-              <Trash2 className="w-3 h-3" />
-            </button>
-          </div>
-        )}
-
-        {/* Chat Input Bar */}
-        <div className="px-6 py-4">
-          <div className="flex items-center gap-3 bg-app-surface border border-app-border-subtle shadow-[0_1px_3px_rgba(0,0,0,0.15)] rounded-xl px-4 py-3 focus-within:border-app-border focus-within:bg-app-surface-hover transition-all">
-            {/* Agent Selector */}
-            <div className="relative shrink-0" ref={agentPickerRef}>
-              {(() => {
-                // 根据 orchestration 判断谁是主智能体、谁是协作智能体
-                const chatPrimaryAgentId = workspace.orchestration?.mode === 'platform-led'
-                  ? workspace.orchestration.primaryAgent?.id
-                  : (isCockpitLed ? 'cockpit-self' : workspace.primaryAgentId);
-                const chatCollaborators = displayAgents.filter((a) => a.id !== chatPrimaryAgentId && a.id !== 'cockpit-self');
-                const chatPrimary = displayPrimaryAgent;
-                const hasCollaborators = chatCollaborators.length > 0;
-                const currentAgent = displayAgents.find((a) => a.id === (selectedAgentId || chatPrimaryAgentId || 'cockpit-self'));
-
-                return (
-                  <>
-                    <button
-                      onClick={() => hasCollaborators && setAgentPickerOpen(!agentPickerOpen)}
-                      disabled={!hasCollaborators}
-                      className={`flex items-center gap-1 p-1 rounded-lg transition-colors ${
-                        hasCollaborators
-                          ? 'hover:bg-app-surface-hover cursor-pointer'
-                          : 'opacity-50 cursor-not-allowed'
-                      }`}
-                      title={hasCollaborators ? '切换会话智能体' : '当前只有主智能体'}
-                    >
-                      {currentAgent ? (
-                        currentAgent.id === 'cockpit-self' ? (
-                          <div className="w-5 h-5 rounded-full flex items-center justify-center bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white">
-                            <Sparkles className="w-2.5 h-2.5" />
-                          </div>
-                        ) : (
-                          <AgentAvatar agent={currentAgent} size="sm" showStatus={false} />
-                        )
-                      ) : (
-                        <Sparkles className="w-4 h-4 text-app-text-subtle" />
-                      )}
-                      {hasCollaborators && (
-                        <ChevronDown className={`w-3 h-3 text-app-text-subtle transition-transform ${agentPickerOpen ? 'rotate-180' : ''}`} />
-                      )}
-                    </button>
-
-                    {agentPickerOpen && hasCollaborators && (
-                      <div className="absolute bottom-full left-0 mb-2 w-56 rounded-xl bg-app-surface-elevated border border-app-border shadow-xl shadow-black/40 py-2 z-50">
-                        <div className="px-3 py-1.5 text-[10px] text-app-text-subtle uppercase tracking-wider">主智能体</div>
-                        {chatPrimary && (() => {
-                          const isSelected = (selectedAgentId || chatPrimaryAgentId || 'cockpit-self') === chatPrimary.id;
-                          return (
-                            <button
-                              onClick={() => { setSelectedAgentId(chatPrimary.id); setAgentPickerOpen(false); }}
-                              className={`w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors ${isSelected ? 'bg-app-surface-hover' : 'hover:bg-app-surface-hover/60'}`}
-                            >
-                              {chatPrimary.id === 'cockpit-self' ? (
-                                <div className="w-5 h-5 rounded-full flex items-center justify-center bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white shrink-0">
-                                  <Sparkles className="w-2.5 h-2.5" />
-                                </div>
-                              ) : (
-                                <AgentAvatar agent={chatPrimary} size="sm" showStatus={false} />
-                              )}
-                              <div className="flex-1 min-w-0">
-                                <div className="text-xs text-app-text-secondary">{chatPrimary.name}</div>
-                                <div className="text-[10px] text-app-text-muted truncate">{chatPrimary.description}</div>
-                              </div>
-                              {isSelected && <Check className="w-3.5 h-3.5 text-primary shrink-0" />}
-                            </button>
-                          );
-                        })()}
-
-                        {chatCollaborators.length > 0 && (
-                          <>
-                            <div className="mx-3 my-1.5 border-t border-app-border-subtle" />
-                            <div className="px-3 py-1.5 text-[10px] text-app-text-subtle uppercase tracking-wider">协作智能体</div>
-                            {chatCollaborators.map((agent) => {
-                              const isSelected = selectedAgentId === agent.id;
-                              return (
-                                <button
-                                  key={agent.id}
-                                  onClick={() => { setSelectedAgentId(agent.id); setAgentPickerOpen(false); }}
-                                  className={`w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors ${isSelected ? 'bg-app-surface-hover' : 'hover:bg-app-surface-hover/60'}`}
-                                >
-                                  <AgentAvatar agent={agent} size="sm" showStatus={false} />
-                                  <div className="flex-1 min-w-0">
-                                    <div className="text-xs text-app-text-secondary">{agent.name}</div>
-                                    <div className="text-[10px] text-app-text-muted truncate">{agent.description}</div>
-                                  </div>
-                                  {isSelected && <Check className="w-3.5 h-3.5 text-primary shrink-0" />}
-                                </button>
-                              );
-                            })}
-                          </>
-                        )}
-                      </div>
-                    )}
-                  </>
-                );
-              })()}
-            </div>
-
-            <input
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  handleSend();
-                }
-              }}
-              placeholder={(() => {
-                const agent = agents.find((a) => a.id === (selectedAgentId || workspace.primaryAgentId));
-                if (agent) return `与 ${agent.name} 会话，基于「${workspace.name}」上下文...`;
-                if (workspace.orchestration?.mode === 'cockpit-led' || workspace.orchestration?.mode === 'llm-direct') {
-                  return '与驾驶舱智能体会话，输入自然语言指令...';
-                }
-                return '输入指令...';
-              })()}
-              className="flex-1 bg-transparent text-app-text-secondary text-sm outline-none placeholder:text-app-text-muted"
-              disabled={isLoading}
-            />
-            <button
-              onClick={handleSend}
-              disabled={!input.trim() || isLoading}
-              className="p-2 rounded-lg bg-gradient-to-r from-red-500 to-orange-500 text-white hover:opacity-90 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
-            >
-              <Send className="w-3.5 h-3.5" />
-            </button>
-          </div>
-          <div className="flex items-center justify-between mt-2">
-            <span className="text-[10px] text-app-text-subtle">
-              {displayPrimaryAgent ? `${displayPrimaryAgent.name} · 基于当前驾驶舱上下文` : '自然语言指令'}
-            </span>
-            {hasMessages && (
-              <span className="text-[10px] text-app-text-subtle">
-                已保存 · 刷新保留
-              </span>
+                <div className="max-w-[85%] px-3.5 py-2 rounded-xl text-sm leading-relaxed bg-app-surface-subtle text-app-text-muted border border-app-border-subtle">
+                  {streaming}
+                  <span className="inline-block w-1.5 h-4 ml-0.5 bg-red-500/60 animate-pulse align-middle" />
+                </div>
+              </div>
             )}
+            {isLoading && !streaming && (
+              <div className="flex gap-2.5">
+                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-red-500/20 to-orange-500/20 flex items-center justify-center shrink-0 mt-0.5">
+                  <Loader2 className="w-3.5 h-3.5 text-red-500 animate-spin" />
+                </div>
+                <div className="text-sm text-app-text-muted">思考中...</div>
+              </div>
+            )}
+            <div ref={chatEndRef} />
+          </div>
+
+          {/* Input Bar */}
+          <div className="border-t border-app-border-subtle p-3">
+            <div className="flex items-center gap-2.5 bg-app-bg border border-app-border-subtle rounded-xl px-3 py-2.5 focus-within:border-app-border focus-within:bg-app-surface-hover transition-all">
+              {/* Agent Selector */}
+              <div className="relative shrink-0" ref={agentPickerRef}>
+                {(() => {
+                  const chatPrimaryAgentId = workspace.orchestration?.mode === 'platform-led'
+                    ? workspace.orchestration.primaryAgent?.id
+                    : (isCockpitLed ? 'cockpit-self' : workspace.primaryAgentId);
+                  const chatCollaborators = displayAgents.filter((a) => a.id !== chatPrimaryAgentId && a.id !== 'cockpit-self');
+                  const chatPrimary = displayPrimaryAgent;
+                  const hasCollaborators = chatCollaborators.length > 0;
+                  const currentAgent = displayAgents.find((a) => a.id === (selectedAgentId || chatPrimaryAgentId || 'cockpit-self'));
+
+                  return (
+                    <>
+                      <button
+                        onClick={() => hasCollaborators && setAgentPickerOpen(!agentPickerOpen)}
+                        disabled={!hasCollaborators}
+                        className={`flex items-center gap-1 p-1 rounded-lg transition-colors ${
+                          hasCollaborators
+                            ? 'hover:bg-app-surface-hover cursor-pointer'
+                            : 'opacity-50 cursor-not-allowed'
+                        }`}
+                        title={hasCollaborators ? '切换会话智能体' : '当前只有主智能体'}
+                      >
+                        {currentAgent ? (
+                          currentAgent.id === 'cockpit-self' ? (
+                            <div className="w-5 h-5 rounded-full flex items-center justify-center bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white">
+                              <Sparkles className="w-2.5 h-2.5" />
+                            </div>
+                          ) : (
+                            <AgentAvatar agent={currentAgent} size="sm" showStatus={false} />
+                          )
+                        ) : (
+                          <Sparkles className="w-4 h-4 text-app-text-subtle" />
+                        )}
+                        {hasCollaborators && (
+                          <ChevronDown className={`w-3 h-3 text-app-text-subtle transition-transform ${agentPickerOpen ? 'rotate-180' : ''}`} />
+                        )}
+                      </button>
+
+                      {agentPickerOpen && hasCollaborators && (
+                        <div className="absolute bottom-full left-0 mb-2 w-56 rounded-xl bg-app-surface-elevated border border-app-border shadow-xl shadow-black/40 py-2 z-50">
+                          <div className="px-3 py-1.5 text-[10px] text-app-text-subtle uppercase tracking-wider">主智能体</div>
+                          {chatPrimary && (() => {
+                            const isSelected = (selectedAgentId || chatPrimaryAgentId || 'cockpit-self') === chatPrimary.id;
+                            return (
+                              <button
+                                onClick={() => { setSelectedAgentId(chatPrimary.id); setAgentPickerOpen(false); }}
+                                className={`w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors ${isSelected ? 'bg-app-surface-hover' : 'hover:bg-app-surface-hover/60'}`}
+                              >
+                                {chatPrimary.id === 'cockpit-self' ? (
+                                  <div className="w-5 h-5 rounded-full flex items-center justify-center bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white shrink-0">
+                                    <Sparkles className="w-2.5 h-2.5" />
+                                  </div>
+                                ) : (
+                                  <AgentAvatar agent={chatPrimary} size="sm" showStatus={false} />
+                                )}
+                                <div className="flex-1 min-w-0">
+                                  <div className="text-xs text-app-text-secondary">{chatPrimary.name}</div>
+                                  <div className="text-[10px] text-app-text-muted truncate">{chatPrimary.description}</div>
+                                </div>
+                                {isSelected && <Check className="w-3.5 h-3.5 text-primary shrink-0" />}
+                              </button>
+                            );
+                          })()}
+
+                          {chatCollaborators.length > 0 && (
+                            <>
+                              <div className="mx-3 my-1.5 border-t border-app-border-subtle" />
+                              <div className="px-3 py-1.5 text-[10px] text-app-text-subtle uppercase tracking-wider">协作智能体</div>
+                              {chatCollaborators.map((agent) => {
+                                const isSelected = selectedAgentId === agent.id;
+                                return (
+                                  <button
+                                    key={agent.id}
+                                    onClick={() => { setSelectedAgentId(agent.id); setAgentPickerOpen(false); }}
+                                    className={`w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors ${isSelected ? 'bg-app-surface-hover' : 'hover:bg-app-surface-hover/60'}`}
+                                  >
+                                    <AgentAvatar agent={agent} size="sm" showStatus={false} />
+                                    <div className="flex-1 min-w-0">
+                                      <div className="text-xs text-app-text-secondary">{agent.name}</div>
+                                      <div className="text-[10px] text-app-text-muted truncate">{agent.description}</div>
+                                    </div>
+                                    {isSelected && <Check className="w-3.5 h-3.5 text-primary shrink-0" />}
+                                  </button>
+                                );
+                              })}
+                            </>
+                          )}
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
+              </div>
+
+              <input
+                type="text"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSend();
+                  }
+                }}
+                placeholder={(() => {
+                  const agent = agents.find((a) => a.id === (selectedAgentId || workspace.primaryAgentId));
+                  if (agent) return `与 ${agent.name} 会话...`;
+                  if (workspace.orchestration?.mode === 'cockpit-led' || workspace.orchestration?.mode === 'llm-direct') {
+                    return '与驾驶舱智能体会话...';
+                  }
+                  return '输入指令...';
+                })()}
+                className="flex-1 bg-transparent text-app-text-secondary text-sm outline-none placeholder:text-app-text-muted min-w-0"
+                disabled={isLoading}
+              />
+              <button
+                onClick={handleSend}
+                disabled={!input.trim() || isLoading}
+                className="p-2 rounded-lg bg-gradient-to-r from-red-500 to-orange-500 text-white hover:opacity-90 transition-all disabled:opacity-30 disabled:cursor-not-allowed shrink-0"
+              >
+                <Send className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

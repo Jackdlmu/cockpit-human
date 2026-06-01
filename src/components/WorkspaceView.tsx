@@ -341,7 +341,7 @@ export function WorkspaceView({
                 <button
                   key={preset.id}
                   type="button"
-                  onClick={() => openCreateDialog(preset.id, { name: preset.title, command: preset.prompt })}
+                  onClick={() => openCreateDialog(preset.id, { name: preset.title })}
                   className="group flex min-h-[172px] flex-col rounded-lg border border-app-border-subtle bg-app-surface p-4 text-left shadow-sm transition-all hover:border-app-border-hover hover:shadow-md"
                 >
                   <div className="flex min-h-0 flex-1 items-start gap-4">

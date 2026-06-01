@@ -14,6 +14,7 @@ import metaAgentRouter from './routes/meta-agent';
 import { createWidgetDataRouter } from './routes/widget-data';
 import templatesRouter from './routes/templates';
 import widgetCatalogRouter from './routes/widget-catalog';
+import groupingPolicyRouter from './routes/grouping-policy';
 import { runtimeStatus } from './services/runtime-status';
 
 export function createApp(): express.Express {
@@ -121,6 +122,7 @@ export function createApp(): express.Express {
   app.use('/api/workspaces/:id/widgets', createWidgetDataRouter(connectionManager));
   app.use('/api/templates', templatesRouter);
   app.use('/api/widget-catalog', widgetCatalogRouter);
+  app.use('/api/grouping-policy', groupingPolicyRouter);
 
   app.use((_req, res) => {
     res.status(404).json({ error: 'Not found', code: 'NOT_FOUND', status: 404 });

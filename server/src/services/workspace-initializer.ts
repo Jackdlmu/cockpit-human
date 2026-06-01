@@ -282,7 +282,13 @@ async function initializeBatchWithLLM(
 重要原则：
 - 如果用户要求"真实数据"、"实际数据"或"最新数据"，请生成尽可能真实、合理、符合业务逻辑的数据，而不是明显的占位符或示例数据
 - 数据应体现专业性和业务深度，数值要有合理的分布和逻辑关系
-- 严格遵循用户提出的初始化要求`;
+- 严格遵循用户提出的初始化要求
+
+【内部可视化规则（不对外展示）】
+- 指标卡(metric)必须使用 data.value/change/trend/unit/target/compareLabel/description 等语义字段
+- 含正负值、差额、盈亏、预算偏差的数据必须使用 bar 图表，并在 data.styleConfig 中配置 baseline="zero"、mode="diverging"
+- 只有全为非负值且 2-5 个分类占比时才使用 donut
+- 不要把 chartType/styleConfig/value/change/trend 等配置字段作为报告正文或详情展示字段`;
 
   const userPrompt = `驾驶舱名称: ${workspaceName}
 模板来源: ${templateName}
@@ -333,11 +339,18 @@ ${groundingGuide ? `5. 请额外遵守以下场景约束：\n${groundingGuide}` 
 
   try {
     const tools = getAllToolDefinitionsForLLM();
-    const raw = await llmConnector.chat(messages, {
+    // 添加 60 秒超时，防止 LLM 无响应导致初始化永久卡住
+    const chatPromise = llmConnector.chat(messages, {
       temperature: 0.5,
       maxTokens: 4096,
       tools: tools.length > 0 ? tools : undefined,
     });
+    const raw = await Promise.race([
+      chatPromise,
+      new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('LLM 初始化请求超时（60秒）')), 60000);
+      }),
+    ]);
     const parsed = extractJsonFromText(raw) as {
       widgets?: Array<{ id: string; data: Record<string, unknown> }>;
       unavailableReason?: string;

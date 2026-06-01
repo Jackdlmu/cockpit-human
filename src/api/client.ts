@@ -1,4 +1,4 @@
-import type { Agent, Connection, CreateConnectionInput, Workspace, CockpitTemplate, WidgetCatalogItem } from '@/types';
+import type { Agent, Connection, CreateConnectionInput, Workspace, CockpitTemplate, WidgetCatalogItem, GroupingPolicy } from '@/types';
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3001/api';
 export const API_BASE_ORIGIN = /^https?:\/\//i.test(API_BASE)
@@ -305,6 +305,18 @@ export function updateWidgetCatalogItem(id: string, data: Partial<WidgetCatalogI
 export function deleteWidgetCatalogItem(id: string) {
   return adminFetch<{ success: boolean }>(`/widget-catalog/${id}`, {
     method: 'DELETE',
+  });
+}
+
+// ─── Grouping Policy ───
+export function getGroupingPolicy() {
+  return fetchJson<{ policy: GroupingPolicy }>('/grouping-policy');
+}
+
+export function updateGroupingPolicy(policy: Partial<GroupingPolicy>) {
+  return adminFetch<{ policy: GroupingPolicy }>('/grouping-policy', {
+    method: 'PUT',
+    body: JSON.stringify(policy),
   });
 }
 

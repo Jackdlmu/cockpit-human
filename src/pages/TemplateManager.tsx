@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
-import type { CockpitTemplate, Widget, WidgetCatalogItem, WidgetType } from '@/types';
+import type { CockpitTemplate, Widget, WidgetCatalogItem, WidgetType, WidgetLinkConfig, GroupingPolicy } from '@/types';
 import WorkspaceIcon from '@/components/WorkspaceIcon';
 import {
   Bot,
@@ -22,6 +22,7 @@ import {
   ChevronDown,
   ChevronUp,
   AlertTriangle,
+  Layers,
 } from 'lucide-react';
 import {
   AlertDialog,
@@ -39,8 +40,10 @@ import {
   createWidgetCatalogItem,
   deleteTemplate,
   deleteWidgetCatalogItem,
+  getGroupingPolicy,
   getTemplates,
   getWidgetCatalog,
+  updateGroupingPolicy,
   updateTemplate,
   updateWidgetCatalogItem,
 } from '@/api/client';
@@ -79,7 +82,7 @@ const WIDGET_TYPE_LABELS: Record<WidgetType, string> = {
 const ICON_OPTIONS = [
   'BarChart3', 'PieChart', 'LineChart', 'Table2', 'Kanban', 'Clock', 'List',
   'FileText', 'TrendingUp', 'Users', 'DollarSign', 'CheckCircle', 'AlertTriangle',
-  'Target', 'Layers', 'Monitor', 'Sparkles', 'Bot', 'Compass', 'Activity',
+  'Target', 'Monitor', 'Sparkles', 'Bot', 'Compass', 'Activity',
   'Gauge', 'Radar', 'Grid3X3', 'Map', 'Filter', 'Code2', 'Bell', 'CalendarDays', 'Lightbulb',
 ];
 
@@ -206,7 +209,6 @@ export function TemplateManager() {
   const [widgetEditorOpen, setWidgetEditorOpen] = useState(false);
   const [widgetEditorMode, setWidgetEditorMode] = useState<'create' | 'edit' | 'duplicate'>('create');
   const [editingWidget, setEditingWidget] = useState<WidgetCatalogItem | null>(null);
-  const [widgetDetailTarget, setWidgetDetailTarget] = useState<WidgetCatalogItem | null>(null);
   const [widgetPreviewTarget, setWidgetPreviewTarget] = useState<WidgetCatalogItem | null>(null);
   const [templatePreviewTarget, setTemplatePreviewTarget] = useState<CockpitTemplate | null>(null);
 
@@ -216,16 +218,38 @@ export function TemplateManager() {
 
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget>(null);
 
+  // 全局分组策略
+  const [groupingPolicy, setGroupingPolicy] = useState<GroupingPolicy>({ enabled: true, strategy: 'auto', mode: 'tabs-flow' });
+  const [groupingPolicyLoading, setGroupingPolicyLoading] = useState(false);
+
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
-      const [templateData, widgetData] = await Promise.all([getTemplates(), getWidgetCatalog()]);
+      const [templateData, widgetData, policyData] = await Promise.all([
+        getTemplates(),
+        getWidgetCatalog(),
+        getGroupingPolicy().catch(() => ({ policy: { enabled: true, strategy: 'auto' as const, mode: 'tabs-flow' as const } })),
+      ]);
       setTemplates(templateData.templates);
       setWidgets(widgetData.widgets);
+      setGroupingPolicy(policyData.policy);
     } catch (err: any) {
       toast.error('加载失败', { description: err.message });
     } finally {
       setLoading(false);
+    }
+  }, []);
+
+  const handleUpdateGroupingPolicy = useCallback(async (update: Partial<GroupingPolicy>) => {
+    setGroupingPolicyLoading(true);
+    try {
+      const res = await updateGroupingPolicy(update);
+      setGroupingPolicy(res.policy);
+      toast.success('分组策略已更新');
+    } catch (err: any) {
+      toast.error('更新失败', { description: err.message });
+    } finally {
+      setGroupingPolicyLoading(false);
     }
   }, []);
 
@@ -267,7 +291,6 @@ export function TemplateManager() {
   const openDuplicateTemplate = (template: CockpitTemplate) => {
     const copy = sanitizeTemplateForForm(template);
     copy.id = `custom-${Date.now().toString(36)}`;
-    copy.name = `${template.name}（副本）`;
     setTemplateEditorMode('duplicate');
     setEditingTemplate(copy);
     setTemplateEditorOpen(true);
@@ -288,7 +311,6 @@ export function TemplateManager() {
   const openDuplicateWidget = (widget: WidgetCatalogItem) => {
     const copy = sanitizeWidgetCatalogItemForForm(widget);
     copy.id = `custom-widget-${Date.now().toString(36)}`;
-    copy.name = `${widget.name}（副本）`;
     setWidgetEditorMode('duplicate');
     setEditingWidget(copy);
     setWidgetEditorOpen(true);
@@ -353,7 +375,7 @@ export function TemplateManager() {
         }
         await deleteWidgetCatalogItem(deleteTarget.id);
         setWidgets((prev) => prev.filter((item) => item.id !== deleteTarget.id));
-        setWidgetDetailTarget((prev) => (prev?.id === deleteTarget.id ? null : prev));
+
         toast.success('组件已删除');
       }
     } catch (err: any) {
@@ -486,6 +508,9 @@ export function TemplateManager() {
           <TemplatesSection
             templates={templates}
             stats={templateStats}
+            groupingPolicy={groupingPolicy}
+            groupingPolicyLoading={groupingPolicyLoading}
+            onUpdateGroupingPolicy={handleUpdateGroupingPolicy}
             onEdit={openEditTemplate}
             onPreview={setTemplatePreviewTarget}
             onDuplicate={openDuplicateTemplate}
@@ -501,7 +526,6 @@ export function TemplateManager() {
             widgets={widgets}
             stats={widgetStats}
             onPreview={setWidgetPreviewTarget}
-            onView={setWidgetDetailTarget}
             onEdit={openEditWidget}
             onDuplicate={openDuplicateWidget}
             onDelete={(item) => setDeleteTarget({ kind: 'widget', id: item.id, name: item.name, builtin: !!item.isBuiltin })}
@@ -514,6 +538,7 @@ export function TemplateManager() {
           mode={templateEditorMode}
           template={editingTemplate}
           widgetCatalog={widgets}
+          groupingPolicy={groupingPolicy}
           onSave={handleSaveTemplate}
           onClose={resetTemplateEditor}
         />
@@ -523,23 +548,9 @@ export function TemplateManager() {
         <WidgetCatalogEditor
           mode={widgetEditorMode}
           item={editingWidget}
+          manualGroups={groupingPolicy.manualGroups}
           onSave={handleSaveWidget}
           onClose={resetWidgetEditor}
-        />
-      )}
-
-      {widgetDetailTarget && (
-        <WidgetDetailModal
-          item={widgetDetailTarget}
-          onClose={() => setWidgetDetailTarget(null)}
-          onEdit={() => {
-            setWidgetDetailTarget(null);
-            if (widgetDetailTarget.isBuiltin) {
-              openDuplicateWidget(widgetDetailTarget);
-            } else {
-              openEditWidget(widgetDetailTarget);
-            }
-          }}
         />
       )}
 
@@ -558,9 +569,7 @@ export function TemplateManager() {
             }
           }}
           onShowDetail={() => {
-            const target = widgetPreviewTarget;
             setWidgetPreviewTarget(null);
-            if (target) setWidgetDetailTarget(target);
           }}
         />
       )}
@@ -670,6 +679,9 @@ export function TemplateManager() {
 function TemplatesSection({
   templates,
   stats,
+  groupingPolicy,
+  groupingPolicyLoading,
+  onUpdateGroupingPolicy,
   onEdit,
   onPreview,
   onDuplicate,
@@ -679,6 +691,9 @@ function TemplatesSection({
 }: {
   templates: CockpitTemplate[];
   stats: { total: number; builtin: number; custom: number };
+  groupingPolicy: GroupingPolicy;
+  groupingPolicyLoading: boolean;
+  onUpdateGroupingPolicy: (update: Partial<GroupingPolicy>) => void;
   onEdit: (template: CockpitTemplate) => void;
   onPreview: (template: CockpitTemplate) => void;
   onDuplicate: (template: CockpitTemplate) => void;
@@ -699,6 +714,12 @@ function TemplatesSection({
   return (
     <div className="space-y-5">
       <TemplateExtensionGuide />
+      <GroupingPolicyPanel
+        policy={groupingPolicy}
+        loading={groupingPolicyLoading}
+        onUpdate={onUpdateGroupingPolicy}
+        templates={templates}
+      />
       <SummaryCards
         cards={[
           { label: '模板总数', value: String(stats.total), detail: '系统模板 + 自定义模板' },
@@ -728,7 +749,6 @@ function WidgetsSection({
   widgets,
   stats,
   onPreview,
-  onView,
   onEdit,
   onDuplicate,
   onDelete,
@@ -736,7 +756,6 @@ function WidgetsSection({
   widgets: WidgetCatalogItem[];
   stats: { total: number; builtin: number; custom: number };
   onPreview: (widget: WidgetCatalogItem) => void;
-  onView: (widget: WidgetCatalogItem) => void;
   onEdit: (widget: WidgetCatalogItem) => void;
   onDuplicate: (widget: WidgetCatalogItem) => void;
   onDelete: (widget: WidgetCatalogItem) => void;
@@ -793,7 +812,6 @@ function WidgetsSection({
             key={widget.id}
             item={widget}
             onPreview={() => onPreview(widget)}
-            onView={() => onView(widget)}
             onEdit={() => (widget.isBuiltin ? onDuplicate(widget) : onEdit(widget))}
             onDuplicate={() => onDuplicate(widget)}
             onDelete={() => onDelete(widget)}
@@ -889,6 +907,298 @@ function WidgetExtensionGuide() {
       ]}
       example={WIDGET_EXTENSION_EXAMPLE}
     />
+  );
+}
+
+// ── 分组推断关键词（客户端预览用） ──
+
+const PREVIEW_GROUP_KEYWORDS: Array<{ keywords: string[]; name: string }> = [
+  { keywords: ['财务','营收','营业收入','利润','现金流','资产','负债','毛利率','净利润','预算','成本','费用','市值','估值','股票','收入','盈利','亏损','ROI','ROE'], name: '财务指标' },
+  { keywords: ['人力','员工','招聘','绩效','薪酬','入职','离职','人才','组织','人均','人力资本','HR','考勤','培训','福利'], name: '人力资源' },
+  { keywords: ['销售','客户','订单','转化','渠道','商机','成交','客单价','复购','留存','CRM','线索','漏斗'], name: '销售分析' },
+  { keywords: ['运营','生产','交付','质量','OEE','产能','产线','设备','良品率','准时交付','制造','工厂','工单'], name: '运营管理' },
+  { keywords: ['市场','品牌','营销','ROI','获客','曝光','点击','投放','推广','线索','广告','活动','Campaign'], name: '市场营销' },
+  { keywords: ['战略','目标','里程碑','风险','合规','治理','ESG','董事会','年报','规划','愿景','SWOT'], name: '战略总览' },
+  { keywords: ['研发','技术','代码','专利','创新','产品','项目','进度','DORA','bug','缺陷','测试','发布'], name: '研发效能' },
+  { keywords: ['供应链','库存','采购','供应商','物流','仓储','交付周期','物料','进销存'], name: '供应链' },
+];
+
+function inferPreviewGroup(title: string): string {
+  const lower = title.toLowerCase();
+  for (const rule of PREVIEW_GROUP_KEYWORDS) {
+    if (rule.keywords.some((k) => lower.includes(k))) return rule.name;
+  }
+  return '综合分析';
+}
+
+// ── 全局分组策略管理面板 ──
+
+function GroupingPolicyPanel({
+  policy,
+  loading,
+  onUpdate,
+  templates,
+}: {
+  policy: GroupingPolicy;
+  loading: boolean;
+  onUpdate: (update: Partial<GroupingPolicy>) => void;
+  templates: CockpitTemplate[];
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const [newGroupName, setNewGroupName] = useState('');
+
+  const manualGroups = policy.manualGroups || [];
+
+  // 基于所有模板 widgets 的自动推断预览
+  const autoPreview = useMemo(() => {
+    const allWidgets = templates.flatMap((t) => t.widgets || []);
+    if (allWidgets.length <= 4) return [];
+    const map = new Map<string, string[]>();
+    for (const w of allWidgets) {
+      const name = w.group?.trim() || inferPreviewGroup(w.title || '');
+      if (!map.has(name)) map.set(name, []);
+      map.get(name)!.push(w.title || w.id);
+    }
+    const big: Array<{ name: string; items: string[] }> = [];
+    let small: Array<{ name: string; items: string[] }> = [];
+    for (const [name, items] of map) {
+      if (items.length >= 2) big.push({ name, items });
+      else small.push({ name, items });
+    }
+    if (small.length > 0) {
+      const combined = small.flatMap((s) => s.items);
+      if (big.length > 0) {
+        big[big.length - 1].items.push(...combined);
+      } else {
+        big.push({ name: '综合分析', items: combined });
+      }
+    }
+    return big.slice(0, 6);
+  }, [templates]);
+
+  // 手动模式预览：基于 manualGroups
+  const manualPreview = useMemo(() => {
+    if (manualGroups.length === 0) return [];
+    const allWidgets = templates.flatMap((t) => t.widgets || []);
+    const map = new Map<string, string[]>();
+    for (const g of manualGroups) map.set(g, []);
+    map.set('综合分析', []);
+    for (const w of allWidgets) {
+      const gid = w.group?.trim() || '';
+      if (gid && map.has(gid)) {
+        map.get(gid)!.push(w.title || w.id);
+      } else {
+        let matched = false;
+        const lowerTitle = (w.title || '').toLowerCase();
+        for (const mg of manualGroups) {
+          if (lowerTitle.includes(mg.toLowerCase())) {
+            map.get(mg)!.push(w.title || w.id);
+            matched = true;
+            break;
+          }
+        }
+        if (!matched) map.get('综合分析')!.push(w.title || w.id);
+      }
+    }
+    const result: Array<{ name: string; items: string[] }> = [];
+    for (const g of manualGroups) {
+      const items = map.get(g) || [];
+      if (items.length > 0) result.push({ name: g, items });
+    }
+    const fallback = map.get('综合分析') || [];
+    if (fallback.length > 0) result.push({ name: '综合分析', items: fallback });
+    return result;
+  }, [templates, manualGroups]);
+
+  const addManualGroup = () => {
+    const name = newGroupName.trim();
+    if (!name) return;
+    if (manualGroups.includes(name)) return;
+    onUpdate({ manualGroups: [...manualGroups, name] });
+    setNewGroupName('');
+  };
+
+  const removeManualGroup = (name: string) => {
+    onUpdate({ manualGroups: manualGroups.filter((g) => g !== name) });
+  };
+
+  return (
+    <div className="rounded-xl border border-app-border-subtle bg-app-surface-subtle/30">
+      <button
+        type="button"
+        onClick={() => setExpanded((p) => !p)}
+        className="flex w-full items-center justify-between px-4 py-3 text-left"
+      >
+        <div className="flex items-center gap-2">
+          <Layers className="h-4 w-4 text-app-text-subtle" />
+          <span className="text-sm font-medium text-app-text">全局分组管理</span>
+          <span
+            className={`rounded-full px-2 py-0.5 text-[10px] ${
+              policy.enabled
+                ? 'border border-emerald-500/20 bg-emerald-500/10 text-emerald-500'
+                : 'border border-app-border-subtle bg-app-surface text-app-text-subtle'
+            }`}
+          >
+            {policy.enabled ? '已启用' : '已禁用'}
+          </span>
+          {policy.enabled && (
+            <>
+              <span className="rounded-full border border-primary/15 bg-primary/8 px-2 py-0.5 text-[10px] text-primary">
+                {policy.strategy === 'auto' ? '自动' : '手动'}
+              </span>
+              <span className="rounded-full border border-primary/15 bg-primary/8 px-2 py-0.5 text-[10px] text-primary">
+                {policy.mode === 'tabs' ? '标签页' : policy.mode === 'flow' ? '流式' : '标签+滚动'}
+              </span>
+            </>
+          )}
+        </div>
+        {expanded ? <ChevronUp className="h-4 w-4 text-app-text-subtle" /> : <ChevronDown className="h-4 w-4 text-app-text-subtle" />}
+      </button>
+
+      {expanded && (
+        <div className="border-t border-app-border-subtle/50 px-4 pb-4 pt-3 space-y-4">
+          {/* 启用开关 */}
+          <div className="flex flex-wrap items-center gap-4">
+            <label className="flex items-center gap-2 text-sm text-app-text">
+              <input
+                type="checkbox"
+                checked={policy.enabled}
+                disabled={loading}
+                onChange={(e) => onUpdate({ enabled: e.target.checked })}
+                className="h-4 w-4"
+              />
+              启用组件分组
+              <span className="text-[10px] text-app-text-subtle">（组件数 &gt; 4 时生效）</span>
+            </label>
+
+            {policy.enabled && (
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-app-text-subtle">分组样式：</span>
+                {(['tabs', 'flow', 'tabs-flow'] as const).map((mode) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    disabled={loading}
+                    onClick={() => onUpdate({ mode })}
+                    className={`rounded-lg border px-2.5 py-1 text-xs transition-colors ${
+                      policy.mode === mode
+                        ? 'border-primary/25 bg-primary/8 text-primary'
+                        : 'border-app-border-subtle bg-app-surface text-app-text-muted hover:text-app-text-secondary'
+                    }`}
+                  >
+                    {mode === 'tabs' && '标签页'}
+                    {mode === 'flow' && '流式分区'}
+                    {mode === 'tabs-flow' && '标签+滚动'}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* 自动 / 手动 策略切换 */}
+          {policy.enabled && (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-app-text-subtle">分组策略：</span>
+              {(['auto', 'manual'] as const).map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  disabled={loading}
+                  onClick={() => onUpdate({ strategy: s })}
+                  className={`rounded-lg border px-2.5 py-1 text-xs transition-colors ${
+                    policy.strategy === s
+                      ? 'border-primary/25 bg-primary/8 text-primary'
+                      : 'border-app-border-subtle bg-app-surface text-app-text-muted hover:text-app-text-secondary'
+                  }`}
+                >
+                  {s === 'auto' ? '🤖 自动推断' : '✋ 手动标签'}
+                </button>
+              ))}
+              <span className="text-[10px] text-app-text-subtle">
+                {policy.strategy === 'auto'
+                  ? '根据组件标题关键词自动推断分组'
+                  : '严格遵循预定义标签，不再自动推断新分组'}
+              </span>
+            </div>
+          )}
+
+          {/* 手动模式：标签编辑器 */}
+          {policy.enabled && policy.strategy === 'manual' && (
+            <div className="rounded-lg border border-app-border-subtle bg-app-surface/50 p-3 space-y-3">
+              <div className="text-xs font-medium text-app-text">预定义分组标签</div>
+              <div className="text-[11px] text-app-text-subtle">
+                只有在这里定义的标签才会被用于分组。组件的 group 字段必须匹配以下标签之一。
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {manualGroups.map((g) => (
+                  <span
+                    key={g}
+                    className="inline-flex h-6 items-center gap-1 rounded-lg border border-primary/15 bg-primary/8 px-2 text-[11px] text-primary"
+                  >
+                    {g}
+                    <button
+                      type="button"
+                      onClick={() => removeManualGroup(g)}
+                      className="text-primary/60 hover:text-primary"
+                      title="删除"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
+                ))}
+                {manualGroups.length === 0 && (
+                  <span className="text-[11px] text-app-text-subtle">暂无预定义标签，请添加至少一个</span>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <input
+                  value={newGroupName}
+                  onChange={(e) => setNewGroupName(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && addManualGroup()}
+                  placeholder="输入新标签名称"
+                  className="flex-1 rounded border border-app-border-subtle bg-app-surface px-2 py-1 text-xs text-app-text focus:border-red-400/50 focus:outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={addManualGroup}
+                  disabled={!newGroupName.trim()}
+                  className="rounded border border-app-border-subtle px-3 py-1 text-xs text-app-text-subtle transition-colors hover:bg-app-surface-subtle hover:text-app-text disabled:opacity-50"
+                >
+                  添加
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* 预览区域 */}
+          {policy.enabled && (
+            <div>
+              <div className="mb-2 text-[11px] font-medium text-app-text-subtle">
+                {policy.strategy === 'auto' ? '自动推断预览' : '手动标签匹配预览'}
+              </div>
+              <div className="space-y-1.5">
+                {(policy.strategy === 'auto' ? autoPreview : manualPreview).map((g) => (
+                  <div key={g.name} className="flex items-center gap-2">
+                    <span className="inline-flex h-5 items-center rounded bg-primary/10 px-1.5 text-[10px] font-medium text-primary">
+                      {g.name}
+                    </span>
+                    <span className="text-[11px] text-app-text-subtle">{g.items.length} 个组件</span>
+                    <span className="truncate text-[10px] text-app-text-muted">
+                      {g.items.slice(0, 3).join('、')}{g.items.length > 3 ? ` 等` : ''}
+                    </span>
+                  </div>
+                ))}
+                {(policy.strategy === 'auto' ? autoPreview : manualPreview).length === 0 && (
+                  <span className="text-[11px] text-app-text-subtle">
+                    {policy.strategy === 'auto' ? '组件数不足或无法推断有效分组' : '无匹配组件'}
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -994,6 +1304,7 @@ function TemplateCard({
         {template.initPrompt && (
           <span className="rounded border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 text-[10px] text-emerald-400">自动初始化</span>
         )}
+        {/* grouping is now globally controlled, not per-template */}
       </div>
     </div>
   );
@@ -1002,14 +1313,12 @@ function TemplateCard({
 function WidgetCatalogCard({
   item,
   onPreview,
-  onView,
   onEdit,
   onDuplicate,
   onDelete,
 }: {
   item: WidgetCatalogItem;
   onPreview: () => void;
-  onView: () => void;
   onEdit: () => void;
   onDuplicate: () => void;
   onDelete: () => void;
@@ -1036,7 +1345,6 @@ function WidgetCatalogCard({
 
         <div className="flex gap-1">
           <IconButton title="预览组件" onClick={onPreview}><Eye className="h-3.5 w-3.5" /></IconButton>
-          <IconButton title="查看详情" onClick={onView}><FileJson className="h-3.5 w-3.5" /></IconButton>
           <IconButton title="复制组件" onClick={onDuplicate}><Copy className="h-3.5 w-3.5" /></IconButton>
           <IconButton title="编辑组件" onClick={onEdit}><Edit3 className="h-3.5 w-3.5" /></IconButton>
           {!item.isBuiltin && (
@@ -1060,14 +1368,7 @@ function WidgetCatalogCard({
         <div className="mt-1 line-clamp-3 text-xs leading-5 text-app-text-muted">{item.agentDescription}</div>
       </div>
 
-      <button
-        type="button"
-        onClick={onPreview}
-        className="mt-3 flex w-full items-center justify-between rounded-lg border border-app-border-subtle bg-app-surface-subtle/45 px-3 py-2.5 text-left transition-colors hover:border-app-border-hover hover:bg-app-surface-subtle"
-      >
-        <span className="text-sm font-medium text-app-text-secondary">查看组件预览</span>
-        <span className="text-[11px] text-app-text-subtle">自动补充演示数据</span>
-      </button>
+      {/* 底部预览入口已移除，与顶部预览按钮合并 */}
     </div>
   );
 }
@@ -1196,6 +1497,7 @@ function TemplatePreviewModal({
                     <span className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 text-[10px] text-emerald-500">带初始化任务</span>
                   </>
                 )}
+                {/* grouping is globally controlled, not per-template */}
               </div>
             </div>
           </div>
@@ -1260,12 +1562,14 @@ function TemplateEditor({
   mode,
   template,
   widgetCatalog,
+  groupingPolicy,
   onSave,
   onClose,
 }: {
   mode: 'create' | 'edit' | 'duplicate';
   template: TemplateFormData | null;
   widgetCatalog: WidgetCatalogItem[];
+  groupingPolicy: GroupingPolicy;
   onSave: (data: TemplateFormData) => void;
   onClose: () => void;
 }) {
@@ -1490,6 +1794,8 @@ function TemplateEditor({
                       key={widget.id || idx}
                       widget={widget}
                       index={idx}
+                      allWidgets={data.widgets}
+                      manualGroups={groupingPolicy.strategy === 'manual' ? groupingPolicy.manualGroups : undefined}
                       onChange={(patch) => updateWidget(idx, patch)}
                       onRemove={() => removeWidget(idx)}
                     />
@@ -1585,11 +1891,13 @@ function TemplateEditor({
 function WidgetCatalogEditor({
   mode,
   item,
+  manualGroups,
   onSave,
   onClose,
 }: {
   mode: 'create' | 'edit' | 'duplicate';
   item: WidgetCatalogItem | null;
+  manualGroups?: string[];
   onSave: (data: WidgetCatalogItem) => void;
   onClose: () => void;
 }) {
@@ -1725,6 +2033,7 @@ function WidgetCatalogEditor({
             </h4>
             <WidgetSnapshotEditor
               widget={data.template}
+              manualGroups={manualGroups}
               onChange={(template) => setData((prev) => ({ ...prev, template }))}
             />
           </section>
@@ -1812,73 +2121,7 @@ function WidgetCatalogEditor({
   );
 }
 
-function WidgetDetailModal({
-  item,
-  onClose,
-  onEdit,
-}: {
-  item: WidgetCatalogItem;
-  onClose: () => void;
-  onEdit: () => void;
-}) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-app-overlay/80 p-4 backdrop-blur-sm">
-      <div className="flex max-h-[88vh] w-full max-w-3xl flex-col rounded-xl border border-app-border-subtle bg-app-surface shadow-xl">
-        <div className="flex items-center justify-between border-b border-app-border-subtle px-5 py-3.5">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-app-border-subtle" style={{ backgroundColor: `${item.color}18` }}>
-              <WorkspaceIcon icon={item.icon} color={item.color} className="h-4 w-4" />
-            </div>
-            <div>
-              <h3 className="text-sm font-semibold text-app-text">{item.name}</h3>
-              <div className="text-xs text-app-text-subtle">
-                {WIDGET_TYPE_LABELS[item.type]} · {item.category} · {item.id}
-              </div>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <button onClick={onEdit} className="rounded-lg border border-app-border-subtle px-3 py-1.5 text-xs text-app-text-muted transition-colors hover:bg-app-surface-subtle hover:text-app-text">
-              {item.isBuiltin ? '基于此扩展' : '编辑组件'}
-            </button>
-            <button onClick={onClose} className="text-app-text-subtle hover:text-app-text-muted"><X className="h-4 w-4" /></button>
-          </div>
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-5 space-y-5">
-          <DetailBlock title="组件预览">
-            <TemplatePreviewCanvas widgets={[buildWidgetPreviewTemplate(item)]} rowHeight={56} />
-          </DetailBlock>
-          <DetailBlock title="组件说明">{item.description}</DetailBlock>
-          <DetailBlock title="面向智能体的说明">{item.agentDescription}</DetailBlock>
-          <DetailBlock title="适用场景">{item.useCases.join('、') || '未填写'}</DetailBlock>
-          <DetailBlock title="标签">{item.tags.join('、') || '未填写'}</DetailBlock>
-          <DetailBlock title="推荐数据结构">
-            <pre className="whitespace-pre-wrap break-all rounded-lg bg-app-surface-subtle p-3 text-[11px] text-app-text-subtle">
-              {JSON.stringify(item.schemaHint?.recommendedDataShape || {}, null, 2)}
-            </pre>
-          </DetailBlock>
-          <DetailBlock title="布局建议">{item.schemaHint?.layoutAdvice || '未填写'}</DetailBlock>
-          <DetailBlock title="默认模板快照">
-            <pre className="whitespace-pre-wrap break-all rounded-lg bg-app-surface-subtle p-3 text-[11px] text-app-text-subtle">
-              {JSON.stringify(item.template || {}, null, 2)}
-            </pre>
-          </DetailBlock>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function DetailBlock({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <div>
-      <div className="mb-2 text-[11px] uppercase tracking-[0.16em] text-app-text-subtle">{title}</div>
-      <div className="rounded-xl border border-app-border-subtle bg-app-surface-subtle/30 px-4 py-3 text-sm leading-6 text-app-text-muted">
-        {children}
-      </div>
-    </div>
-  );
-}
+// WidgetDetailModal removed - no longer needed
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -2028,15 +2271,44 @@ function AgentInput({
 function WidgetEditorItem({
   widget,
   index,
+  allWidgets,
+  manualGroups,
   onChange,
   onRemove,
 }: {
   widget: Widget;
   index: number;
+  allWidgets: Widget[];
+  manualGroups?: string[];
   onChange: (patch: Partial<Widget>) => void;
   onRemove: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
+
+  const isManual = !!manualGroups && manualGroups.length > 0;
+
+  // 自动模式下：从其他 widget 收集已有分组
+  const existingGroups = useMemo(() => {
+    const set = new Set<string>();
+    for (const w of allWidgets) {
+      if (w.id !== widget.id && w.group?.trim()) {
+        set.add(w.group.trim());
+      }
+    }
+    return Array.from(set).sort();
+  }, [allWidgets, widget.id]);
+
+  // 根据 title 关键词建议匹配的分组（手动模式）
+  const suggestedGroup = useMemo(() => {
+    if (!isManual) return '';
+    const lowerTitle = (widget.title || '').toLowerCase();
+    for (const g of manualGroups!) {
+      if (lowerTitle.includes(g.toLowerCase())) return g;
+    }
+    return '';
+  }, [isManual, manualGroups, widget.title]);
+
+  const currentGroup = widget.group?.trim() || '';
 
   return (
     <div className="rounded-lg border border-app-border-subtle bg-app-surface-subtle/50">
@@ -2045,6 +2317,9 @@ function WidgetEditorItem({
           <span className="w-5 text-[10px] text-app-text-subtle">#{index + 1}</span>
           <span className="text-xs font-medium text-app-text">{widget.title}</span>
           <span className="rounded border border-app-border-subtle bg-app-surface px-1.5 py-0.5 text-[10px] text-app-text-subtle">{widget.type}</span>
+          {currentGroup && (
+            <span className="rounded border border-primary/15 bg-primary/8 px-1.5 py-0.5 text-[10px] text-primary">{currentGroup}</span>
+          )}
         </div>
         <div className="flex items-center gap-1">
           {expanded ? <ChevronUp className="h-3.5 w-3.5 text-app-text-subtle" /> : <ChevronDown className="h-3.5 w-3.5 text-app-text-subtle" />}
@@ -2088,6 +2363,31 @@ function WidgetEditorItem({
                 ))}
               </select>
             </Field>
+            <Field label={`分组${isManual ? '（手动模式）' : ''}`}>
+              <select
+                value={currentGroup}
+                onChange={(e) => onChange({ group: e.target.value || undefined })}
+                className="w-full rounded border border-app-border-subtle bg-app-surface px-2 py-1.5 text-xs text-app-text focus:border-red-400/50 focus:outline-none"
+              >
+                <option value="">{isManual ? '🚫 不分组' : '🔄 自动匹配'}</option>
+                {(isManual ? manualGroups : existingGroups).map((g) => (
+                  <option key={g} value={g}>{g}</option>
+                ))}
+              </select>
+              {isManual && suggestedGroup && suggestedGroup !== currentGroup && (
+                <div className="mt-1 flex items-center gap-1 text-[10px] text-amber-500">
+                  <AlertTriangle className="h-3 w-3" />
+                  <span>标题匹配建议：「{suggestedGroup}」</span>
+                  <button
+                    type="button"
+                    onClick={() => onChange({ group: suggestedGroup })}
+                    className="text-primary hover:underline"
+                  >
+                    应用
+                  </button>
+                </div>
+              )}
+            </Field>
             <div>
               <label className="mb-1 block text-[10px] text-app-text-subtle">位置 (x,y,w,h)</label>
               <div className="flex gap-1">
@@ -2118,6 +2418,11 @@ function WidgetEditorItem({
               spellCheck={false}
             />
           </Field>
+
+          <LinkConfigEditor
+            link={widget.link}
+            onChange={(link) => onChange({ link })}
+          />
         </div>
       )}
     </div>
@@ -2126,9 +2431,11 @@ function WidgetEditorItem({
 
 function WidgetSnapshotEditor({
   widget,
+  manualGroups,
   onChange,
 }: {
   widget: Partial<Widget>;
+  manualGroups?: string[];
   onChange: (widget: Partial<Widget>) => void;
 }) {
   const safeWidget = {
@@ -2141,7 +2448,20 @@ function WidgetSnapshotEditor({
     dataIntent: widget.dataIntent,
     detail: widget.detail,
     link: widget.link,
+    group: widget.group,
   };
+
+  const isManual = !!manualGroups && manualGroups.length > 0;
+
+  // 根据 title 关键词建议匹配的分组（手动模式）
+  const suggestedGroup = useMemo(() => {
+    if (!isManual) return '';
+    const lowerTitle = (safeWidget.title || '').toLowerCase();
+    for (const g of manualGroups!) {
+      if (lowerTitle.includes(g.toLowerCase())) return g;
+    }
+    return '';
+  }, [isManual, manualGroups, safeWidget.title]);
 
   return (
     <div className="space-y-2">
@@ -2164,6 +2484,42 @@ function WidgetSnapshotEditor({
             ))}
           </select>
         </Field>
+        <Field label={`分组${isManual ? '（手动模式）' : ''}`}>
+          {isManual ? (
+            <>
+              <select
+                value={safeWidget.group || ''}
+                onChange={(e) => onChange({ ...safeWidget, group: e.target.value || undefined })}
+                className="w-full rounded-lg border border-app-border-subtle bg-app-surface-subtle px-3 py-2 text-sm text-app-text focus:border-red-400/50 focus:outline-none"
+              >
+                <option value="">🚫 不分组</option>
+                {manualGroups!.map((g) => (
+                  <option key={g} value={g}>{g}</option>
+                ))}
+              </select>
+              {suggestedGroup && suggestedGroup !== safeWidget.group && (
+                <div className="mt-1 flex items-center gap-1 text-[10px] text-amber-500">
+                  <AlertTriangle className="h-3 w-3" />
+                  <span>标题匹配建议：「{suggestedGroup}」</span>
+                  <button
+                    type="button"
+                    onClick={() => onChange({ ...safeWidget, group: suggestedGroup })}
+                    className="text-primary hover:underline"
+                  >
+                    应用
+                  </button>
+                </div>
+              )}
+            </>
+          ) : (
+            <input
+              value={safeWidget.group || ''}
+              onChange={(e) => onChange({ ...safeWidget, group: e.target.value || undefined })}
+              placeholder="留空则自动匹配"
+              className="w-full rounded-lg border border-app-border-subtle bg-app-surface-subtle px-3 py-2 text-sm text-app-text focus:border-red-400/50 focus:outline-none"
+            />
+          )}
+        </Field>
       </div>
 
       <Field label="默认数据 (JSON)">
@@ -2180,6 +2536,11 @@ function WidgetSnapshotEditor({
           spellCheck={false}
         />
       </Field>
+
+      <LinkConfigEditor
+        link={safeWidget.link}
+        onChange={(link) => onChange({ ...safeWidget, link })}
+      />
     </div>
   );
 }
@@ -2271,3 +2632,136 @@ function sanitizeWidgetCatalogItemForForm(item: WidgetCatalogItem): WidgetCatalo
     isBuiltin: false,
   };
 }
+
+// ── 关联/穿透配置编辑器 ──
+
+function LinkConfigEditor({
+  link,
+  onChange,
+}: {
+  link?: WidgetLinkConfig;
+  onChange: (link?: WidgetLinkConfig) => void;
+}) {
+  const hasLink = !!link && !!link.type;
+  const type = (link?.type as WidgetLinkConfig['type']) || 'workspace';
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <label className="text-[10px] text-app-text-subtle">关联/穿透配置（可选）</label>
+        {!hasLink && (
+          <button
+            type="button"
+            onClick={() => onChange({ type: 'workspace' })}
+            className="rounded border border-dashed border-app-border-subtle px-2 py-0.5 text-[10px] text-app-text-subtle transition-colors hover:border-app-border hover:text-app-text"
+          >
+            + 添加
+          </button>
+        )}
+        {hasLink && (
+          <button
+            type="button"
+            onClick={() => onChange(undefined)}
+            className="rounded p-0.5 text-app-text-subtle transition-colors hover:text-red-400"
+            title="移除"
+          >
+            <Trash2 className="h-3 w-3" />
+          </button>
+        )}
+      </div>
+
+      {hasLink && (
+        <div className="rounded-lg border border-app-border-subtle bg-app-surface-subtle/30 p-3 space-y-2">
+          <div className="grid grid-cols-2 gap-2">
+            <Field label="类型">
+              <select
+                value={type}
+                onChange={(e) => {
+                  const nextType = e.target.value as WidgetLinkConfig['type'];
+                  onChange({ type: nextType });
+                }}
+                className="w-full rounded border border-app-border-subtle bg-app-surface px-2 py-1.5 text-xs text-app-text focus:border-red-400/50 focus:outline-none"
+              >
+                <option value="workspace">跳转驾驶舱</option>
+                <option value="widget">穿透组件</option>
+                <option value="url">外部链接</option>
+              </select>
+            </Field>
+            <Field label="标题（可选）">
+              <input
+                value={(link?.title as string) || ''}
+                onChange={(e) => onChange({ ...link, type: type as WidgetLinkConfig['type'], title: e.target.value })}
+                placeholder="点击提示文字"
+                className="w-full rounded border border-app-border-subtle bg-app-surface px-2 py-1.5 text-xs text-app-text focus:border-red-400/50 focus:outline-none"
+              />
+            </Field>
+          </div>
+
+          {type === 'workspace' && (
+            <div className="grid grid-cols-2 gap-2">
+              <Field label="目标驾驶舱 ID">
+                <input
+                  value={(link?.targetId as string) || ''}
+                  onChange={(e) => onChange({ ...link, type, targetId: e.target.value })}
+                  placeholder="ws-xxx"
+                  className="w-full rounded border border-app-border-subtle bg-app-surface px-2 py-1.5 text-xs text-app-text focus:border-red-400/50 focus:outline-none"
+                />
+              </Field>
+              <Field label="或目标模板名">
+                <input
+                  value={(link?.targetTemplate as string) || ''}
+                  onChange={(e) => onChange({ ...link, type, targetTemplate: e.target.value })}
+                  placeholder="模板名称"
+                  className="w-full rounded border border-app-border-subtle bg-app-surface px-2 py-1.5 text-xs text-app-text focus:border-red-400/50 focus:outline-none"
+                />
+              </Field>
+            </div>
+          )}
+
+          {type === 'widget' && (
+            <Field label="目标组件 ID">
+              <input
+                value={(link?.targetId as string) || ''}
+                onChange={(e) => onChange({ ...link, type, targetId: e.target.value })}
+                placeholder="widget-xxx"
+                className="w-full rounded border border-app-border-subtle bg-app-surface px-2 py-1.5 text-xs text-app-text focus:border-red-400/50 focus:outline-none"
+              />
+            </Field>
+          )}
+
+          {type === 'url' && (
+            <Field label="链接地址">
+              <input
+                value={(link?.url as string) || ''}
+                onChange={(e) => onChange({ ...link, type, url: e.target.value })}
+                placeholder="https://..."
+                className="w-full rounded border border-app-border-subtle bg-app-surface px-2 py-1.5 text-xs text-app-text focus:border-red-400/50 focus:outline-none"
+              />
+            </Field>
+          )}
+
+          {/* 打开方式 */}
+          <Field label="打开方式">
+            <select
+              value={(link?.openMode as string) || 'drawer'}
+              onChange={(e) => onChange({ ...link, type, openMode: e.target.value as 'drawer' | 'blank' | 'self' })}
+              className="w-full rounded border border-app-border-subtle bg-app-surface px-2 py-1.5 text-xs text-app-text focus:border-red-400/50 focus:outline-none"
+            >
+              <option value="drawer">浮层面板（Drawer，推荐用于详情穿透）</option>
+              <option value="blank">新浏览器标签页</option>
+              <option value="self">当前页跳转</option>
+            </select>
+          </Field>
+
+          <div className="rounded border border-app-border-subtle/50 bg-app-surface-subtle/30 px-2 py-1.5 text-[10px] text-app-text-subtle leading-relaxed">
+            {(!link?.openMode || link.openMode === 'drawer') && '点击组件后从右侧滑出浮层面板，用于在同页面内查看详情、下钻数据。'}
+            {link?.openMode === 'blank' && '点击组件后在新浏览器标签页中打开目标页面。'}
+            {link?.openMode === 'self' && '点击组件后在当前页面内直接跳转，驾驶舱上下文会切换。'}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+

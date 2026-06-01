@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { GridLayout, useContainerWidth } from 'react-grid-layout';
+import { GridLayout, useContainerWidth, verticalCompactor, noCompactor } from 'react-grid-layout';
 import type { Widget } from '@/types';
 import { X } from 'lucide-react';
 import { ErrorBoundary, WidgetErrorFallback } from './ErrorBoundary';
@@ -10,6 +10,8 @@ interface CanvasGridProps {
   onLayoutChange: (widgets: Widget[]) => void;
   onDeleteWidget: (widgetId: string) => void;
   renderWidget: (widget: Widget) => React.ReactNode;
+  /** 是否自动缩放 widgets 填满 12 列（分组模式下建议 false） */
+  autoScale?: boolean;
 }
 
 export function CanvasGrid({
@@ -18,11 +20,12 @@ export function CanvasGrid({
   onLayoutChange,
   onDeleteWidget,
   renderWidget,
+  autoScale = true,
 }: CanvasGridProps) {
   const { width, containerRef, mounted } = useContainerWidth({ initialWidth: 1200 });
 
   const displayWidgets = useMemo(() => {
-    if (isEditing || widgets.length === 0) return widgets;
+    if (isEditing || widgets.length === 0 || !autoScale) return widgets;
     const maxRight = Math.max(...widgets.map((w) => w.position.x + w.position.w));
     if (maxRight <= 0 || maxRight >= 12) return widgets;
     const scale = 12 / maxRight;
@@ -36,7 +39,7 @@ export function CanvasGrid({
         position: { ...widget.position, x, w },
       };
     });
-  }, [isEditing, widgets]);
+  }, [isEditing, widgets, autoScale]);
 
   const layout = useMemo(
     () =>
@@ -76,6 +79,7 @@ export function CanvasGrid({
           width={width}
           dragConfig={{ enabled: isEditing, bounded: false, handle: '.widget-drag-handle' }}
           resizeConfig={{ enabled: isEditing }}
+          compactor={isEditing ? noCompactor : verticalCompactor}
           onLayoutChange={(newLayout) => handleLayoutChange(newLayout)}
         >
           {displayWidgets.map((widget) => (

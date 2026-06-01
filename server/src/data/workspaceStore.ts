@@ -9,6 +9,9 @@ import { randomUUID } from 'crypto';
 import type { WorkspaceData } from './workspacesData';
 import { workspacesData } from './workspacesData';
 import { normalizeWidgets } from '../services/widget-normalizer';
+import { autoGroupWidgets } from '../services/grouping';
+import { getGroupingPolicy } from '../services/grouping-policy';
+import type { WorkspaceGrouping } from './workspacesData';
 
 // 使用 import.meta.url 确保路径不依赖 process.cwd()
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -92,9 +95,23 @@ function writeStore(data: { workspaces: WorkspaceData[] }): void {
 }
 
 function normalizeWorkspaceForRead(workspace: WorkspaceData): WorkspaceData {
+  const widgets = normalizeWidgets(workspace.widgets, { idPrefix: 'w' }) as WorkspaceData['widgets'];
+  // 全局策略驱动：如果策略禁用，不分组；否则动态计算（不持久化）
+  const policy = getGroupingPolicy();
+  let grouping: WorkspaceGrouping | undefined = workspace.grouping;
+  if (policy.enabled && !grouping && widgets.length > 4) {
+    grouping = autoGroupWidgets(
+      widgets as Array<{ id: string; title: string; group?: string }>,
+      policy
+    );
+  }
+  if (!policy.enabled) {
+    grouping = undefined;
+  }
   return {
     ...workspace,
-    widgets: normalizeWidgets(workspace.widgets, { idPrefix: 'w' }) as WorkspaceData['widgets'],
+    widgets,
+    grouping,
   };
 }
 
@@ -135,8 +152,18 @@ export async function createWorkspace(spec: CreateWorkspaceSpec): Promise<Worksp
     if (store.workspaces.length >= MAX_WORKSPACES) {
       throw new Error(`驾驶舱数量已达上限（${MAX_WORKSPACES}个），请先删除部分驾驶舱后再创建`);
     }
-    const normalizedWidgets = normalizeWidgets(spec.widgets, { idPrefix: 'w' });
+    const normalizedWidgets = normalizeWidgets(spec.widgets, { idPrefix: 'w', autoLayout: true });
     const now = new Date().toISOString().slice(0, 10);
+
+    // 全局策略驱动分组
+    const policy = getGroupingPolicy();
+    const grouping = policy.enabled
+      ? autoGroupWidgets(
+          normalizedWidgets as Array<{ id: string; title: string; group?: string }>,
+          policy
+        )
+      : undefined;
+
     const ws: WorkspaceData = {
       id: `ws-${Date.now()}-${randomUUID().slice(0, 5)}`,
       name: spec.name,
@@ -156,6 +183,7 @@ export async function createWorkspace(spec: CreateWorkspaceSpec): Promise<Worksp
       externalProvider: spec.externalProvider,
       externalWorkspaceId: spec.externalWorkspaceId,
       externalConnectionId: spec.externalConnectionId,
+      grouping,
     };
     store.workspaces.push(ws);
     writeStore(store);
@@ -184,9 +212,19 @@ export async function updateWorkspace(
     ...normalizedUpdates,
     updatedAt: new Date().toISOString().slice(0, 10),
   };
+  // 如果 widgets 被更新，按全局策略重新计算分组
+  if ('widgets' in updates) {
+    const policy = getGroupingPolicy();
+    updated.grouping = policy.enabled
+      ? autoGroupWidgets(
+          updated.widgets as Array<{ id: string; title: string; group?: string }>,
+          policy
+        ) || undefined
+      : undefined;
+  }
   store.workspaces[idx] = updated;
   writeStore(store);
-  return updated;
+  return normalizeWorkspaceForRead(updated);
 }
 
 export async function deleteWorkspace(id: string): Promise<boolean> {

@@ -382,7 +382,7 @@
         }
       }
     ],
-    "initPrompt": "你是一个企业战略分析专家。请为「CEO战略总览驾驶舱」初始化最新经营数据，覆盖以下widget：\n1. 营收达成率、净利润率、经营现金流、客户留存率、人均产出 — 填充最新财务和运营指标\n2. 年度战略目标进度 — 更新关键举措完成百分比\n3. 组织健康度 — 评估财务/运营/人才/合规四维度状态\n4. 核心指标趋势 — 提供近6个月营收趋势数据\n5. 风险预警 — 扫描当前异常事件\n6. 战略里程碑 — 更新项目状态\n请使用真实合理的模拟数据，格式保持与模板data字段一致。\n",
+    "initPrompt": "你是一个企业战略分析专家。请为「CEO战略总览驾驶舱」初始化最新经营数据，覆盖以下widget：\n1. 营收达成率、净利润率、经营现金流、客户留存率、人均产出 — 填充最新财务和运营指标\n2. 年度战略目标进度 — 更新关键举措完成百分比\n3. 组织健康度 — 评估财务/运营/人才/合规四维度状态\n4. 核心指标趋势 — 提供近6个月营收趋势数据\n5. 风险预警 — 扫描当前异常事件\n6. 战略里程碑 — 更新项目状态\n请使用真实合理的模拟数据，格式保持与模板data字段一致。\n\n可视化适配要求：指标卡必须使用 data.value/change/trend/unit/target/compareLabel/description 等语义字段；含正负值、差额、盈亏、预算偏差的数据必须使用 bar 且配置 styleConfig.baseline=\"zero\"、styleConfig.mode=\"diverging\"；只有全为非负且 2-5 个分类占比时才使用 donut；不要把 chartType/styleConfig/value/change/trend 等配置字段作为报告正文或详情展示字段。",
     "grouping": {
       "enabled": true,
       "mode": "tabs-flow",
@@ -822,7 +822,7 @@
         }
       }
     ],
-    "initPrompt": "你是一个财务分析专家。请为「CFO财务决策驾驶舱」初始化最新财务数据：\n1. 营业收入、毛利率、经营现金流净额、资产负债率 — 最新财务指标\n2. 盈利结构 — 按事业部/产品线拆分的收入数据\n3. 预算执行率 — 各部门预算vs实际\n4. 现金流瀑布 — 流入流出明细\n5. 应收应付明细 — 周转天数、坏账率、逾期清单\n6. 费用结构 — 销售/管理/研发/财务费用占比\n7. 财务健康雷达 — 偿债/盈利/运营/成长/现金流五维评估\n请使用真实合理的模拟数据。\n",
+    "initPrompt": "你是一个财务分析专家。请为「CFO财务决策驾驶舱」初始化最新财务数据：\n1. 营业收入、毛利率、经营现金流净额、资产负债率 — 最新财务指标\n2. 盈利结构 — 按事业部/产品线拆分的收入数据\n3. 预算执行率 — 各部门预算vs实际\n4. 现金流瀑布 — 流入流出明细\n5. 应收应付明细 — 周转天数、坏账率、逾期清单\n6. 费用结构 — 销售/管理/研发/财务费用占比\n7. 财务健康雷达 — 偿债/盈利/运营/成长/现金流五维评估\n请使用真实合理的模拟数据。\n\n可视化适配要求：指标卡必须使用 data.value/change/trend/unit/target/compareLabel/description 等语义字段；含正负值、差额、盈亏、预算偏差的数据必须使用 bar 且配置 styleConfig.baseline=\"zero\"、styleConfig.mode=\"diverging\"；只有全为非负且 2-5 个分类占比时才使用 donut；不要把 chartType/styleConfig/value/change/trend 等配置字段作为报告正文或详情展示字段。",
     "grouping": {
       "enabled": true,
       "mode": "tabs-flow",
@@ -1244,7 +1244,7 @@
         }
       }
     ],
-    "initPrompt": "你是一个生产运营专家。请为「COO运营效率驾驶舱」初始化制造运营数据：\n1. OEE综合效率及三要素分解（稼动率/性能/良率）\n2. 订单准时交付率、一次合格率、产能利用率\n3. 产线实时状态 — 各产线运行/待机/故障状态\n4. 质量趋势 — 近30天合格率数据\n5. 交付延迟分析 — 延迟订单及根因\n6. 单位产品能耗、设备故障预警\n7. 班次产量对比\n请使用制造业真实合理的模拟数据。\n",
+    "initPrompt": "你是一个生产运营专家。请为「COO运营效率驾驶舱」初始化制造运营数据：\n1. OEE综合效率及三要素分解（稼动率/性能/良率）\n2. 订单准时交付率、一次合格率、产能利用率\n3. 产线实时状态 — 各产线运行/待机/故障状态\n4. 质量趋势 — 近30天合格率数据\n5. 交付延迟分析 — 延迟订单及根因\n6. 单位产品能耗、设备故障预警\n7. 班次产量对比\n请使用制造业真实合理的模拟数据。\n\n可视化适配要求：指标卡必须使用 data.value/change/trend/unit/target/compareLabel/description 等语义字段；含正负值、差额、盈亏、预算偏差的数据必须使用 bar 且配置 styleConfig.baseline=\"zero\"、styleConfig.mode=\"diverging\"；只有全为非负且 2-5 个分类占比时才使用 donut；不要把 chartType/styleConfig/value/change/trend 等配置字段作为报告正文或详情展示字段。",
     "grouping": {
       "enabled": true,
       "mode": "tabs-flow",
@@ -1718,7 +1718,7 @@
         }
       }
     ],
-    "initPrompt": "你是一个增长运营专家。请为「CMO营销营收驾驶舱」初始化SaaS营收数据：\n1. MRR/ARR、NRR净留存率、CAC获客成本、赢单率\n2. ARR趋势 — 近6个月经常性收入\n3. 销售漏斗 — 访客→MQL→SQL→成交→续约各阶段转化率\n4. 管道覆盖 — 各阶段管道金额及转化率\n5. 销售团队业绩排名\n6. 客户健康度分布（健康/关注/风险）\n7. LTV/CAC比率、Rule of 40\n请使用SaaS企业真实合理的模拟数据。\n",
+    "initPrompt": "你是一个增长运营专家。请为「CMO营销营收驾驶舱」初始化SaaS营收数据：\n1. MRR/ARR、NRR净留存率、CAC获客成本、赢单率\n2. ARR趋势 — 近6个月经常性收入\n3. 销售漏斗 — 访客→MQL→SQL→成交→续约各阶段转化率\n4. 管道覆盖 — 各阶段管道金额及转化率\n5. 销售团队业绩排名\n6. 客户健康度分布（健康/关注/风险）\n7. LTV/CAC比率、Rule of 40\n请使用SaaS企业真实合理的模拟数据。\n\n可视化适配要求：指标卡必须使用 data.value/change/trend/unit/target/compareLabel/description 等语义字段；含正负值、差额、盈亏、预算偏差的数据必须使用 bar 且配置 styleConfig.baseline=\"zero\"、styleConfig.mode=\"diverging\"；只有全为非负且 2-5 个分类占比时才使用 donut；不要把 chartType/styleConfig/value/change/trend 等配置字段作为报告正文或详情展示字段。",
     "grouping": {
       "enabled": true,
       "mode": "tabs-flow",
@@ -2216,7 +2216,7 @@
         }
       }
     ],
-    "initPrompt": "你是一个研发效能专家。请为「CTO研发效能驾驶舱」初始化研发数据：\n1. DORA四指标 — 部署频率、变更前置时间、变更失败率、MTTR\n2. DORA等级评估 — 各维度效能等级\n3. 部署趋势、缺陷趋势（发现/修复/存量）\n4. 代码质量评分 — 各仓库覆盖率、技术债务\n5. 系统可用性(SLA)、P0/P1故障数\n6. 自动化测试覆盖率\n7. 技术债务清单\n请使用软件研发真实合理的模拟数据。\n",
+    "initPrompt": "你是一个研发效能专家。请为「CTO研发效能驾驶舱」初始化研发数据：\n1. DORA四指标 — 部署频率、变更前置时间、变更失败率、MTTR\n2. DORA等级评估 — 各维度效能等级\n3. 部署趋势、缺陷趋势（发现/修复/存量）\n4. 代码质量评分 — 各仓库覆盖率、技术债务\n5. 系统可用性(SLA)、P0/P1故障数\n6. 自动化测试覆盖率\n7. 技术债务清单\n请使用软件研发真实合理的模拟数据。\n\n可视化适配要求：指标卡必须使用 data.value/change/trend/unit/target/compareLabel/description 等语义字段；含正负值、差额、盈亏、预算偏差的数据必须使用 bar 且配置 styleConfig.baseline=\"zero\"、styleConfig.mode=\"diverging\"；只有全为非负且 2-5 个分类占比时才使用 donut；不要把 chartType/styleConfig/value/change/trend 等配置字段作为报告正文或详情展示字段。",
     "grouping": {
       "enabled": true,
       "mode": "tabs-flow",
@@ -2673,7 +2673,7 @@
         }
       }
     ],
-    "initPrompt": "你是一个组织发展专家。请为「HRD人力资本驾驶舱」初始化人力数据：\n1. 关键人才流失率、人均产出、招聘达成率、人力成本占比\n2. 人才九宫格 — 绩效×潜力矩阵及关键人才\n3. 招聘漏斗 — 简历→面试→Offer→入职转化率\n4. 人员流转趋势 — 入/转/出数据\n5. 流失预警清单 — 高风险员工及风险因子\n6. 培训覆盖率、员工敬业度、人力资本回报率(HCROI)、继任覆盖率\n请使用真实合理的模拟数据。\n",
+    "initPrompt": "你是一个组织发展专家。请为「HRD人力资本驾驶舱」初始化人力数据：\n1. 关键人才流失率、人均产出、招聘达成率、人力成本占比\n2. 人才九宫格 — 绩效×潜力矩阵及关键人才\n3. 招聘漏斗 — 简历→面试→Offer→入职转化率\n4. 人员流转趋势 — 入/转/出数据\n5. 流失预警清单 — 高风险员工及风险因子\n6. 培训覆盖率、员工敬业度、人力资本回报率(HCROI)、继任覆盖率\n请使用真实合理的模拟数据。\n\n可视化适配要求：指标卡必须使用 data.value/change/trend/unit/target/compareLabel/description 等语义字段；含正负值、差额、盈亏、预算偏差的数据必须使用 bar 且配置 styleConfig.baseline=\"zero\"、styleConfig.mode=\"diverging\"；只有全为非负且 2-5 个分类占比时才使用 donut；不要把 chartType/styleConfig/value/change/trend 等配置字段作为报告正文或详情展示字段。",
     "grouping": {
       "enabled": true,
       "mode": "tabs-flow",
@@ -3118,7 +3118,7 @@
         }
       }
     ],
-    "initPrompt": "你是一个供应链专家。请为「供应链协同驾驶舱」初始化供应链数据：\n1. 库存周转天数、供应商准时交付率、订单OTD、缺货率\n2. 库存分布 — 各仓库/SKU库存金额\n3. 供应商绩效评分卡 — 交付/质量/价格/合作评级\n4. 预警面板 — 缺货/积压/延迟事件\n5. 物流在途 — 在途订单及状态\n6. 采购成本趋势、需求预测偏差、供应链总成本占收比\n请使用制造业/零售真实合理的模拟数据。\n",
+    "initPrompt": "你是一个供应链专家。请为「供应链协同驾驶舱」初始化供应链数据：\n1. 库存周转天数、供应商准时交付率、订单OTD、缺货率\n2. 库存分布 — 各仓库/SKU库存金额\n3. 供应商绩效评分卡 — 交付/质量/价格/合作评级\n4. 预警面板 — 缺货/积压/延迟事件\n5. 物流在途 — 在途订单及状态\n6. 采购成本趋势、需求预测偏差、供应链总成本占收比\n请使用制造业/零售真实合理的模拟数据。\n\n可视化适配要求：指标卡必须使用 data.value/change/trend/unit/target/compareLabel/description 等语义字段；含正负值、差额、盈亏、预算偏差的数据必须使用 bar 且配置 styleConfig.baseline=\"zero\"、styleConfig.mode=\"diverging\"；只有全为非负且 2-5 个分类占比时才使用 donut；不要把 chartType/styleConfig/value/change/trend 等配置字段作为报告正文或详情展示字段。",
     "grouping": {
       "enabled": true,
       "mode": "tabs-flow",

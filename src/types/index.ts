@@ -65,6 +65,26 @@ export interface OrchestrationState {
   timestamp: string;
 }
 
+export interface WorkspaceGrouping {
+  enabled: boolean;
+  mode: 'tabs' | 'flow' | 'tabs-flow';
+  groups?: Array<{
+    id: string;
+    name: string;
+    widgetIds: string[];
+  }>;
+}
+
+/** 全局分组策略配置 */
+export interface GroupingPolicy {
+  enabled: boolean;
+  /** 分组策略：auto=自动推断，manual=严格遵循手动标签 */
+  strategy: 'auto' | 'manual';
+  /** 手动模式下的预定义分组标签 */
+  manualGroups?: string[];
+  mode: 'tabs' | 'flow' | 'tabs-flow';
+}
+
 export interface Workspace {
   id: string;
   name: string;
@@ -89,6 +109,8 @@ export interface Workspace {
   externalProvider?: 'yonclaw' | 'openclaw' | 'generic-llm' | 'other';
   externalWorkspaceId?: string;
   externalConnectionId?: string;
+  /** 组件分组配置 */
+  grouping?: WorkspaceGrouping;
 }
 
 export interface WidgetDataSource {
@@ -174,6 +196,8 @@ export interface WidgetLinkConfig {
   targetTemplate?: string;
   url?: string;
   title?: string;
+  /** 打开方式：drawer=浮层面板(默认)，blank=新标签页，self=当前页 */
+  openMode?: 'drawer' | 'blank' | 'self';
 }
 
 export type WidgetType =
@@ -215,6 +239,8 @@ export interface Widget {
   business?: BusinessWidgetConfig;
   detail?: WidgetDetailConfig;
   link?: WidgetLinkConfig;
+  /** 组件所属分组标识 */
+  group?: string;
 }
 
 export interface WidgetCatalogItem {

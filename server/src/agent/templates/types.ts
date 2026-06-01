@@ -27,6 +27,8 @@ export interface WidgetTemplate {
   };
   detail?: Record<string, unknown>;
   link?: Record<string, unknown>;
+  /** 组件所属分组标识 */
+  group?: string;
 }
 
 export interface CockpitTemplate {

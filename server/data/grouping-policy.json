@@ -1,0 +1,6 @@
+{
+  "enabled": true,
+  "strategy": "auto",
+  "manualGroups": [],
+  "mode": "tabs-flow"
+}
