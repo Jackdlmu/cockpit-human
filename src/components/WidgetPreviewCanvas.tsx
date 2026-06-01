@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import type { Widget, WidgetType } from '@/types';
 import { getDefaultWidgetSize, normalizeWidget, normalizeWidgets } from '@/lib/widget-normalizer';
 import { WidgetRenderer } from './WorkspaceDetail';
+import { createDefaultBusinessData } from './business/BusinessWidgetRenderer';
 
 function sortWidgets(a: Widget, b: Widget) {
   if (a.position.y !== b.position.y) return a.position.y - b.position.y;
@@ -261,6 +262,10 @@ function buildDefaultPreviewData(type: WidgetType, title: string): Record<string
           { name: '成都', value: 54 },
         ],
       };
+    case 'business':
+      if (subject.includes('日程')) return createDefaultBusinessData('calendar');
+      if (subject.includes('洞察')) return createDefaultBusinessData('insight-hub');
+      return createDefaultBusinessData('message-center');
     default:
       return {};
   }

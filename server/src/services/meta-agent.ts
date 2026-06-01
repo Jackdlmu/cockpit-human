@@ -1473,6 +1473,8 @@ ${widgetDesc}
       'bullet': 'bullet', '子弹图': 'bullet', '目标进度': 'bullet', '进度条': 'bullet',
       'alert': 'alert', '告警': 'alert', '告警列表': 'alert', '事件': 'alert', '通知': 'alert',
       'map': 'map', '地图': 'map', '地理': 'map', '区域': 'map', '分布图': 'map',
+      'business': 'business', '业务组件': 'business', '消息中心': 'business', '审批中心': 'business',
+      '智能日程': 'business', '日程组件': 'business', '洞察中心': 'business', '洞察组件': 'business',
     };
     const key = String(raw || '').toLowerCase().trim();
     const mapped = map[key] || 'metric';

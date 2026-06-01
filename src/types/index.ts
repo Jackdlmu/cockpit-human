@@ -185,7 +185,24 @@ export type WidgetType =
   | 'heatmap'    // 热力图：二维数据密度
   | 'bullet'     // 子弹图：紧凑目标进度
   | 'alert'      // 告警列表：带级别的事件日志
-  | 'map';       // 地图：地理分布
+  | 'map'        // 地图：地理分布
+  | 'business';  // 业务组件：消息中心、日程、洞察等可交互复合组件
+
+export type BusinessWidgetType = 'message-center' | 'calendar' | 'insight-hub';
+
+export interface BusinessWidgetConfig {
+  category?: 'business';
+  businessType: BusinessWidgetType;
+  dataContract?: string;
+  actionContract?: string;
+  connectorPolicy?: {
+    preferred?: 'yonclaw' | 'openapi' | 'cli' | 'local';
+    fallback?: Array<'yonclaw' | 'openapi' | 'cli' | 'local'>;
+  };
+  permissions?: string[];
+  refreshInterval?: number;
+  interactionMode?: 'readonly' | 'actionable' | 'agent-assisted';
+}
 
 export interface Widget {
   id: string;
@@ -195,6 +212,7 @@ export interface Widget {
   data?: Record<string, unknown>;
   dataSource?: WidgetDataSource;
   dataIntent?: WidgetDataIntent;
+  business?: BusinessWidgetConfig;
   detail?: WidgetDetailConfig;
   link?: WidgetLinkConfig;
 }

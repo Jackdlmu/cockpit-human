@@ -83,6 +83,7 @@ function buildEmptyWidgetData(type: string): Record<string, unknown> {
     case 'bullet': return { value: 0, target: 0, max: 100, label: '' };
     case 'alert': return { alerts: [] };
     case 'map': return { points: [] };
+    case 'business': return { businessType: 'message-center', messages: [] };
     default: return {};
   }
 }

@@ -3,11 +3,21 @@
 
 export interface WidgetTemplate {
   id: string;
-  type: 'metric' | 'chart' | 'table' | 'kanban' | 'timeline' | 'list' | 'report' | 'universal' | 'adaptive' | 'progress' | 'status';
+  type: 'metric' | 'chart' | 'table' | 'kanban' | 'timeline' | 'list' | 'report' | 'universal' | 'adaptive' | 'progress' | 'status' | 'html' | 'gauge' | 'funnel' | 'radar' | 'heatmap' | 'bullet' | 'alert' | 'map' | 'business';
   title: string;
   position: { x: number; y: number; w: number; h: number };
   data: Record<string, unknown>;
   dataSource?: Record<string, unknown>;
+  business?: {
+    category?: 'business';
+    businessType: 'message-center' | 'calendar' | 'insight-hub';
+    dataContract?: string;
+    actionContract?: string;
+    connectorPolicy?: Record<string, unknown>;
+    permissions?: string[];
+    refreshInterval?: number;
+    interactionMode?: 'readonly' | 'actionable' | 'agent-assisted';
+  };
   dataIntent?: {
     domain?: string;
     metricKey?: string;

@@ -6,7 +6,7 @@ import {
   DollarSign, TrendingUp, Code2, Users, Truck, LayoutGrid,
   PieChart, LineChart, Table2, Kanban, Clock, List, FileText,
   Sparkles, AlertTriangle, Bot, Compass, Activity, Gauge, Radar,
-  Grid3X3, Map, Filter,
+  Grid3X3, Map, Filter, Bell, CalendarDays, Lightbulb,
 } from 'lucide-react';
 
 const iconMap: Record<string, React.ElementType> = {
@@ -14,7 +14,7 @@ const iconMap: Record<string, React.ElementType> = {
   DollarSign, TrendingUp, Code2, Users, Truck, LayoutGrid,
   PieChart, LineChart, Table2, Kanban, Clock, List, FileText,
   Sparkles, AlertTriangle, Bot, Compass, Activity, Gauge, Radar,
-  Grid3X3, Map, Filter,
+  Grid3X3, Map, Filter, Bell, CalendarDays, Lightbulb,
 };
 
 interface Props {

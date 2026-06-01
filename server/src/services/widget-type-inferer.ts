@@ -6,6 +6,10 @@ export function inferWidgetType(data: Record<string, unknown>): string {
   if (!data || typeof data !== 'object' || Array.isArray(data)) return 'universal';
   const d = data;
 
+  if (d.businessType || d.business || Array.isArray(d.approvals) || Array.isArray(d.messages) || Array.isArray(d.schedules) || Array.isArray(d.insights)) {
+    return 'business';
+  }
+
   const adaptiveSections = d.sections || d.blocks || d.cards;
   if (Array.isArray(adaptiveSections) && adaptiveSections.length > 0) {
     return 'adaptive';
@@ -142,6 +146,7 @@ export function inferWidgetType(data: Record<string, unknown>): string {
  */
 export function isTypeMismatched(type: string, data: Record<string, unknown>): boolean {
   if (!data || typeof data !== 'object') return false;
+  if (type === 'business') return false;
   const inferred = inferWidgetType(data);
   if (type === inferred) return false;
 

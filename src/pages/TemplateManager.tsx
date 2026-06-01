@@ -50,7 +50,7 @@ import { TemplatePreviewCanvas, WidgetPreviewCard } from '@/components/WidgetPre
 const WIDGET_TYPES: WidgetType[] = [
   'metric', 'chart', 'table', 'kanban', 'timeline', 'list', 'report',
   'universal', 'adaptive', 'progress', 'status', 'html', 'gauge',
-  'funnel', 'radar', 'heatmap', 'bullet', 'alert', 'map',
+  'funnel', 'radar', 'heatmap', 'bullet', 'alert', 'map', 'business',
 ];
 
 const WIDGET_TYPE_LABELS: Record<WidgetType, string> = {
@@ -73,13 +73,14 @@ const WIDGET_TYPE_LABELS: Record<WidgetType, string> = {
   bullet: '子弹图',
   alert: '告警列表',
   map: '地图',
+  business: '业务组件',
 };
 
 const ICON_OPTIONS = [
   'BarChart3', 'PieChart', 'LineChart', 'Table2', 'Kanban', 'Clock', 'List',
   'FileText', 'TrendingUp', 'Users', 'DollarSign', 'CheckCircle', 'AlertTriangle',
   'Target', 'Layers', 'Monitor', 'Sparkles', 'Bot', 'Compass', 'Activity',
-  'Gauge', 'Radar', 'Grid3X3', 'Map', 'Filter', 'Code2',
+  'Gauge', 'Radar', 'Grid3X3', 'Map', 'Filter', 'Code2', 'Bell', 'CalendarDays', 'Lightbulb',
 ];
 
 const TEMPLATE_EXTENSION_EXAMPLE = `{
@@ -740,6 +741,16 @@ function WidgetsSection({
   onDuplicate: (widget: WidgetCatalogItem) => void;
   onDelete: (widget: WidgetCatalogItem) => void;
 }) {
+  const categories = useMemo(() => {
+    const unique = Array.from(new Set(widgets.map((item) => item.category || '通用')));
+    return ['全部', '业务组件', ...unique.filter((item) => item !== '业务组件')];
+  }, [widgets]);
+  const [activeCategory, setActiveCategory] = useState('全部');
+  const visibleWidgets = useMemo(() => {
+    if (activeCategory === '全部') return widgets;
+    return widgets.filter((item) => item.category === activeCategory);
+  }, [activeCategory, widgets]);
+
   if (widgets.length === 0) {
     return (
       <EmptyState
@@ -760,8 +771,24 @@ function WidgetsSection({
           { label: '自定义组件', value: String(stats.custom), detail: '便于开发者扩展实现' },
         ]}
       />
+      <div className="flex max-w-7xl flex-wrap gap-2">
+        {categories.map((category) => (
+          <button
+            key={category}
+            type="button"
+            onClick={() => setActiveCategory(category)}
+            className={`rounded-lg border px-3 py-1.5 text-xs transition-colors ${
+              activeCategory === category
+                ? 'border-primary/25 bg-primary/8 text-primary'
+                : 'border-app-border-subtle bg-app-surface text-app-text-muted hover:text-app-text-secondary'
+            }`}
+          >
+            {category}
+          </button>
+        ))}
+      </div>
       <div className="grid max-w-7xl grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
-        {widgets.map((widget) => (
+        {visibleWidgets.map((widget) => (
           <WidgetCatalogCard
             key={widget.id}
             item={widget}

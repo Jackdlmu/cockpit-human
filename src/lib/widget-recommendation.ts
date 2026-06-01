@@ -23,6 +23,7 @@ const BASE_SIZE: Record<WidgetType, WidgetSize> = {
   bullet: { w: 6, h: 2 },
   alert: { w: 5, h: 3 },
   map: { w: 6, h: 4 },
+  business: { w: 6, h: 4 },
 };
 
 function asRecord(data: unknown): Record<string, unknown> {
@@ -133,6 +134,13 @@ export function recommendWidgetSize(type: string, rawData?: unknown): WidgetSize
   }
   if (type === 'heatmap') return { w: 7, h: 4 };
   if (type === 'timeline') return { w: 8, h: 4 };
+  if (type === 'business') {
+    const businessType = String(data.businessType || data.kind || '');
+    if (businessType === 'message-center') return { w: 6, h: 5 };
+    if (businessType === 'calendar') return { w: 5, h: 5 };
+    if (businessType === 'insight-hub') return { w: 6, h: 5 };
+    return base;
+  }
 
   return base;
 }

@@ -22,6 +22,7 @@ const SUPPORTED_WIDGET_TYPES = new Set<WidgetType>([
   'bullet',
   'alert',
   'map',
+  'business',
 ]);
 
 const LEGACY_TOP_LEVEL_DATA_FIELDS = new Set([
@@ -47,6 +48,7 @@ const LEGACY_TOP_LEVEL_DATA_FIELDS = new Set([
   'current', 'percentage', 'percent', 'goal', 'maximum',
   'alerts', 'notifications', 'message', 'severity', 'level', 'time', 'timestamp',
   'points', 'locations', 'regions', 'cities',
+  'businessType', 'business', 'approvals', 'messages', 'schedules', 'insights', 'reports',
   'color', 'colors',
 ]);
 

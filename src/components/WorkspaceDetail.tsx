@@ -16,6 +16,7 @@ import { WidgetInteractionProvider, useWidgetInteraction } from '@/contexts/Widg
 import { WidgetDetailDrawer } from './WidgetDetailDrawer';
 import { CanvasGrid } from './CanvasGrid';
 import { WidgetLibraryPanel } from './WidgetLibraryPanel';
+import { BusinessWidgetRenderer } from './business/BusinessWidgetRenderer';
 import { inferWidgetType, isTypeMismatched } from '@/lib/widget-type-inferer';
 import { getDefaultWidgetSize, normalizeWidget, normalizeWidgets } from '@/lib/widget-normalizer';
 import { buildReportDisplayData } from '@/lib/report-widget';
@@ -1136,6 +1137,7 @@ const TYPE_GRADIENTS: Record<string, string> = {
   alert:    'from-red-500/70 via-orange-400/50 to-transparent',
   map:      'from-emerald-500/70 via-teal-400/50 to-transparent',
   sparkline:'from-indigo-500/70 via-blue-400/50 to-transparent',
+  business: 'from-fuchsia-500/70 via-violet-400/50 to-transparent',
 };
 
 export function WidgetRenderer({ workspaceId, widget, useDemoDataFallback, isEditing, onClick, onRename, onDrillDown, filterContext, onRuntimeDataChange, previewMode = false }: { workspaceId: string; widget: Widget; useDemoDataFallback?: boolean; isEditing?: boolean; onClick?: () => void; onRename?: (title: string) => void; onDrillDown?: (context: Record<string, unknown>, dimension: string) => void; filterContext?: Record<string, unknown>; onRuntimeDataChange?: (snapshot: RuntimeWidgetSnapshot | null) => void; previewMode?: boolean }) {
@@ -1717,11 +1719,16 @@ function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onD
 
   // 智能类型校验：如果 widget.type 与数据内容明显不匹配，用推断类型渲染
   const inferredType = inferWidgetType(displayData);
-  const effectiveType = (widget.type === inferredType) ? widget.type :
+  const effectiveType = widget.type === 'business' ? 'business' :
+    (widget.type === inferredType) ? widget.type :
     isTypeMismatched(widget.type, displayData) ? inferredType :
     widget.type;
 
   switch (effectiveType) {
+    case 'business': {
+      const d = (displayData || {}) as Record<string, unknown>;
+      return <BusinessWidgetRenderer widget={widget} data={d} gridSize={gridSize} />;
+    }
     case 'metric': {
       const d = (displayData || {}) as Record<string, unknown>;
       const metricItems = extractMetricItems(d);
