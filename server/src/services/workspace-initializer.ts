@@ -185,6 +185,45 @@ function extractJsonFromText(text: string): unknown {
   return null;
 }
 
+/**
+ * 递归解码 widget data 中可能存在的 JSON 双重转义字符串。
+ * LLM 有时会在字符串值内部返回字面量的 \\n、\\uXXXX 等序列，
+ * 需要把它们还原为实际的换行符和 Unicode 字符。
+ */
+function unescapeJsonStrings(value: unknown): unknown {
+  if (typeof value === 'string') {
+    // 检测是否包含 JSON 转义序列（\\n、\\uXXXX、\\t 等）
+    if (/\\[nrtbf"\\/]|\\u[0-9a-fA-F]{4}/.test(value)) {
+      try {
+        // 尝试用 JSON.parse 解码：把字符串包成 JSON 字符串再解析
+        const decoded = JSON.parse(`"${value.replace(/"/g, '\\"')}"`);
+        if (typeof decoded === 'string') return decoded;
+      } catch {
+        // 解析失败则退回到手动替换
+        return value
+          .replace(/\\n/g, '\n')
+          .replace(/\\r/g, '\r')
+          .replace(/\\t/g, '\t')
+          .replace(/\\"/g, '"')
+          .replace(/\\\\/g, '\\')
+          .replace(/\\u([0-9a-fA-F]{4})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
+      }
+    }
+    return value;
+  }
+  if (Array.isArray(value)) {
+    return value.map(unescapeJsonStrings);
+  }
+  if (value && typeof value === 'object') {
+    const result: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value)) {
+      result[k] = unescapeJsonStrings(v);
+    }
+    return result;
+  }
+  return value;
+}
+
 function getWidgetPriorityScore(widget: InitWidget): number {
   const intent = widget.dataIntent;
   let score = 0;
@@ -286,9 +325,10 @@ async function initializeBatchWithLLM(
 
 【内部可视化规则（不对外展示）】
 - 指标卡(metric)必须使用 data.value/change/trend/unit/target/compareLabel/description 等语义字段
+- 金额、收入、利润等数值字段必须使用纯数字+单位格式（如 "850亿元"），禁止使用 ~ 前缀（~ 会被误解为负号）
 - 含正负值、差额、盈亏、预算偏差的数据必须使用 bar 图表，并在 data.styleConfig 中配置 baseline="zero"、mode="diverging"
 - 只有全为非负值且 2-5 个分类占比时才使用 donut
-- 不要把 chartType/styleConfig/value/change/trend 等配置字段作为报告正文或详情展示字段`;
+- 不要把 chartType/styleConfig/value/change/trend 等配置字段作为报告正文或详情展示字段
 
   const userPrompt = `驾驶舱名称: ${workspaceName}
 模板来源: ${templateName}
@@ -381,7 +421,7 @@ ${groundingGuide ? `5. 请额外遵守以下场景约束：\n${groundingGuide}` 
     const dataMap = new Map<string, Record<string, unknown>>();
     for (const item of parsed.widgets) {
       if (item.id && item.data && typeof item.data === 'object' && !Array.isArray(item.data)) {
-        dataMap.set(item.id, item.data);
+        dataMap.set(item.id, unescapeJsonStrings(item.data) as Record<string, unknown>);
       }
     }
 

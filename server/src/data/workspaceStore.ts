@@ -96,22 +96,11 @@ function writeStore(data: { workspaces: WorkspaceData[] }): void {
 
 function normalizeWorkspaceForRead(workspace: WorkspaceData): WorkspaceData {
   const widgets = normalizeWidgets(workspace.widgets, { idPrefix: 'w' }) as WorkspaceData['widgets'];
-  // 全局策略驱动：如果策略禁用，不分组；否则动态计算（不持久化）
-  const policy = getGroupingPolicy();
-  let grouping: WorkspaceGrouping | undefined = workspace.grouping;
-  if (policy.enabled && !grouping && widgets.length > 4) {
-    grouping = autoGroupWidgets(
-      widgets as Array<{ id: string; title: string; group?: string }>,
-      policy
-    );
-  }
-  if (!policy.enabled) {
-    grouping = undefined;
-  }
+  // grouping 是工作空间自身的持久化属性，创建时初始化一次，之后不再自动重新计算
   return {
     ...workspace,
     widgets,
-    grouping,
+    grouping: workspace.grouping,
   };
 }
 
@@ -155,13 +144,9 @@ export async function createWorkspace(spec: CreateWorkspaceSpec): Promise<Worksp
     const normalizedWidgets = normalizeWidgets(spec.widgets, { idPrefix: 'w', autoLayout: true });
     const now = new Date().toISOString().slice(0, 10);
 
-    // 全局策略驱动分组
-    const policy = getGroupingPolicy();
-    const grouping = policy.enabled
-      ? autoGroupWidgets(
-          normalizedWidgets as Array<{ id: string; title: string; group?: string }>,
-          policy
-        )
+    // 创建时根据全局策略和 widgets 的 group 字段一次性计算初始分组
+    const grouping = getGroupingPolicy().enabled
+      ? autoGroupWidgets(normalizedWidgets as Array<{ id: string; title: string; group?: string }>)
       : undefined;
 
     const ws: WorkspaceData = {
@@ -212,16 +197,8 @@ export async function updateWorkspace(
     ...normalizedUpdates,
     updatedAt: new Date().toISOString().slice(0, 10),
   };
-  // 如果 widgets 被更新，按全局策略重新计算分组
-  if ('widgets' in updates) {
-    const policy = getGroupingPolicy();
-    updated.grouping = policy.enabled
-      ? autoGroupWidgets(
-          updated.widgets as Array<{ id: string; title: string; group?: string }>,
-          policy
-        ) || undefined
-      : undefined;
-  }
+  // grouping 由客户端显式管理，服务器不再自动重新计算
+  // 如果客户端在 updates 中传入了 grouping，上面的展开操作已经覆盖
   store.workspaces[idx] = updated;
   writeStore(store);
   return normalizeWorkspaceForRead(updated);

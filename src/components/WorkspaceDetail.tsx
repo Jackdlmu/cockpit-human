@@ -4,6 +4,7 @@ import type {
   Agent,
   WidgetType,
   Workspace,
+  WorkspaceGrouping,
   WidgetAdaptiveHeadline,
   WidgetAdaptiveSection,
   WidgetMetricItem,
@@ -19,7 +20,7 @@ import { GroupedCanvas } from './GroupedCanvas';
 import { WidgetLibraryPanel } from './WidgetLibraryPanel';
 import { BusinessWidgetRenderer } from './business/BusinessWidgetRenderer';
 import { inferWidgetType, isTypeMismatched } from '@/lib/widget-type-inferer';
-import { getDefaultWidgetSize, normalizeWidget, normalizeWidgets } from '@/lib/widget-normalizer';
+import { getDefaultWidgetSize, normalizeWidget, normalizeWidgets, compactGridLayout } from '@/lib/widget-normalizer';
 import { buildReportDisplayData } from '@/lib/report-widget';
 import { computeDivergingBars, getSignedValueSemanticClasses, getTrendSemanticClasses, shouldUseTrendSeriesChart } from '@/lib/visual-adapters';
 import { Switch } from '@/components/ui/switch';
@@ -32,7 +33,7 @@ import {
   ChevronDown, Trash2,
   ArrowRight, TrendingUp, TrendingDown, ArrowLeftIcon, Loader2, Check,
   FileText, AlertCircle, ExternalLink,
-  DollarSign, Code2, Users, Truck, Plus,
+  DollarSign, Code2, Users, Truck, Plus, LayoutGrid,
   MessageCircle, X,
 } from 'lucide-react';
 
@@ -333,6 +334,9 @@ function WorkspaceDetailInner({ workspaceId, agents, workspaces: allWorkspaces, 
   const [isEditing, setIsEditing] = useState(false);
   const [widgetLibraryOpen, setWidgetLibraryOpen] = useState(false);
   const [localWidgets, setLocalWidgets] = useState<Widget[]>([]);
+  const [localGrouping, setLocalGrouping] = useState<WorkspaceGrouping | undefined>(undefined);
+  const [groupPanelOpen, setGroupPanelOpen] = useState(false);
+  const [newGroupName, setNewGroupName] = useState('');
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Title editing state
@@ -346,10 +350,11 @@ function WorkspaceDetailInner({ workspaceId, agents, workspaces: allWorkspaces, 
     }
   }, [workspace, isEditing]);
 
-  // 从 workspace 同步 widgets
+  // 从 workspace 同步 widgets 和 grouping
   useEffect(() => {
     if (workspace) {
       setLocalWidgets(normalizeWidgets(workspace.widgets));
+      setLocalGrouping(workspace.grouping);
     }
   }, [workspace]);
 
@@ -462,6 +467,115 @@ function WorkspaceDetailInner({ workspaceId, agents, workspaces: allWorkspaces, 
     setLocalWidgets(updated);
     saveWidgets(updated);
   };
+
+  // ── 智能排版 ──
+  const handleSmartLayout = () => {
+    if (localWidgets.length === 0) return;
+    let updated: Widget[];
+    if (localGrouping?.enabled && localGrouping.groups && localGrouping.groups.length > 0) {
+      // 分组模式：按组分别紧凑排版
+      const groupedIds = new Set(localGrouping.groups.flatMap((g) => g.widgetIds));
+      const result: Widget[] = [];
+      for (const group of localGrouping.groups) {
+        const groupWidgets = localWidgets.filter((w) => group.widgetIds.includes(w.id));
+        if (groupWidgets.length > 0) {
+          result.push(...compactGridLayout(groupWidgets));
+        }
+      }
+      // 未分组的组件也紧凑排版
+      const ungrouped = localWidgets.filter((w) => !groupedIds.has(w.id));
+      if (ungrouped.length > 0) {
+        result.push(...compactGridLayout(ungrouped));
+      }
+      updated = result;
+    } else {
+      // 非分组模式：全部紧凑排版
+      updated = compactGridLayout(localWidgets);
+    }
+    setLocalWidgets(updated);
+    saveWidgets(updated);
+    toast.success('已智能排版');
+  };
+
+  // ── Group management ──
+  const saveGrouping = useCallback((grouping: WorkspaceGrouping | undefined) => {
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    saveTimeoutRef.current = setTimeout(() => {
+      updateWorkspace(workspaceId, { grouping }).catch((err: unknown) => {
+        toast.error('保存分组失败', { description: err instanceof Error ? err.message : String(err) });
+      });
+    }, 500);
+  }, [workspaceId]);
+
+  const addGroup = () => {
+    const name = newGroupName.trim();
+    if (!name) return;
+    const current = localGrouping || { enabled: true, groups: [] };
+    if (current.groups?.some((g) => g.name === name)) return;
+    const newGroup = { id: `group-${Date.now()}`, name, widgetIds: [] };
+    const next: WorkspaceGrouping = {
+      ...current,
+      enabled: true,
+      groups: [...(current.groups || []), newGroup],
+    };
+    setLocalGrouping(next);
+    saveGrouping(next);
+    setNewGroupName('');
+  };
+
+  const renameGroup = (groupId: string, newName: string) => {
+    const trimmed = newName.trim();
+    if (!trimmed) return;
+    if (!localGrouping?.groups) return;
+    const next: WorkspaceGrouping = {
+      ...localGrouping,
+      groups: localGrouping.groups.map((g) =>
+        g.id === groupId ? { ...g, name: trimmed, id: trimmed } : g
+      ),
+    };
+    setLocalGrouping(next);
+    saveGrouping(next);
+  };
+
+  const deleteGroup = (groupId: string) => {
+    if (!localGrouping?.groups) return;
+    const next: WorkspaceGrouping = {
+      ...localGrouping,
+      groups: localGrouping.groups.filter((g) => g.id !== groupId),
+    };
+    if (!next.groups || next.groups.length < 2) {
+      // 少于2个组，禁用分组
+      setLocalGrouping({ enabled: false, groups: next.groups });
+      saveGrouping({ enabled: false, groups: next.groups });
+    } else {
+      setLocalGrouping(next);
+      saveGrouping(next);
+    }
+  };
+
+  const moveWidgetToGroup = (widgetId: string, groupId: string | null) => {
+    // 更新 widget.group 字段
+    const updatedWidgets = localWidgets.map((w) =>
+      w.id === widgetId ? { ...w, group: groupId || undefined } : w
+    );
+    setLocalWidgets(updatedWidgets);
+    saveWidgets(updatedWidgets);
+
+    // 更新 grouping.groups 中的 widgetIds
+    if (!localGrouping?.groups) return;
+    const nextGroups = localGrouping.groups.map((g) => {
+      const hasWidget = g.widgetIds.includes(widgetId);
+      if (g.id === groupId) {
+        return hasWidget ? g : { ...g, widgetIds: [...g.widgetIds, widgetId] };
+      }
+      return hasWidget ? { ...g, widgetIds: g.widgetIds.filter((id) => id !== widgetId) } : g;
+    });
+    const next: WorkspaceGrouping = { ...localGrouping, groups: nextGroups };
+    setLocalGrouping(next);
+    saveGrouping(next);
+  };
+
+  // groupOptions 已内联到 GroupedCanvas 的分组选择器中
 
   // 组件卸载时清理 saveTimeoutRef
   useEffect(() => {
@@ -742,13 +856,22 @@ function WorkspaceDetailInner({ workspaceId, agents, workspaces: allWorkspaces, 
                 </div>
               )}
               {isEditing && (
-                <button
-                  onClick={() => setWidgetLibraryOpen(true)}
-                  className="inline-flex items-center gap-1 rounded-xl border border-primary/15 bg-primary/8 px-3 py-2 text-xs text-primary transition-colors hover:bg-primary/15"
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                  添加组件
-                </button>
+                <>
+                  <button
+                    onClick={() => setWidgetLibraryOpen(true)}
+                    className="inline-flex items-center gap-1 rounded-xl border border-primary/15 bg-primary/8 px-3 py-2 text-xs text-primary transition-colors hover:bg-primary/15"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    添加组件
+                  </button>
+                  <button
+                    onClick={handleSmartLayout}
+                    className="inline-flex items-center gap-1 rounded-xl border border-app-border-subtle bg-app-surface px-3 py-2 text-xs text-app-text-muted transition-colors hover:bg-app-surface-hover hover:text-app-text-secondary"
+                  >
+                    <LayoutGrid className="h-3.5 w-3.5" />
+                    智能排版
+                  </button>
+                </>
               )}
               <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-app-border-subtle bg-app-surface-subtle px-3 py-2">
                 <span className="text-[11px] text-app-text-subtle">编辑模式</span>
@@ -831,14 +954,83 @@ function WorkspaceDetailInner({ workspaceId, agents, workspaces: allWorkspaces, 
         </div>
       )}
 
+      {/* 编辑模式：组管理面板 */}
+      {isEditing && (
+        <div className="mx-6 mt-3 rounded-xl border border-app-border-subtle bg-app-surface-subtle/30">
+          <button
+            type="button"
+            onClick={() => setGroupPanelOpen((p) => !p)}
+            className="flex w-full items-center justify-between px-4 py-2.5 text-left"
+          >
+            <div className="flex items-center gap-2">
+              <Layers className="h-4 w-4 text-app-text-subtle" />
+              <span className="text-sm font-medium text-app-text">组件分组</span>
+              <span className={`rounded-full px-2 py-0.5 text-[10px] ${
+                localGrouping?.enabled
+                  ? 'border border-emerald-500/20 bg-emerald-500/10 text-emerald-500'
+                  : 'border border-app-border-subtle bg-app-surface text-app-text-subtle'
+              }`}>
+                {localGrouping?.enabled ? `${localGrouping.groups?.length || 0} 个组` : '未启用'}
+              </span>
+            </div>
+            {groupPanelOpen ? <ChevronDown className="h-4 w-4 text-app-text-subtle" /> : <ChevronDown className="h-4 w-4 -rotate-90 text-app-text-subtle" />}
+          </button>
+          {groupPanelOpen && (
+            <div className="border-t border-app-border-subtle/50 px-4 pb-4 pt-3 space-y-3">
+              <div className="flex flex-wrap items-center gap-2">
+                {(localGrouping?.groups || []).map((g) => (
+                  <div key={g.id} className="flex items-center gap-1 rounded-lg border border-app-border-subtle bg-app-surface px-2 py-1">
+                    <input
+                      value={g.name}
+                      onChange={(e) => renameGroup(g.id, e.target.value)}
+                      onBlur={(e) => renameGroup(g.id, e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
+                      className="w-20 bg-transparent text-xs text-app-text outline-none"
+                    />
+                    <span className="text-[10px] text-app-text-subtle">{g.widgetIds.length}</span>
+                    <button
+                      onClick={() => deleteGroup(g.id)}
+                      className="text-app-text-subtle hover:text-red-500"
+                      title="删除组"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
+                <div className="flex items-center gap-1">
+                  <input
+                    value={newGroupName}
+                    onChange={(e) => setNewGroupName(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && addGroup()}
+                    placeholder="新组名"
+                    className="w-20 rounded border border-app-border-subtle bg-app-surface px-2 py-1 text-xs text-app-text outline-none focus:border-primary/50"
+                  />
+                  <button
+                    onClick={addGroup}
+                    disabled={!newGroupName.trim()}
+                    className="rounded border border-app-border-subtle px-2 py-1 text-xs text-app-text-subtle hover:bg-app-surface-hover disabled:opacity-50"
+                  >
+                    <Plus className="h-3 w-3" />
+                  </button>
+                </div>
+              </div>
+              <div className="text-[11px] text-app-text-subtle">
+                提示：在组件拖拽手柄处可快速调整所属分组。删除组不会删除组件，组件将变为未分组状态。
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Dashboard Grid — 画布模式 */}
-      {workspace.grouping?.enabled && !isEditing ? (
+      {localGrouping?.enabled ? (
         <GroupedCanvas
           widgets={localWidgets}
-          grouping={workspace.grouping}
+          grouping={localGrouping}
           isEditing={isEditing}
           onLayoutChange={handleLayoutChange}
           onDeleteWidget={handleDeleteWidget}
+          onMoveWidgetToGroup={moveWidgetToGroup}
           renderWidget={(widget) => (
             <WidgetRenderer
               workspaceId={workspace.id}
@@ -1376,10 +1568,19 @@ function toStringValue(value: unknown): string {
   return '';
 }
 
+// 清洗显示值：去除 LLM 常添加的波浪号前缀（避免与负号混淆）
+function sanitizeDisplayValue(value: unknown): string {
+  const str = String(value ?? '');
+  if (str.startsWith('~')) {
+    return str.slice(1).trimStart();
+  }
+  return str;
+}
+
 function parseNumericValue(value: unknown): number | null {
   if (typeof value === 'number' && Number.isFinite(value)) return value;
   if (typeof value !== 'string') return null;
-  const normalized = value.replace(/,/g, '');
+  const normalized = sanitizeDisplayValue(value).replace(/,/g, '');
   const match = normalized.match(/-?\d+(\.\d+)?/);
   if (!match) return null;
   const parsed = Number(match[0]);
@@ -1671,7 +1872,7 @@ function renderMetricChip(metric: WidgetMetricItem, index: number) {
           </span>
         )}
       </div>
-      <div className={`bi-tabular mt-1.5 text-[15px] font-semibold ${tone.text}`}>{metric.value}</div>
+      <div className={`bi-tabular mt-1.5 text-[15px] font-semibold ${tone.text}`}>{sanitizeDisplayValue(metric.value)}</div>
       {trendText && <div className="mt-1 text-[11px] text-app-text-muted">{trendText}</div>}
       {metric.caption && <div className="mt-1 line-clamp-2 text-[11px] leading-relaxed text-app-text-subtle/85">{metric.caption}</div>}
     </div>
@@ -1870,7 +2071,7 @@ function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onD
         return <EmptyWidgetState title={widget.title} source={dataSource} error={error} />;
       }
 
-      const valueStr = String(rawPrimaryValue ?? '');
+      const valueStr = sanitizeDisplayValue(rawPrimaryValue);
       const trend = String(rawPrimaryTrend || '');
       const changeStr = String(rawPrimaryChange || '');
       const caption = String(rawPrimaryCaption || '');

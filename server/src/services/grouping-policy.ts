@@ -11,20 +11,17 @@ const DATA_DIR = path.resolve(__dirname, '../../data');
 const POLICY_FILE = path.join(DATA_DIR, 'grouping-policy.json');
 
 export interface GroupingPolicy {
-  /** 是否启用组件分组 */
+  /** 是否启用组件分组（仅影响创建时的初始化） */
   enabled: boolean;
   /** 分组策略：auto=自动推断，manual=严格遵循手动标签 */
   strategy: 'auto' | 'manual';
   /** 手动模式下的预定义分组标签 */
   manualGroups?: string[];
-  /** 分组展示模式 */
-  mode: 'tabs' | 'flow' | 'tabs-flow';
 }
 
 const DEFAULT_POLICY: GroupingPolicy = {
   enabled: true,
   strategy: 'auto',
-  mode: 'tabs-flow',
 };
 
 function readPolicy(): GroupingPolicy {
@@ -38,7 +35,6 @@ function readPolicy(): GroupingPolicy {
       enabled: parsed.enabled ?? DEFAULT_POLICY.enabled,
       strategy: parsed.strategy ?? DEFAULT_POLICY.strategy,
       manualGroups: Array.isArray(parsed.manualGroups) ? parsed.manualGroups : DEFAULT_POLICY.manualGroups,
-      mode: parsed.mode ?? DEFAULT_POLICY.mode,
     };
   } catch {
     return { ...DEFAULT_POLICY };
@@ -71,7 +67,6 @@ export function setGroupingPolicy(policy: Partial<GroupingPolicy>): GroupingPoli
     enabled: policy.enabled ?? current.enabled,
     strategy: policy.strategy ?? current.strategy,
     manualGroups: policy.manualGroups !== undefined ? policy.manualGroups : current.manualGroups,
-    mode: policy.mode ?? current.mode,
   };
   cachedPolicy = next;
   writePolicy(next);

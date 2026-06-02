@@ -67,7 +67,6 @@ export interface OrchestrationState {
 
 export interface WorkspaceGrouping {
   enabled: boolean;
-  mode: 'tabs' | 'flow' | 'tabs-flow';
   groups?: Array<{
     id: string;
     name: string;
@@ -82,7 +81,6 @@ export interface GroupingPolicy {
   strategy: 'auto' | 'manual';
   /** 手动模式下的预定义分组标签 */
   manualGroups?: string[];
-  mode: 'tabs' | 'flow' | 'tabs-flow';
 }
 
 export interface Workspace {

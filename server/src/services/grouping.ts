@@ -1,5 +1,4 @@
 import type { WorkspaceGrouping } from '../data/workspacesData';
-import type { GroupingPolicy } from './grouping-policy';
 
 interface GroupableWidget {
   id: string;
@@ -118,72 +117,14 @@ function mergeToMaxGroups(
  * @param policy 全局分组策略
  */
 export function autoGroupWidgets(
-  widgets: GroupableWidget[],
-  policy?: GroupingPolicy
+  widgets: GroupableWidget[]
 ): WorkspaceGrouping | undefined {
   if (!widgets || widgets.length <= 4) {
     return undefined;
   }
 
-  const isManual = policy?.strategy === 'manual';
-  const manualGroups = isManual ? (policy.manualGroups || []) : [];
-
   const groupMap = new Map<string, string[]>();
 
-  if (isManual) {
-    // 手动模式：严格按 manualGroups 分组
-    for (const g of manualGroups) {
-      groupMap.set(g, []);
-    }
-    // 综合分析兜底组
-    groupMap.set('综合分析', []);
-
-    for (const w of widgets) {
-      const gid = w.group?.trim() || '';
-      if (gid && groupMap.has(gid)) {
-        groupMap.get(gid)!.push(w.id);
-      } else {
-        // 未匹配到预定义标签的，尝试 title 关键词匹配 manualGroups
-        let matched = false;
-        const lowerTitle = w.title.toLowerCase();
-        for (const mg of manualGroups) {
-          if (lowerTitle.includes(mg.toLowerCase())) {
-            groupMap.get(mg)!.push(w.id);
-            matched = true;
-            break;
-          }
-        }
-        if (!matched) {
-          groupMap.get('综合分析')!.push(w.id);
-        }
-      }
-    }
-
-    // 构建分组列表，保持原始 widget 顺序
-    const orderMap = new Map(widgets.map((ww, i) => [ww.id, i]));
-    const groups: Array<{ id: string; name: string; widgetIds: string[] }> = [];
-    for (const g of manualGroups) {
-      const widgetIds = groupMap.get(g) || [];
-      if (widgetIds.length === 0) continue;
-      widgetIds.sort((a, b) => (orderMap.get(a) ?? 0) - (orderMap.get(b) ?? 0));
-      groups.push({ id: g, name: g, widgetIds });
-    }
-    // 综合分析组（如果有内容）
-    const fallbackIds = groupMap.get('综合分析') || [];
-    if (fallbackIds.length > 0) {
-      fallbackIds.sort((a, b) => (orderMap.get(a) ?? 0) - (orderMap.get(b) ?? 0));
-      groups.push({ id: '综合分析', name: '综合分析', widgetIds: fallbackIds });
-    }
-
-    if (groups.length < 2) return undefined;
-    return {
-      enabled: true,
-      mode: policy?.mode || 'tabs-flow',
-      groups,
-    };
-  }
-
-  // 自动模式（原有逻辑）
   for (const w of widgets) {
     const gid = w.group?.trim() || '';
     if (!gid) continue;
@@ -221,7 +162,6 @@ export function autoGroupWidgets(
 
   return {
     enabled: true,
-    mode: policy?.mode || 'tabs-flow',
     groups: finalGroups,
   };
 }
@@ -240,7 +180,6 @@ export function remapTemplateGrouping(
 
   return {
     enabled: templateGrouping.enabled,
-    mode: templateGrouping.mode,
     groups: templateGrouping.groups
       .map((g) => ({
         ...g,

@@ -16,7 +16,7 @@ router.get('/', (_req: Request, res: Response) => {
 
 // 管理员更新
 router.put('/', requireAdmin, (req: Request, res: Response) => {
-  const body = req.body as Partial<{ enabled: boolean; strategy: string; manualGroups: string[]; mode: string; reset: boolean }>;
+  const body = req.body as Partial<{ enabled: boolean; strategy: string; manualGroups: string[]; reset: boolean }>;
 
   if (body.reset) {
     const policy = resetGroupingPolicy();
@@ -33,11 +33,10 @@ router.put('/', requireAdmin, (req: Request, res: Response) => {
     return;
   }
 
-  const update: Partial<{ enabled: boolean; strategy: 'auto' | 'manual'; manualGroups: string[]; mode: 'tabs' | 'flow' | 'tabs-flow' }> = {};
+  const update: Partial<{ enabled: boolean; strategy: 'auto' | 'manual'; manualGroups: string[] }> = {};
   if (typeof body.enabled === 'boolean') update.enabled = body.enabled;
   if (body.strategy === 'auto' || body.strategy === 'manual') update.strategy = body.strategy;
   if (Array.isArray(body.manualGroups)) update.manualGroups = body.manualGroups.filter((g) => typeof g === 'string' && g.trim()).map((g) => g.trim());
-  if (body.mode === 'tabs' || body.mode === 'flow' || body.mode === 'tabs-flow') update.mode = body.mode;
 
   const policy = setGroupingPolicy(update);
   recordAuditEvent({

@@ -59,7 +59,6 @@ export interface OrchestrationState {
 
 export interface WorkspaceGrouping {
   enabled: boolean;
-  mode: 'tabs' | 'flow' | 'tabs-flow';
   groups?: Array<{
     id: string;
     name: string;

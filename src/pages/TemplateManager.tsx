@@ -219,7 +219,7 @@ export function TemplateManager() {
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget>(null);
 
   // 全局分组策略
-  const [groupingPolicy, setGroupingPolicy] = useState<GroupingPolicy>({ enabled: true, strategy: 'auto', mode: 'tabs-flow' });
+  const [groupingPolicy, setGroupingPolicy] = useState<GroupingPolicy>({ enabled: true, strategy: 'auto' });
   const [groupingPolicyLoading, setGroupingPolicyLoading] = useState(false);
 
   const refresh = useCallback(async () => {
@@ -228,7 +228,7 @@ export function TemplateManager() {
       const [templateData, widgetData, policyData] = await Promise.all([
         getTemplates(),
         getWidgetCatalog(),
-        getGroupingPolicy().catch(() => ({ policy: { enabled: true, strategy: 'auto' as const, mode: 'tabs-flow' as const } })),
+        getGroupingPolicy().catch(() => ({ policy: { enabled: true, strategy: 'auto' as const } })),
       ]);
       setTemplates(templateData.templates);
       setWidgets(widgetData.widgets);
@@ -1042,14 +1042,9 @@ function GroupingPolicyPanel({
             {policy.enabled ? '已启用' : '已禁用'}
           </span>
           {policy.enabled && (
-            <>
-              <span className="rounded-full border border-primary/15 bg-primary/8 px-2 py-0.5 text-[10px] text-primary">
-                {policy.strategy === 'auto' ? '自动' : '手动'}
-              </span>
-              <span className="rounded-full border border-primary/15 bg-primary/8 px-2 py-0.5 text-[10px] text-primary">
-                {policy.mode === 'tabs' ? '标签页' : policy.mode === 'flow' ? '流式' : '标签+滚动'}
-              </span>
-            </>
+            <span className="rounded-full border border-primary/15 bg-primary/8 px-2 py-0.5 text-[10px] text-primary">
+              {policy.strategy === 'auto' ? '自动' : '手动'}
+            </span>
           )}
         </div>
         {expanded ? <ChevronUp className="h-4 w-4 text-app-text-subtle" /> : <ChevronDown className="h-4 w-4 text-app-text-subtle" />}
@@ -1071,28 +1066,7 @@ function GroupingPolicyPanel({
               <span className="text-[10px] text-app-text-subtle">（组件数 &gt; 4 时生效）</span>
             </label>
 
-            {policy.enabled && (
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-app-text-subtle">分组样式：</span>
-                {(['tabs', 'flow', 'tabs-flow'] as const).map((mode) => (
-                  <button
-                    key={mode}
-                    type="button"
-                    disabled={loading}
-                    onClick={() => onUpdate({ mode })}
-                    className={`rounded-lg border px-2.5 py-1 text-xs transition-colors ${
-                      policy.mode === mode
-                        ? 'border-primary/25 bg-primary/8 text-primary'
-                        : 'border-app-border-subtle bg-app-surface text-app-text-muted hover:text-app-text-secondary'
-                    }`}
-                  >
-                    {mode === 'tabs' && '标签页'}
-                    {mode === 'flow' && '流式分区'}
-                    {mode === 'tabs-flow' && '标签+滚动'}
-                  </button>
-                ))}
-              </div>
-            )}
+
           </div>
 
           {/* 自动 / 手动 策略切换 */}

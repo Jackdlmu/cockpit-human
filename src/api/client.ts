@@ -59,7 +59,7 @@ export function createWorkspace(data: {
   return fetchJson<{ workspace: Workspace }>('/workspaces', { method: 'POST', body: JSON.stringify(data) });
 }
 
-export function updateWorkspace(id: string, data: Partial<{ name: string; description: string; widgets: Workspace['widgets'] }>) {
+export function updateWorkspace(id: string, data: Partial<{ name: string; description: string; widgets: Workspace['widgets']; grouping: Workspace['grouping'] }>) {
   return fetchJson<{ workspace: Workspace }>(`/workspaces/${id}`, { method: 'PUT', body: JSON.stringify(data) });
 }
 

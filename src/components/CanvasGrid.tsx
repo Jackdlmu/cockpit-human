@@ -1,7 +1,7 @@
-import { useMemo } from 'react';
-import { GridLayout, useContainerWidth, verticalCompactor, noCompactor } from 'react-grid-layout';
+import { useMemo, useState, useRef } from 'react';
+import { GridLayout, useContainerWidth, verticalCompactor } from 'react-grid-layout';
 import type { Widget } from '@/types';
-import { X } from 'lucide-react';
+import { X, ArrowRightLeft } from 'lucide-react';
 import { ErrorBoundary, WidgetErrorFallback } from './ErrorBoundary';
 
 interface CanvasGridProps {
@@ -12,6 +12,10 @@ interface CanvasGridProps {
   renderWidget: (widget: Widget) => React.ReactNode;
   /** 是否自动缩放 widgets 填满 12 列（分组模式下建议 false） */
   autoScale?: boolean;
+  /** 跨组拖拽：组件开始被拖拽时 */
+  onWidgetDragStart?: (widgetId: string) => void;
+  /** 跨组拖拽：组件拖拽结束时 */
+  onWidgetDragEnd?: () => void;
 }
 
 export function CanvasGrid({
@@ -21,8 +25,12 @@ export function CanvasGrid({
   onDeleteWidget,
   renderWidget,
   autoScale = true,
+  onWidgetDragStart,
+  onWidgetDragEnd,
 }: CanvasGridProps) {
   const { width, containerRef, mounted } = useContainerWidth({ initialWidth: 1200 });
+  const [draggingWidgetId, setDraggingWidgetId] = useState<string | null>(null);
+  const rafRef = useRef<number | null>(null);
 
   const displayWidgets = useMemo(() => {
     if (isEditing || widgets.length === 0 || !autoScale) return widgets;
@@ -58,15 +66,32 @@ export function CanvasGrid({
 
   const handleLayoutChange = (newLayout: readonly { i: string; x: number; y: number; w: number; h: number }[]) => {
     if (!isEditing) return;
-    const updated = widgets.map((w) => {
-      const l = newLayout.find((item) => item.i === w.id);
-      if (!l) return w;
-      return {
-        ...w,
-        position: { x: l.x, y: l.y, w: l.w, h: l.h },
-      };
+    // 使用 requestAnimationFrame 批量处理拖拽过程中的频繁回调，减少重新渲染
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    rafRef.current = requestAnimationFrame(() => {
+      rafRef.current = null;
+      const updated = widgets.map((w) => {
+        const l = newLayout.find((item) => item.i === w.id);
+        if (!l) return w;
+        return {
+          ...w,
+          position: { x: l.x, y: l.y, w: l.w, h: l.h },
+        };
+      });
+      onLayoutChange(updated);
     });
-    onLayoutChange(updated);
+  };
+
+  const handleDnDStart = (e: React.DragEvent, widgetId: string) => {
+    e.dataTransfer.setData('text/plain', widgetId);
+    e.dataTransfer.effectAllowed = 'move';
+    setDraggingWidgetId(widgetId);
+    onWidgetDragStart?.(widgetId);
+  };
+
+  const handleDnDEnd = () => {
+    setDraggingWidgetId(null);
+    onWidgetDragEnd?.();
   };
 
   return (
@@ -79,13 +104,13 @@ export function CanvasGrid({
           width={width}
           dragConfig={{ enabled: isEditing, bounded: false, handle: '.widget-drag-handle' }}
           resizeConfig={{ enabled: isEditing }}
-          compactor={isEditing ? noCompactor : verticalCompactor}
+          compactor={verticalCompactor}
           onLayoutChange={(newLayout) => handleLayoutChange(newLayout)}
         >
           {displayWidgets.map((widget) => (
             <div
               key={widget.id}
-              className={`relative group ${isEditing ? 'widget-editing' : ''}`}
+              className={`relative group ${isEditing ? 'widget-editing' : ''} ${draggingWidgetId === widget.id ? 'opacity-40' : ''}`}
               data-widget-id={widget.id}
             >
               {/* 编辑模式下的删除按钮 */}
@@ -102,9 +127,22 @@ export function CanvasGrid({
                 </button>
               )}
 
-              {/* 编辑模式下的拖拽手柄指示器 */}
+              {/* 编辑模式：跨组拖拽把手 */}
               {isEditing && (
-                <div className="widget-drag-handle absolute left-3 right-3 top-2 z-10 flex h-5 cursor-move items-center justify-center rounded-md border border-dashed border-primary/25 bg-app-surface/80 opacity-0 shadow-sm backdrop-blur transition-opacity group-hover:opacity-100">
+                <div
+                  draggable
+                  onDragStart={(e) => handleDnDStart(e, widget.id)}
+                  onDragEnd={handleDnDEnd}
+                  className="absolute right-2 top-1 z-20 flex h-5 w-5 cursor-grab items-center justify-center rounded bg-app-surface/90 opacity-0 shadow-sm transition-opacity group-hover:opacity-100 active:cursor-grabbing"
+                  title="按住拖到上方分组标签，移动到其他组"
+                >
+                  <ArrowRightLeft className="h-3 w-3 text-app-text-subtle" />
+                </div>
+              )}
+
+              {/* 编辑模式下的拖拽手柄指示器（RGL 内部位置调整） */}
+              {isEditing && (
+                <div className="widget-drag-handle absolute left-3 right-10 top-2 z-10 flex h-5 cursor-move items-center justify-center rounded-md border border-dashed border-primary/25 bg-app-surface/80 opacity-0 shadow-sm backdrop-blur transition-opacity group-hover:opacity-100">
                   <div className="h-1 w-10 rounded-full bg-primary/35" />
                 </div>
               )}
