@@ -218,7 +218,7 @@ export default function CreateCockpitDialog({
             {mode === 'template' && (
               <div className="border-t border-app-border-subtle bg-app-bg/45 px-5 py-4 lg:min-h-0 lg:border-l lg:border-t-0">
                 {templates && templates.length > 0 ? (
-                  <div className="flex flex-col rounded-[24px] border border-app-border-subtle bg-app-surface-subtle/35 p-4 lg:h-full lg:min-h-0">
+                  <div className="flex flex-col rounded-xl border border-app-border-subtle bg-app-surface-subtle/35 p-4 lg:h-full lg:min-h-0">
                     <div className="flex shrink-0 items-start justify-between gap-3">
                       <div className="min-w-0">
                         <div className="text-base font-semibold text-app-text-secondary">选择模板</div>
@@ -279,7 +279,7 @@ export default function CreateCockpitDialog({
                     </div>
                   </div>
                 ) : (
-                  <div className="flex h-full items-center justify-center rounded-[24px] border border-app-border-subtle bg-app-surface-subtle/35 p-6 text-sm text-app-text-muted">
+                  <div className="flex h-full items-center justify-center rounded-xl border border-app-border-subtle bg-app-surface-subtle/35 p-6 text-sm text-app-text-muted">
                     暂无可用模板
                   </div>
                 )}

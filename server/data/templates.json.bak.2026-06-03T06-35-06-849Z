@@ -1,0 +1,2072 @@
+[
+  {
+    "id": "rd-effectiveness",
+    "name": "CTO研发效能驾驶舱",
+    "domain": "研发",
+    "keywords": [
+      "CTO",
+      "研发",
+      "技术",
+      "DORA",
+      "DevOps",
+      "代码质量",
+      "部署",
+      "研发效能",
+      "engineering",
+      "R&D"
+    ],
+    "icon": "Code2",
+    "color": "#0891b2",
+    "agentIds": [
+      "tech-agent"
+    ],
+    "primaryAgentId": "tech-agent",
+    "description": "{{name}} — 技术创新引擎仪表盘，基于DORA框架衡量研发交付效率、质量、能力与成本",
+    "useDemoDataFallback": true,
+    "widgets": [
+      {
+        "id": "w-deploy-freq",
+        "type": "metric",
+        "title": "部署频率",
+        "position": {
+          "x": 0,
+          "y": 0,
+          "w": 3,
+          "h": 2
+        },
+        "data": {
+          "value": "12次/周",
+          "change": "+3次 环比",
+          "trend": "up"
+        }
+      },
+      {
+        "id": "w-lead-time",
+        "type": "metric",
+        "title": "变更前置时间",
+        "position": {
+          "x": 3,
+          "y": 0,
+          "w": 3,
+          "h": 2
+        },
+        "data": {
+          "value": "4.2小时",
+          "change": "-1.5小时 环比",
+          "trend": "up"
+        }
+      },
+      {
+        "id": "w-failure-rate",
+        "type": "metric",
+        "title": "变更失败率",
+        "position": {
+          "x": 6,
+          "y": 0,
+          "w": 3,
+          "h": 2
+        },
+        "data": {
+          "value": "8.5%",
+          "change": "-2.1pp 环比",
+          "trend": "up"
+        }
+      },
+      {
+        "id": "w-mttr",
+        "type": "metric",
+        "title": "服务恢复时间",
+        "position": {
+          "x": 9,
+          "y": 0,
+          "w": 3,
+          "h": 2
+        },
+        "data": {
+          "value": "36分钟",
+          "change": "-18分钟 环比",
+          "trend": "up"
+        }
+      },
+      {
+        "id": "w-dora-grade",
+        "type": "status",
+        "title": "DORA等级评估",
+        "position": {
+          "x": 0,
+          "y": 2,
+          "w": 4,
+          "h": 2
+        },
+        "data": {
+          "items": [
+            {
+              "label": "部署频率",
+              "status": "green",
+              "value": "高效能 >1次/天"
+            },
+            {
+              "label": "前置时间",
+              "status": "green",
+              "value": "高效能 <1天"
+            },
+            {
+              "label": "失败率",
+              "status": "yellow",
+              "value": "中等 8.5%"
+            },
+            {
+              "label": "恢复时间",
+              "status": "green",
+              "value": "高效能 <1小时"
+            }
+          ]
+        }
+      },
+      {
+        "id": "w-deploy-trend",
+        "type": "chart",
+        "title": "部署趋势（近4周）",
+        "position": {
+          "x": 4,
+          "y": 2,
+          "w": 4,
+          "h": 3
+        },
+        "data": {
+          "labels": [
+            "W1",
+            "W2",
+            "W3",
+            "W4"
+          ],
+          "values": [
+            8,
+            10,
+            11,
+            12
+          ]
+        }
+      },
+      {
+        "id": "w-defect-trend",
+        "type": "chart",
+        "title": "缺陷趋势",
+        "position": {
+          "x": 8,
+          "y": 2,
+          "w": 4,
+          "h": 3
+        },
+        "data": {
+          "labels": [
+            "W1",
+            "W2",
+            "W3",
+            "W4"
+          ],
+          "values": [
+            45,
+            38,
+            32,
+            28
+          ]
+        }
+      },
+      {
+        "id": "w-code-quality",
+        "type": "table",
+        "title": "代码质量评分",
+        "position": {
+          "x": 0,
+          "y": 4,
+          "w": 6,
+          "h": 3
+        },
+        "data": {
+          "rows": [
+            [
+              "核心服务",
+              "A",
+              "覆盖率 85%",
+              "债务 12h"
+            ],
+            [
+              "支付网关",
+              "A",
+              "覆盖率 78%",
+              "债务 8h"
+            ],
+            [
+              "用户中心",
+              "B+",
+              "覆盖率 65%",
+              "债务 24h"
+            ],
+            [
+              "数据分析",
+              "B",
+              "覆盖率 52%",
+              "债务 36h"
+            ],
+            [
+              "消息推送",
+              "A-",
+              "覆盖率 72%",
+              "债务 15h"
+            ]
+          ]
+        }
+      },
+      {
+        "id": "w-sla",
+        "type": "metric",
+        "title": "系统可用性(SLA)",
+        "position": {
+          "x": 6,
+          "y": 5,
+          "w": 3,
+          "h": 2
+        },
+        "data": {
+          "value": "99.95%",
+          "change": "本月宕机 12分钟",
+          "trend": "up"
+        }
+      },
+      {
+        "id": "w-auto-coverage",
+        "type": "progress",
+        "title": "自动化测试覆盖率",
+        "position": {
+          "x": 9,
+          "y": 5,
+          "w": 3,
+          "h": 2
+        },
+        "data": {
+          "value": 72,
+          "max": 100,
+          "label": "72%",
+          "color": "emerald",
+          "caption": "目标 80%"
+        }
+      },
+      {
+        "id": "w-p0",
+        "type": "metric",
+        "title": "本月P0/P1故障",
+        "position": {
+          "x": 6,
+          "y": 7,
+          "w": 3,
+          "h": 2
+        },
+        "data": {
+          "value": "2起",
+          "change": "-3起 环比",
+          "trend": "up"
+        }
+      },
+      {
+        "id": "w-tech-debt",
+        "type": "list",
+        "title": "技术债务清单",
+        "position": {
+          "x": 9,
+          "y": 7,
+          "w": 3,
+          "h": 2
+        },
+        "data": {
+          "items": [
+            "用户中心：遗留认证模块待重构",
+            "数据分析：查询性能优化（慢查询>3s）",
+            "支付网关：依赖版本升级（安全漏洞）"
+          ]
+        }
+      }
+    ],
+    "initPrompt": "你是一个研发效能专家。请为「CTO研发效能驾驶舱」初始化研发数据：\n1. DORA四指标 — 部署频率、变更前置时间、变更失败率、MTTR\n2. DORA等级评估 — 各维度效能等级\n3. 部署趋势、缺陷趋势（发现/修复/存量）\n4. 代码质量评分 — 各仓库覆盖率、技术债务\n5. 系统可用性(SLA)、P0/P1故障数\n6. 自动化测试覆盖率\n7. 技术债务清单\n请使用软件研发真实合理的模拟数据。",
+    "isBuiltin": false,
+    "_custom": true,
+    "createdAt": "2026-05-27T04:38:39.794Z"
+  },
+  {
+    "id": "human-capital",
+    "name": "HRD人力资本驾驶舱",
+    "domain": "人力资源",
+    "keywords": [
+      "HRD",
+      "人力",
+      "HR",
+      "人才",
+      "招聘",
+      "流失",
+      "绩效",
+      "组织",
+      "human capital",
+      "talent"
+    ],
+    "icon": "Users",
+    "color": "#be185d",
+    "agentIds": [
+      "hr-agent"
+    ],
+    "primaryAgentId": "hr-agent",
+    "description": "{{name}} — 组织健康度仪表盘，覆盖人才获取、保留、成本、效能、发展与组织健康",
+    "useDemoDataFallback": true,
+    "widgets": [
+      {
+        "id": "w-turnover",
+        "type": "metric",
+        "title": "关键人才流失率",
+        "position": {
+          "x": 0,
+          "y": 0,
+          "w": 3,
+          "h": 2
+        },
+        "data": {
+          "value": "5.2%",
+          "change": "-1.3pp 同比",
+          "trend": "up"
+        }
+      },
+      {
+        "id": "w-output",
+        "type": "metric",
+        "title": "人均产出",
+        "position": {
+          "x": 3,
+          "y": 0,
+          "w": 3,
+          "h": 2
+        },
+        "data": {
+          "value": "¥52.6万",
+          "change": "+5.3% 同比",
+          "trend": "up"
+        }
+      },
+      {
+        "id": "w-hire-rate",
+        "type": "metric",
+        "title": "招聘达成率",
+        "position": {
+          "x": 6,
+          "y": 0,
+          "w": 3,
+          "h": 2
+        },
+        "data": {
+          "value": "78%",
+          "change": "Q2目标 85%",
+          "trend": "down"
+        }
+      },
+      {
+        "id": "w-hr-cost",
+        "type": "metric",
+        "title": "人力成本占比",
+        "position": {
+          "x": 9,
+          "y": 0,
+          "w": 3,
+          "h": 2
+        },
+        "data": {
+          "value": "28.4%",
+          "change": "+0.5pp 同比",
+          "trend": "down"
+        }
+      },
+      {
+        "id": "w-nine-box",
+        "type": "table",
+        "title": "人才九宫格",
+        "position": {
+          "x": 0,
+          "y": 2,
+          "w": 6,
+          "h": 4
+        },
+        "data": {
+          "rows": [
+            [
+              "",
+              "高绩效",
+              "中绩效",
+              "低绩效"
+            ],
+            [
+              "高潜力",
+              "★ 李明(技术总监)",
+              "张华(产品经理)",
+              "王芳(运营)"
+            ],
+            [
+              "中潜力",
+              "陈强(架构师)",
+              "—",
+              "—"
+            ],
+            [
+              "低潜力",
+              "赵敏(销售)",
+              "—",
+              "—"
+            ]
+          ]
+        }
+      },
+      {
+        "id": "w-hire-funnel",
+        "type": "kanban",
+        "title": "招聘漏斗",
+        "position": {
+          "x": 6,
+          "y": 2,
+          "w": 6,
+          "h": 3
+        },
+        "data": {
+          "stages": [
+            "简历 1,200",
+            "初筛 360 (30%)",
+            "面试 108 (30%)",
+            "Offer 32 (30%)",
+            "入职 25 (78%)"
+          ]
+        }
+      },
+      {
+        "id": "w-flow",
+        "type": "chart",
+        "title": "人员流转趋势",
+        "position": {
+          "x": 6,
+          "y": 5,
+          "w": 6,
+          "h": 3
+        },
+        "data": {
+          "labels": [
+            "1月",
+            "2月",
+            "3月",
+            "4月",
+            "5月",
+            "6月"
+          ],
+          "values": [
+            12,
+            8,
+            15,
+            10,
+            7,
+            9
+          ]
+        }
+      },
+      {
+        "id": "w-churn-risk",
+        "type": "list",
+        "title": "流失预警（高风险）",
+        "position": {
+          "x": 0,
+          "y": 6,
+          "w": 6,
+          "h": 3
+        },
+        "data": {
+          "items": [
+            "🔴 王伟(高级架构师) — 风险分 87 | 3个月未晋升 | 薪酬低于市场20%",
+            "🟡 刘洋(产品经理) — 风险分 72 | 入职18个月 | 近期加班率↑",
+            "🟡 孙丽(UI设计师) — 风险分 68 | 绩效B | 团队变动"
+          ]
+        }
+      },
+      {
+        "id": "w-training",
+        "type": "progress",
+        "title": "培训覆盖率",
+        "position": {
+          "x": 0,
+          "y": 9,
+          "w": 3,
+          "h": 2
+        },
+        "data": {
+          "value": 65,
+          "max": 100,
+          "label": "65%",
+          "color": "amber",
+          "caption": "目标 90%"
+        }
+      },
+      {
+        "id": "w-engagement",
+        "type": "metric",
+        "title": "员工敬业度指数",
+        "position": {
+          "x": 3,
+          "y": 9,
+          "w": 3,
+          "h": 2
+        },
+        "data": {
+          "value": "4.2/5",
+          "change": "+0.3 同比",
+          "trend": "up"
+        }
+      },
+      {
+        "id": "w-hcroi",
+        "type": "metric",
+        "title": "人力资本回报率(HCROI)",
+        "position": {
+          "x": 6,
+          "y": 9,
+          "w": 3,
+          "h": 2
+        },
+        "data": {
+          "value": "2.8x",
+          "change": "+0.2 同比",
+          "trend": "up"
+        }
+      },
+      {
+        "id": "w-succession",
+        "type": "progress",
+        "title": "继任覆盖率",
+        "position": {
+          "x": 9,
+          "y": 9,
+          "w": 3,
+          "h": 2
+        },
+        "data": {
+          "value": 45,
+          "max": 100,
+          "label": "45%",
+          "color": "indigo",
+          "caption": "关键岗位 20/45 已储备"
+        }
+      }
+    ],
+    "initPrompt": "你是一个组织发展专家。请为「HRD人力资本驾驶舱」初始化人力数据：\n1. 关键人才流失率、人均产出、招聘达成率、人力成本占比\n2. 人才九宫格 — 绩效×潜力矩阵及关键人才\n3. 招聘漏斗 — 简历→面试→Offer→入职转化率\n4. 人员流转趋势 — 入/转/出数据\n5. 流失预警清单 — 高风险员工及风险因子\n6. 培训覆盖率、员工敬业度、人力资本回报率(HCROI)、继任覆盖率\n请使用真实合理的模拟数据。",
+    "isBuiltin": false,
+    "_custom": true,
+    "createdAt": "2026-05-27T08:17:16.762Z"
+  },
+  {
+    "id": "strategic-overview",
+    "name": "CEO战略总览驾驶舱",
+    "domain": "战略管理",
+    "keywords": [
+      "CEO",
+      "总裁",
+      "战略",
+      "总览",
+      "经营",
+      "高管",
+      "executive",
+      "overview",
+      "strategy"
+    ],
+    "icon": "Target",
+    "color": "#1e3a5f",
+    "agentIds": [
+      "ceo-agent"
+    ],
+    "primaryAgentId": "ceo-agent",
+    "description": "{{name}} — 企业战略健康度一站式总览，覆盖经营、财务、客户、运营、人力、风险六大维度",
+    "useDemoDataFallback": true,
+    "widgets": [
+      {
+        "id": "w-revenue",
+        "type": "metric",
+        "title": "营收达成率",
+        "position": {
+          "x": 0,
+          "y": 0,
+          "w": 3,
+          "h": 2
+        },
+        "data": {
+          "value": "¥8,420万",
+          "change": "+12.3% 同比",
+          "trend": "up"
+        }
+      },
+      {
+        "id": "w-profit",
+        "type": "metric",
+        "title": "净利润率",
+        "position": {
+          "x": 3,
+          "y": 0,
+          "w": 3,
+          "h": 2
+        },
+        "data": {
+          "value": "18.5%",
+          "change": "+1.2pp 同比",
+          "trend": "up"
+        }
+      },
+      {
+        "id": "w-cashflow",
+        "type": "metric",
+        "title": "经营现金流",
+        "position": {
+          "x": 6,
+          "y": 0,
+          "w": 3,
+          "h": 2
+        },
+        "data": {
+          "value": "¥1,260万",
+          "change": "+8.7% 环比",
+          "trend": "up"
+        }
+      },
+      {
+        "id": "w-retention",
+        "type": "metric",
+        "title": "客户留存率",
+        "position": {
+          "x": 9,
+          "y": 0,
+          "w": 3,
+          "h": 2
+        },
+        "data": {
+          "value": "94.2%",
+          "change": "-0.8pp 环比",
+          "trend": "down"
+        }
+      },
+      {
+        "id": "w-strategy-progress",
+        "type": "progress",
+        "title": "年度战略目标进度",
+        "position": {
+          "x": 0,
+          "y": 2,
+          "w": 4,
+          "h": 2
+        },
+        "data": {
+          "value": 68,
+          "max": 100,
+          "label": "68%",
+          "color": "indigo",
+          "caption": "12项关键举措中8项按计划推进"
+        }
+      },
+      {
+        "id": "w-org-health",
+        "type": "status",
+        "title": "组织健康度",
+        "position": {
+          "x": 4,
+          "y": 2,
+          "w": 4,
+          "h": 2
+        },
+        "data": {
+          "items": [
+            {
+              "label": "财务健康",
+              "status": "green",
+              "value": "良好"
+            },
+            {
+              "label": "运营效率",
+              "status": "green",
+              "value": "正常"
+            },
+            {
+              "label": "人才稳定",
+              "status": "yellow",
+              "value": "关注"
+            },
+            {
+              "label": "合规风险",
+              "status": "green",
+              "value": "正常"
+            }
+          ]
+        }
+      },
+      {
+        "id": "w-per-capita",
+        "type": "metric",
+        "title": "人均产出",
+        "position": {
+          "x": 8,
+          "y": 2,
+          "w": 4,
+          "h": 2
+        },
+        "data": {
+          "value": "¥52.6万",
+          "change": "+5.3% 同比",
+          "trend": "up"
+        }
+      },
+      {
+        "id": "w-trend",
+        "type": "chart",
+        "title": "核心指标趋势（近6个月）",
+        "position": {
+          "x": 0,
+          "y": 4,
+          "w": 6,
+          "h": 4
+        },
+        "data": {
+          "labels": [
+            "1月",
+            "2月",
+            "3月",
+            "4月",
+            "5月",
+            "6月"
+          ],
+          "values": [
+            7200,
+            7450,
+            7800,
+            8100,
+            8200,
+            8420
+          ]
+        }
+      },
+      {
+        "id": "w-risk",
+        "type": "kanban",
+        "title": "风险预警面板",
+        "position": {
+          "x": 6,
+          "y": 4,
+          "w": 6,
+          "h": 4
+        },
+        "data": {
+          "stages": [
+            "🔴 现金流安全垫低于30天",
+            "🟡 关键人才流失率接近阈值",
+            "🟡 某核心客户续约延迟",
+            "🟢 所有合规检查通过",
+            "🟢 供应链交付正常"
+          ]
+        }
+      },
+      {
+        "id": "w-nav",
+        "type": "list",
+        "title": "职能驾驶舱导航",
+        "position": {
+          "x": 0,
+          "y": 8,
+          "w": 6,
+          "h": 4
+        },
+        "data": {
+          "items": [
+            "📊 CFO财务决策驾驶舱 — 深入盈利与现金流分析",
+            "⚙️ COO运营效率驾驶舱 — 生产与交付实时监控",
+            "📈 CMO营销营收驾驶舱 — 增长引擎与管道健康",
+            "💻 CTO研发效能驾驶舱 — DORA指标与代码质量",
+            "👥 HRD人力资本驾驶舱 — 人才九宫格与流失预警",
+            "🚚 供应链协同驾驶舱 — 库存与供应商全景"
+          ]
+        },
+        "link": {
+          "type": "workspace",
+          "action": "tab",
+          "targetTemplate": "financial-decision",
+          "title": "下钻到财务驾驶舱"
+        }
+      },
+      {
+        "id": "w-milestone",
+        "type": "timeline",
+        "title": "战略里程碑",
+        "position": {
+          "x": 6,
+          "y": 8,
+          "w": 6,
+          "h": 4
+        },
+        "data": {
+          "steps": [
+            "✓ Q1 完成组织架构调整",
+            "✓ Q1 上线新CRM系统",
+            "→ Q2 拓展华东市场（进行中）",
+            "Q3 完成B轮融资",
+            "Q4 启动海外业务试点"
+          ]
+        }
+      }
+    ],
+    "initPrompt": "你是一个企业战略分析专家。请为「CEO战略总览驾驶舱」初始化最新经营数据，覆盖以下widget：\n1. 营收达成率、净利润率、经营现金流、客户留存率、人均产出 — 填充最新财务和运营指标\n2. 年度战略目标进度 — 更新关键举措完成百分比\n3. 组织健康度 — 评估财务/运营/人才/合规四维度状态\n4. 核心指标趋势 — 提供近6个月营收趋势数据\n5. 风险预警 — 扫描当前异常事件\n6. 战略里程碑 — 更新项目状态\n请使用真实合理的模拟数据，格式保持与模板data字段一致。",
+    "isBuiltin": false,
+    "_custom": true,
+    "createdAt": "2026-05-28T00:49:55.385Z",
+    "updatedAt": "2026-05-28T05:29:19.257Z"
+  },
+  {
+    "id": "custom-mpw2xj7t",
+    "name": "CEO工作台",
+    "domain": "通用",
+    "keywords": [],
+    "icon": "BarChart3",
+    "color": "#ef4444",
+    "agentIds": [],
+    "primaryAgentId": "",
+    "description": "由驾驶舱智能体自动创建的{{name}}",
+    "widgets": [
+      {
+        "id": "w-1780371009929",
+        "type": "metric",
+        "title": "营业收入",
+        "position": {
+          "x": 0,
+          "y": 0,
+          "w": 3,
+          "h": 2
+        },
+        "data": {
+          "value": "—",
+          "change": "+0%",
+          "trend": "flat"
+        }
+      },
+      {
+        "id": "w-1780371072436",
+        "type": "metric",
+        "title": "净利润",
+        "position": {
+          "x": 0,
+          "y": 0,
+          "w": 3,
+          "h": 2
+        },
+        "data": {
+          "value": "—",
+          "change": "+0%",
+          "trend": "flat"
+        }
+      },
+      {
+        "id": "w-1780371088968",
+        "type": "report",
+        "title": "增长机会",
+        "position": {
+          "x": 0,
+          "y": 0,
+          "w": 3,
+          "h": 2
+        },
+        "data": {
+          "value": "—",
+          "change": "+0%",
+          "trend": "flat"
+        }
+      },
+      {
+        "id": "w-1780371141019",
+        "type": "html",
+        "title": "行动建议",
+        "position": {
+          "x": 0,
+          "y": 0,
+          "w": 3,
+          "h": 2
+        },
+        "data": {
+          "value": "—",
+          "change": "+0%",
+          "trend": "flat"
+        }
+      }
+    ],
+    "initPrompt": "你是一个企业战略分析专家。请为「CEO战略总览驾驶舱」初始化最新经营数据，覆盖以下widget：\n1. 营收达成率、净利润率 —  填充最新财务和运营指标\n2. 增长机会 — 根据数据分析情况，告诉我重要的增长机会，渲染成列表形态\n3. 本周行动建议 — 根据分析和增长机会，给我以列表形式告诉我后续的行动建议\n",
+    "useDemoDataFallback": true,
+    "_custom": true,
+    "createdAt": "2026-06-02T03:34:37.942Z"
+  },
+  {
+    "id": "business-components-validation",
+    "name": "业务组件验证驾驶舱",
+    "domain": "业务组件验证",
+    "keywords": [
+      "业务组件",
+      "验证",
+      "消息中心",
+      "日程",
+      "洞察",
+      "business",
+      "validation",
+      "审批",
+      "日历",
+      "智能体"
+    ],
+    "icon": "Wrench",
+    "color": "#6366f1",
+    "agentIds": [],
+    "primaryAgentId": "",
+    "description": "{{name}} — 专门用于验证消息中心、智能日程、洞察中心三个业务组件的数据渲染、接口连通性与交互操作。包含完整的业务契约配置与演示数据。",
+    "useDemoDataFallback": true,
+    "widgets": [
+      {
+        "id": "w-business-messages",
+        "type": "business",
+        "title": "审批与消息中心",
+        "position": {
+          "x": 0,
+          "y": 0,
+          "w": 6,
+          "h": 5
+        },
+        "business": {
+          "category": "business",
+          "businessType": "message-center",
+          "dataContract": "message-center.v1",
+          "actionContract": "message-actions.v1",
+          "connectorPolicy": {
+            "preferred": "yonclaw",
+            "fallback": [
+              "openapi",
+              "local"
+            ]
+          },
+          "permissions": [
+            "approval.read",
+            "approval.action",
+            "message.read"
+          ],
+          "interactionMode": "actionable",
+          "refreshInterval": 30000
+        },
+        "data": {
+          "businessType": "message-center",
+          "messages": [
+            {
+              "id": "msg-1",
+              "type": "approval",
+              "priority": "critical",
+              "status": "pending",
+              "title": "大额采购合同审批",
+              "summary": "供应商年度框架合同金额 1,280 万，超过预算阈值，需要 CFO 审批。",
+              "source": "YonClaw 审批技能",
+              "dueAt": "今天 18:00",
+              "intelligence": {
+                "riskLevel": "high",
+                "recommendation": "建议核对预算占用与供应商历史履约评分后再审批。",
+                "confidence": 88
+              },
+              "actions": [
+                {
+                  "id": "approve",
+                  "label": "同意",
+                  "type": "approve",
+                  "tone": "primary"
+                },
+                {
+                  "id": "reject",
+                  "label": "驳回",
+                  "type": "reject",
+                  "tone": "danger"
+                },
+                {
+                  "id": "transfer",
+                  "label": "转交",
+                  "type": "transfer"
+                }
+              ]
+            },
+            {
+              "id": "msg-2",
+              "type": "alert",
+              "priority": "high",
+              "status": "pending",
+              "title": "现金流预警",
+              "summary": "本周预计回款低于目标 12%，其中华东区偏差最大。",
+              "source": "洞察中心",
+              "actions": [
+                {
+                  "id": "detail",
+                  "label": "查看",
+                  "type": "open"
+                }
+              ]
+            },
+            {
+              "id": "msg-3",
+              "type": "todo",
+              "priority": "medium",
+              "status": "processing",
+              "title": "补充预算调整说明",
+              "summary": "费用结构分析组件提示管理费用偏差，需要补充调整原因。",
+              "source": "驾驶舱智能体",
+              "actions": [
+                {
+                  "id": "comment",
+                  "label": "补充说明",
+                  "type": "comment"
+                }
+              ]
+            }
+          ]
+        },
+        "dataIntent": {
+          "domain": "业务组件验证",
+          "metricKey": "w-business-messages",
+          "sourcePreference": "template-first"
+        }
+      },
+      {
+        "id": "w-business-calendar",
+        "type": "business",
+        "title": "智能日程",
+        "position": {
+          "x": 0,
+          "y": 5,
+          "w": 6,
+          "h": 5
+        },
+        "business": {
+          "category": "business",
+          "businessType": "calendar",
+          "dataContract": "calendar-events.v1",
+          "actionContract": "calendar-actions.v1",
+          "connectorPolicy": {
+            "preferred": "openapi",
+            "fallback": [
+              "yonclaw",
+              "local"
+            ]
+          },
+          "permissions": [
+            "calendar.read",
+            "calendar.write"
+          ],
+          "interactionMode": "actionable",
+          "refreshInterval": 60000
+        },
+        "data": {
+          "businessType": "calendar",
+          "events": [
+            {
+              "id": "cal-1",
+              "title": "经营例会：现金流与回款复盘",
+              "type": "meeting",
+              "start": "今天 09:30",
+              "end": "10:30",
+              "location": "线上会议",
+              "participants": [
+                "CFO",
+                "销售总监",
+                "财务BP"
+              ],
+              "source": "企业日历",
+              "actions": [
+                {
+                  "id": "join",
+                  "label": "加入",
+                  "type": "open"
+                }
+              ]
+            },
+            {
+              "id": "cal-2",
+              "title": "采购合同审批截止",
+              "type": "approval",
+              "start": "今天 14:00",
+              "source": "审批中心",
+              "status": "conflict",
+              "actions": [
+                {
+                  "id": "view",
+                  "label": "查看审批",
+                  "type": "open"
+                }
+              ]
+            },
+            {
+              "id": "cal-3",
+              "title": "华东区逾期风险跟进",
+              "type": "risk",
+              "start": "明天 11:00",
+              "participants": [
+                "区域经理"
+              ],
+              "source": "洞察中心",
+              "actions": [
+                {
+                  "id": "todo",
+                  "label": "创建待办",
+                  "type": "create"
+                }
+              ]
+            }
+          ]
+        },
+        "dataIntent": {
+          "domain": "业务组件验证",
+          "metricKey": "w-business-calendar",
+          "sourcePreference": "template-first"
+        }
+      },
+      {
+        "id": "w-business-insights",
+        "type": "business",
+        "title": "洞察中心",
+        "position": {
+          "x": 6,
+          "y": 0,
+          "w": 6,
+          "h": 10
+        },
+        "business": {
+          "category": "business",
+          "businessType": "insight-hub",
+          "dataContract": "business-insights.v1",
+          "actionContract": "insight-actions.v1",
+          "connectorPolicy": {
+            "preferred": "yonclaw",
+            "fallback": [
+              "openapi",
+              "local"
+            ]
+          },
+          "permissions": [
+            "insight.read",
+            "insight.generate"
+          ],
+          "interactionMode": "agent-assisted",
+          "refreshInterval": 300000
+        },
+        "data": {
+          "businessType": "insight-hub",
+          "insights": [
+            {
+              "id": "insight-1",
+              "title": "华东回款风险需要提前干预",
+              "type": "risk",
+              "severity": "high",
+              "summary": "审批流中有 2 笔大额折扣申请与逾期客户重叠，可能影响本周现金流目标。",
+              "confidence": 86,
+              "evidence": [
+                {
+                  "label": "逾期金额",
+                  "value": "860万"
+                },
+                {
+                  "label": "关联审批",
+                  "value": "2 单"
+                }
+              ],
+              "recommendation": "建议要求区域负责人补充回款承诺，并将审批升级为 CFO 复核。",
+              "actions": [
+                {
+                  "id": "report",
+                  "label": "生成报告",
+                  "type": "create",
+                  "tone": "primary"
+                },
+                {
+                  "id": "schedule",
+                  "label": "加入日程",
+                  "type": "create"
+                }
+              ]
+            },
+            {
+              "id": "insight-2",
+              "title": "费用率改善存在结构性机会",
+              "type": "opportunity",
+              "severity": "medium",
+              "summary": "研发费用率保持稳定，销售费用率环比下降 1.2 个百分点，可进一步复用高效区域打法。",
+              "confidence": 78,
+              "evidence": [
+                {
+                  "label": "销售费用率",
+                  "value": "-1.2pp"
+                },
+                {
+                  "label": "高效区域",
+                  "value": "华南"
+                }
+              ],
+              "actions": [
+                {
+                  "id": "brief",
+                  "label": "形成摘要",
+                  "type": "create"
+                }
+              ]
+            }
+          ]
+        },
+        "dataIntent": {
+          "domain": "业务组件验证",
+          "metricKey": "w-business-insights",
+          "sourcePreference": "template-first"
+        }
+      }
+    ],
+    "initPrompt": "你是一个业务组件验证专家。当前驾驶舱用于验证三个业务组件的渲染与交互能力。请保持模板中的演示数据结构完整，重点验证以下能力：\n1. 消息中心：审批、预警、待办三类消息的列表渲染和动作按钮展示\n2. 智能日程：会议、审批截止、风险提醒三类事件的列表渲染和快捷操作\n3. 洞察中心：风险洞察和机会洞察的卡片渲染、证据链展示和推荐动作\n请确保每个组件的数据字段完整，actions 数组不为空。",
+    "grouping": {
+      "enabled": true,
+      "mode": "tabs-flow",
+      "groups": [
+        {
+          "id": "actionable",
+          "name": "操作型组件",
+          "widgetIds": [
+            "w-business-messages",
+            "w-business-calendar"
+          ]
+        },
+        {
+          "id": "insight",
+          "name": "洞察组件",
+          "widgetIds": [
+            "w-business-insights"
+          ]
+        }
+      ]
+    },
+    "createdAt": "2026-06-03T01:18:52.710Z",
+    "updatedAt": "2026-06-03T01:18:52.710Z"
+  },
+  {
+    "id": "workflow-data-analytics",
+    "name": "数据分析工作流",
+    "domain": "数据分析",
+    "keywords": [
+      "数据分析",
+      "指标",
+      "漏斗",
+      "归因",
+      "北极星",
+      "留存",
+      "转化",
+      "DAU",
+      "MAU",
+      "AARRR",
+      "数据驱动"
+    ],
+    "icon": "BarChart3",
+    "color": "#6366f1",
+    "agentIds": [],
+    "primaryAgentId": "",
+    "description": "{{name}} — 从读取指标定义到生成归因假设的完整数据分析工作流，支持排查清单和 SQL 产出",
+    "useDemoDataFallback": true,
+    "widgets": [
+      {
+        "id": "w-da-workflow",
+        "type": "workflow",
+        "title": "分析工作流",
+        "position": {
+          "x": 0,
+          "y": 0,
+          "w": 6,
+          "h": 5
+        },
+        "data": {
+          "steps": [
+            {
+              "id": "1",
+              "label": "读取指标定义和最近看板",
+              "status": "done"
+            },
+            {
+              "id": "2",
+              "label": "比对渠道、版本和关键漏斗",
+              "status": "done"
+            },
+            {
+              "id": "3",
+              "label": "生成归因假设和验证清单",
+              "status": "running"
+            },
+            {
+              "id": "4",
+              "label": "输出排查 SQL 和数据看板",
+              "status": "pending"
+            }
+          ],
+          "currentStep": 2,
+          "summary": "正在比对渠道和版本数据，预计 1 分钟内完成"
+        },
+        "dataIntent": {
+          "domain": "数据分析",
+          "metricKey": "w-da-workflow",
+          "sourcePreference": "template-first"
+        }
+      },
+      {
+        "id": "w-da-result",
+        "type": "result",
+        "title": "分析结论",
+        "position": {
+          "x": 0,
+          "y": 5,
+          "w": 6,
+          "h": 5
+        },
+        "data": {
+          "items": [
+            {
+              "type": "finding",
+              "content": "下降主要集中在移动端 1.8.2 版本的新用户首日路径，渠道结构变化不是主因。",
+              "evidence": [
+                "移动端 D1 留存 -18%",
+                "渠道结构变化 < 3%"
+              ]
+            },
+            {
+              "type": "finding",
+              "content": "邮箱验证后的首个任务创建步骤掉点最大，建议优先检查模板加载和空状态引导。",
+              "evidence": [
+                "步骤 3 转化率 -22%",
+                "加载时长 +1.2s"
+              ]
+            },
+            {
+              "type": "insight",
+              "content": "需要补一张按国家、版本、设备性能分层的漏斗，避免把局部体验问题误判为获客质量问题。",
+              "confidence": 82
+            }
+          ],
+          "generatedAt": "2026-06-01 14:30"
+        },
+        "dataIntent": {
+          "domain": "数据分析",
+          "metricKey": "w-da-result",
+          "sourcePreference": "template-first"
+        }
+      },
+      {
+        "id": "w-da-actions",
+        "type": "actions",
+        "title": "下一步行动",
+        "position": {
+          "x": 6,
+          "y": 0,
+          "w": 6,
+          "h": 4
+        },
+        "data": {
+          "actions": [
+            {
+              "id": "1",
+              "label": "生成排查 SQL",
+              "status": "queued",
+              "type": "sql"
+            },
+            {
+              "id": "2",
+              "label": "创建 KPI 说明",
+              "status": "queued",
+              "type": "report"
+            },
+            {
+              "id": "3",
+              "label": "输出复盘摘要",
+              "status": "queued",
+              "type": "task"
+            }
+          ]
+        },
+        "dataIntent": {
+          "domain": "数据分析",
+          "metricKey": "w-da-actions",
+          "sourcePreference": "template-first"
+        }
+      },
+      {
+        "id": "w-da-artifact",
+        "type": "artifact",
+        "title": "产出物",
+        "position": {
+          "x": 6,
+          "y": 4,
+          "w": 6,
+          "h": 6
+        },
+        "data": {
+          "artifacts": [
+            {
+              "id": "art-sql",
+              "name": "排查 SQL",
+              "type": "sql",
+              "content": "SELECT\n  date, version, channel,\n  new_users, d1_retention,\n  step3_conversion\nFROM daily_metrics\nWHERE date >= CURRENT_DATE - INTERVAL '14 days'\n  AND version = '1.8.2'\nORDER BY date DESC;",
+              "language": "sql"
+            },
+            {
+              "id": "art-report",
+              "name": "分析摘要",
+              "type": "report",
+              "content": "# 新用户激活率下降分析\n\n## 核心发现\n1. 移动端 1.8.2 版本 D1 留存下降 18%\n2. 步骤 3（任务创建）转化率下降 22%\n3. 渠道结构变化影响 < 3%，排除获客质量问题\n\n## 建议动作\n- 优先检查模板加载性能（当前 +1.2s）\n- 优化空状态引导文案和交互\n- 补充国家 × 版本 × 设备性能分层漏斗",
+              "language": "markdown"
+            }
+          ]
+        },
+        "dataIntent": {
+          "domain": "数据分析",
+          "metricKey": "w-da-artifact",
+          "sourcePreference": "template-first"
+        }
+      },
+      {
+        "id": "w-da-context",
+        "type": "universal",
+        "title": "分析上下文",
+        "position": {
+          "x": 0,
+          "y": 10,
+          "w": 6,
+          "h": 4
+        },
+        "data": {
+          "metrics": [
+            {
+              "label": "数据源",
+              "value": "Product events",
+              "caption": "Activation funnel, signup source"
+            },
+            {
+              "label": "参考看板",
+              "value": "Weekly KPI board",
+              "caption": "Cohort trend and DAU/MAU"
+            }
+          ],
+          "sections": [
+            {
+              "type": "text",
+              "title": "分析偏好",
+              "content": "先看分层，再写结论。优先定位体验问题而非获客问题。"
+            }
+          ]
+        },
+        "dataIntent": {
+          "domain": "数据分析",
+          "metricKey": "w-da-context",
+          "sourcePreference": "template-first"
+        }
+      }
+    ],
+    "initPrompt": "你是一个资深数据分析师。当前驾驶舱用于执行完整的数据分析工作流。请按照以下步骤生成数据：\n1. 读取核心指标（DAU/MAU、留存、转化漏斗）的最近 14 天趋势\n2. 比对不同渠道、版本、设备的数据差异\n3. 识别异常波动并给出归因假设\n4. 生成可执行的排查 SQL 和行动建议\n请确保 workflow 步骤完整，result 中的 findings 有 evidence 支撑，actions 不少于 3 项。",
+    "grouping": {
+      "enabled": true,
+      "mode": "tabs-flow",
+      "groups": [
+        {
+          "id": "main",
+          "name": "分析主线",
+          "widgetIds": [
+            "w-da-workflow",
+            "w-da-result",
+            "w-da-actions",
+            "w-da-artifact"
+          ]
+        },
+        {
+          "id": "context",
+          "name": "上下文",
+          "widgetIds": [
+            "w-da-context"
+          ]
+        }
+      ]
+    },
+    "createdAt": "2026-06-03T03:05:59.028Z",
+    "updatedAt": "2026-06-03T03:05:59.028Z"
+  },
+  {
+    "id": "workflow-sales",
+    "name": "销售工作流",
+    "domain": "销售管理",
+    "keywords": [
+      "销售",
+      "Pipeline",
+      "CRM",
+      "客户跟进",
+      "会议纪要",
+      "赢单",
+      "回款",
+      "商机",
+      "SaaS"
+    ],
+    "icon": "DollarSign",
+    "color": "#f59e0b",
+    "agentIds": [],
+    "primaryAgentId": "",
+    "description": "{{name}} — 从 Pipeline 读取到客户跟进计划生成的完整销售工作流",
+    "useDemoDataFallback": true,
+    "widgets": [
+      {
+        "id": "w-sales-workflow",
+        "type": "workflow",
+        "title": "销售工作流",
+        "position": {
+          "x": 0,
+          "y": 0,
+          "w": 6,
+          "h": 5
+        },
+        "data": {
+          "steps": [
+            {
+              "id": "1",
+              "label": "读取 Pipeline 和近期商机",
+              "status": "done"
+            },
+            {
+              "id": "2",
+              "label": "识别高风险客户和停滞商机",
+              "status": "done"
+            },
+            {
+              "id": "3",
+              "label": "生成跟进计划和话术建议",
+              "status": "running"
+            },
+            {
+              "id": "4",
+              "label": "输出会议纪要 action items",
+              "status": "pending"
+            }
+          ],
+          "currentStep": 2,
+          "summary": "正在分析客户健康度，预计 1 分钟内完成"
+        },
+        "dataIntent": {
+          "domain": "销售管理",
+          "metricKey": "w-sales-workflow",
+          "sourcePreference": "template-first"
+        }
+      },
+      {
+        "id": "w-sales-result",
+        "type": "result",
+        "title": "客户分析结论",
+        "position": {
+          "x": 0,
+          "y": 5,
+          "w": 6,
+          "h": 5
+        },
+        "data": {
+          "items": [
+            {
+              "type": "warning",
+              "content": "华东区 3 个大客户（A Corp、B Tech、C Group）回款进度滞后，最长逾期 45 天。",
+              "evidence": [
+                "A Corp 逾期 45 天",
+                "B Tech 逾期 30 天"
+              ]
+            },
+            {
+              "type": "finding",
+              "content": "Q3 新签客户中，200万以上的大单转化率比 Q2 提升 12%，但平均成交周期延长了 18 天。",
+              "evidence": [
+                "大单转化率 +12%",
+                "成交周期 +18 天"
+              ]
+            },
+            {
+              "type": "insight",
+              "content": "建议将客户成功团队提前介入 150 万以上商机，缩短决策链。",
+              "confidence": 78
+            }
+          ],
+          "generatedAt": "2026-06-01 14:30"
+        },
+        "dataIntent": {
+          "domain": "销售管理",
+          "metricKey": "w-sales-result",
+          "sourcePreference": "template-first"
+        }
+      },
+      {
+        "id": "w-sales-actions",
+        "type": "actions",
+        "title": "跟进计划",
+        "position": {
+          "x": 6,
+          "y": 0,
+          "w": 6,
+          "h": 4
+        },
+        "data": {
+          "actions": [
+            {
+              "id": "1",
+              "label": "安排 A Corp 回款对账会议",
+              "status": "queued",
+              "type": "task"
+            },
+            {
+              "id": "2",
+              "label": "生成 Q3 大客户健康度报告",
+              "status": "queued",
+              "type": "report"
+            },
+            {
+              "id": "3",
+              "label": "更新 CRM 跟进记录",
+              "status": "queued",
+              "type": "task"
+            }
+          ]
+        },
+        "dataIntent": {
+          "domain": "销售管理",
+          "metricKey": "w-sales-actions",
+          "sourcePreference": "template-first"
+        }
+      },
+      {
+        "id": "w-sales-artifact",
+        "type": "artifact",
+        "title": "销售产出物",
+        "position": {
+          "x": 6,
+          "y": 4,
+          "w": 6,
+          "h": 6
+        },
+        "data": {
+          "artifacts": [
+            {
+              "id": "art-pipeline",
+              "name": "Pipeline 分析",
+              "type": "report",
+              "content": "# Q3 Pipeline 健康度\n\n## 关键数字\n- 总商机金额：¥4,280 万\n- 本月预计成交：¥1,860 万\n- 大单（>200万）占比：38%\n\n## 风险提示\n- 华东区 3 个大客户逾期\n- 2 个商机超过 90 天未更新\n\n## 建议\n- 每周跟进逾期客户\n- 提前介入 150 万以上商机",
+              "language": "markdown"
+            }
+          ]
+        },
+        "dataIntent": {
+          "domain": "销售管理",
+          "metricKey": "w-sales-artifact",
+          "sourcePreference": "template-first"
+        }
+      }
+    ],
+    "initPrompt": "你是一个资深销售运营专家。当前驾驶舱用于执行完整的销售分析工作流。请按照以下步骤生成数据：\n1. 读取 CRM Pipeline 和近期商机数据\n2. 识别高风险客户、停滞商机和逾期回款\n3. 分析成交趋势和客户健康度\n4. 生成跟进计划、话术建议和会议纪要\n请确保 workflow 步骤完整，result 中的 findings 有 evidence 支撑，actions 不少于 3 项。",
+    "grouping": {
+      "enabled": true,
+      "mode": "tabs-flow",
+      "groups": [
+        {
+          "id": "main",
+          "name": "销售主线",
+          "widgetIds": [
+            "w-sales-workflow",
+            "w-sales-result",
+            "w-sales-actions",
+            "w-sales-artifact"
+          ]
+        }
+      ]
+    },
+    "createdAt": "2026-06-03T03:05:59.028Z",
+    "updatedAt": "2026-06-03T03:05:59.028Z"
+  },
+  {
+    "id": "workflow-product-design",
+    "name": "产品设计工作流",
+    "domain": "产品设计",
+    "keywords": [
+      "产品设计",
+      "PRD",
+      "用户反馈",
+      "痛点分析",
+      "原型",
+      "UX",
+      "用户研究",
+      "需求分析"
+    ],
+    "icon": "Sparkles",
+    "color": "#ec4899",
+    "agentIds": [],
+    "primaryAgentId": "",
+    "description": "{{name}} — 从用户反馈读取到 PRD 草案生成的完整产品设计工作流",
+    "useDemoDataFallback": true,
+    "widgets": [
+      {
+        "id": "w-pd-workflow",
+        "type": "workflow",
+        "title": "设计工作流",
+        "position": {
+          "x": 0,
+          "y": 0,
+          "w": 6,
+          "h": 5
+        },
+        "data": {
+          "steps": [
+            {
+              "id": "1",
+              "label": "读取用户反馈和 NPS 数据",
+              "status": "done"
+            },
+            {
+              "id": "2",
+              "label": "聚类痛点并优先级排序",
+              "status": "done"
+            },
+            {
+              "id": "3",
+              "label": "生成 PRD 草案和原型建议",
+              "status": "running"
+            },
+            {
+              "id": "4",
+              "label": "输出可用性测试计划",
+              "status": "pending"
+            }
+          ],
+          "currentStep": 2,
+          "summary": "正在聚类用户痛点，预计 2 分钟内完成"
+        },
+        "dataIntent": {
+          "domain": "产品设计",
+          "metricKey": "w-pd-workflow",
+          "sourcePreference": "template-first"
+        }
+      },
+      {
+        "id": "w-pd-result",
+        "type": "result",
+        "title": "设计分析结论",
+        "position": {
+          "x": 0,
+          "y": 5,
+          "w": 6,
+          "h": 5
+        },
+        "data": {
+          "items": [
+            {
+              "type": "finding",
+              "content": "过去 30 天收到 247 条用户反馈，其中 38% 集中在「导出功能不好用」这一痛点。",
+              "evidence": [
+                "反馈总量 247",
+                "导出相关 94 条 (38%)"
+              ]
+            },
+            {
+              "type": "finding",
+              "content": "新用户 onboarding 完成率从 72% 下降到 61%，主要卡点在第 4 步「邀请协作成员」。",
+              "evidence": [
+                "完成率 -11pp",
+                "步骤 4 流失率 28%"
+              ]
+            },
+            {
+              "type": "insight",
+              "content": "建议将导出功能重构为「一键导出 + 自定义模板」模式，并简化邀请流程为链接分享。",
+              "confidence": 85
+            }
+          ],
+          "generatedAt": "2026-06-01 14:30"
+        },
+        "dataIntent": {
+          "domain": "产品设计",
+          "metricKey": "w-pd-result",
+          "sourcePreference": "template-first"
+        }
+      },
+      {
+        "id": "w-pd-actions",
+        "type": "actions",
+        "title": "设计行动",
+        "position": {
+          "x": 6,
+          "y": 0,
+          "w": 6,
+          "h": 4
+        },
+        "data": {
+          "actions": [
+            {
+              "id": "1",
+              "label": "输出 PRD 草案",
+              "status": "queued",
+              "type": "report"
+            },
+            {
+              "id": "2",
+              "label": "生成原型建议",
+              "status": "queued",
+              "type": "task"
+            },
+            {
+              "id": "3",
+              "label": "设计可用性测试脚本",
+              "status": "queued",
+              "type": "task"
+            }
+          ]
+        },
+        "dataIntent": {
+          "domain": "产品设计",
+          "metricKey": "w-pd-actions",
+          "sourcePreference": "template-first"
+        }
+      },
+      {
+        "id": "w-pd-artifact",
+        "type": "artifact",
+        "title": "设计产出物",
+        "position": {
+          "x": 6,
+          "y": 4,
+          "w": 6,
+          "h": 6
+        },
+        "data": {
+          "artifacts": [
+            {
+              "id": "art-prd",
+              "name": "PRD 草案",
+              "type": "report",
+              "content": "# 导出功能重构 PRD\n\n## 背景\n38% 的用户反馈集中在导出功能不好用\n\n## 目标\n- 支持一键导出常见格式（PDF/Excel/PNG）\n- 支持自定义导出模板\n- 导出时间 < 3s\n\n## 方案\n1. 新增「导出中心」入口\n2. 预置 5 种常用模板\n3. 支持用户保存自定义模板\n\n## 验收标准\n- 导出成功率 > 99%\n- 用户满意度 > 4.5/5",
+              "language": "markdown"
+            }
+          ]
+        },
+        "dataIntent": {
+          "domain": "产品设计",
+          "metricKey": "w-pd-artifact",
+          "sourcePreference": "template-first"
+        }
+      }
+    ],
+    "initPrompt": "你是一个资深产品设计师。当前驾驶舱用于执行完整的产品设计工作流。请按照以下步骤生成数据：\n1. 读取用户反馈、NPS 和可用性测试数据\n2. 聚类用户痛点并优先级排序\n3. 分析 onboarding 漏斗和关键路径\n4. 生成 PRD 草案、原型建议和测试计划\n请确保 workflow 步骤完整，result 中的 findings 有 evidence 支撑，actions 不少于 3 项。",
+    "grouping": {
+      "enabled": true,
+      "mode": "tabs-flow",
+      "groups": [
+        {
+          "id": "main",
+          "name": "设计主线",
+          "widgetIds": [
+            "w-pd-workflow",
+            "w-pd-result",
+            "w-pd-actions",
+            "w-pd-artifact"
+          ]
+        }
+      ]
+    },
+    "createdAt": "2026-06-03T03:05:59.028Z",
+    "updatedAt": "2026-06-03T03:05:59.028Z"
+  },
+  {
+    "id": "workflow-financial-markets",
+    "name": "金融市场工作流",
+    "domain": "金融市场",
+    "keywords": [
+      "金融",
+      "股票",
+      "估值",
+      "投资",
+      "风险",
+      "研报",
+      "财报",
+      "行业分析",
+      "宏观经济"
+    ],
+    "icon": "TrendingUp",
+    "color": "#10b981",
+    "agentIds": [],
+    "primaryAgentId": "",
+    "description": "{{name}} — 从行情读取到投资建议生成的完整金融市场分析工作流",
+    "useDemoDataFallback": false,
+    "widgets": [
+      {
+        "id": "w-fm-workflow",
+        "type": "workflow",
+        "title": "市场分析工作流",
+        "position": {
+          "x": 0,
+          "y": 0,
+          "w": 6,
+          "h": 5
+        },
+        "data": {
+          "steps": [
+            {
+              "id": "1",
+              "label": "读取行情和财报数据",
+              "status": "done"
+            },
+            {
+              "id": "2",
+              "label": "分析估值水平和同行对比",
+              "status": "done"
+            },
+            {
+              "id": "3",
+              "label": "评估风险因素和宏观影响",
+              "status": "running"
+            },
+            {
+              "id": "4",
+              "label": "生成投资建议和风险提示",
+              "status": "pending"
+            }
+          ],
+          "currentStep": 2,
+          "summary": "正在评估宏观经济影响，预计 2 分钟内完成"
+        },
+        "dataIntent": {
+          "domain": "金融市场",
+          "metricKey": "w-fm-workflow",
+          "sourcePreference": "template-first"
+        }
+      },
+      {
+        "id": "w-fm-result",
+        "type": "result",
+        "title": "投资分析结论",
+        "position": {
+          "x": 0,
+          "y": 5,
+          "w": 6,
+          "h": 5
+        },
+        "data": {
+          "items": [
+            {
+              "type": "finding",
+              "content": "目标公司当前 P/E 为 28.5x，高于行业均值 22x，但考虑增长率后 PEG 为 1.2，处于合理区间。",
+              "evidence": [
+                "P/E 28.5x",
+                "行业均值 22x",
+                "PEG 1.2"
+              ]
+            },
+            {
+              "type": "warning",
+              "content": "美联储降息预期推迟可能对高估值科技股造成压力，建议控制仓位。",
+              "evidence": [
+                "降息预期推迟",
+                "10Y 美债收益率 4.35%"
+              ]
+            },
+            {
+              "type": "insight",
+              "content": "公司在 AI 基础设施领域的布局领先同行 1-2 年，长期增长潜力值得关注。",
+              "confidence": 75
+            }
+          ],
+          "generatedAt": "2026-06-01 14:30"
+        },
+        "dataIntent": {
+          "domain": "金融市场",
+          "metricKey": "w-fm-result",
+          "sourcePreference": "template-first"
+        }
+      },
+      {
+        "id": "w-fm-actions",
+        "type": "actions",
+        "title": "投资行动",
+        "position": {
+          "x": 6,
+          "y": 0,
+          "w": 6,
+          "h": 4
+        },
+        "data": {
+          "actions": [
+            {
+              "id": "1",
+              "label": "生成估值模型 Excel",
+              "status": "queued",
+              "type": "report"
+            },
+            {
+              "id": "2",
+              "label": "输出风险评估报告",
+              "status": "queued",
+              "type": "report"
+            },
+            {
+              "id": "3",
+              "label": "设置价格预警",
+              "status": "queued",
+              "type": "task"
+            }
+          ]
+        },
+        "dataIntent": {
+          "domain": "金融市场",
+          "metricKey": "w-fm-actions",
+          "sourcePreference": "template-first"
+        }
+      },
+      {
+        "id": "w-fm-artifact",
+        "type": "artifact",
+        "title": "研报产出物",
+        "position": {
+          "x": 6,
+          "y": 4,
+          "w": 6,
+          "h": 6
+        },
+        "data": {
+          "artifacts": [
+            {
+              "id": "art-valuation",
+              "name": "估值分析",
+              "type": "report",
+              "content": "# 目标公司估值分析\n\n## 关键指标\n- 当前股价：$142.50\n- P/E (TTM)：28.5x\n- 行业均值 P/E：22x\n- PEG：1.2\n- EV/EBITDA：18.5x\n\n## 同行对比\n| 公司 | P/E | PEG | 营收增速 |\n|------|-----|-----|---------|\n| 目标 | 28.5| 1.2 | 24% |\n| A公司 | 32.1| 1.5 | 21% |\n| B公司 | 19.8| 0.9 | 18% |\n\n## 结论\n估值合理，增长溢价有支撑。建议逢低建仓。",
+              "language": "markdown"
+            }
+          ]
+        },
+        "dataIntent": {
+          "domain": "金融市场",
+          "metricKey": "w-fm-artifact",
+          "sourcePreference": "template-first"
+        }
+      }
+    ],
+    "initPrompt": "你是一个资深金融分析师。当前驾驶舱用于执行完整的金融市场分析工作流。请按照以下步骤生成数据：\n1. 读取行情、财报和估值数据\n2. 分析估值水平、同行对比和财务健康度\n3. 评估宏观风险因素和行业趋势\n4. 生成投资建议、风险提示和估值模型\n请确保 workflow 步骤完整，result 中的 findings 有 evidence 支撑，actions 不少于 3 项。",
+    "grouping": {
+      "enabled": true,
+      "mode": "tabs-flow",
+      "groups": [
+        {
+          "id": "main",
+          "name": "分析主线",
+          "widgetIds": [
+            "w-fm-workflow",
+            "w-fm-result",
+            "w-fm-actions",
+            "w-fm-artifact"
+          ]
+        }
+      ]
+    },
+    "createdAt": "2026-06-03T03:05:59.028Z",
+    "updatedAt": "2026-06-03T03:29:54.935Z"
+  }
+]

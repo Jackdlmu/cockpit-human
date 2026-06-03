@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
-import type { CockpitTemplate, Widget, WidgetCatalogItem, WidgetType, WidgetLinkConfig, GroupingPolicy } from '@/types';
+import type { CockpitTemplate, Widget, WidgetCatalogItem, WidgetType, WidgetLinkConfig, GroupingPolicy, BusinessWidgetType } from '@/types';
 import WorkspaceIcon from '@/components/WorkspaceIcon';
 import {
   Bot,
@@ -49,11 +49,13 @@ import {
 } from '@/api/client';
 import { toast } from 'sonner';
 import { TemplatePreviewCanvas, WidgetPreviewCard } from '@/components/WidgetPreviewCanvas';
+import { createDefaultBusinessData } from '@/components/business/BusinessWidgetRenderer';
 
 const WIDGET_TYPES: WidgetType[] = [
   'metric', 'chart', 'table', 'kanban', 'timeline', 'list', 'report',
   'universal', 'adaptive', 'progress', 'status', 'html', 'gauge',
   'funnel', 'radar', 'heatmap', 'bullet', 'alert', 'map', 'business',
+  'workflow', 'result', 'actions', 'artifact',
 ];
 
 const WIDGET_TYPE_LABELS: Record<WidgetType, string> = {
@@ -77,7 +79,76 @@ const WIDGET_TYPE_LABELS: Record<WidgetType, string> = {
   alert: '告警列表',
   map: '地图',
   business: '业务组件',
+  workflow: '工作流',
+  result: '分析结果',
+  actions: '行动计划',
+  artifact: '产出物',
 };
+
+const BUSINESS_SUBTYPE_LABELS: Record<BusinessWidgetType, string> = {
+  'message-center': '消息中心',
+  'calendar': '日程日历',
+  'insight-hub': '洞察中心',
+};
+
+const BUSINESS_SUBTYPES: BusinessWidgetType[] = ['message-center', 'calendar', 'insight-hub'];
+
+// 工作流类型默认演示数据
+function createDefaultWorkflowData(): Record<string, unknown> {
+  return {
+    steps: [
+      { id: '1', label: '理解需求并拆解问题', status: 'done' },
+      { id: '2', label: '读取相关数据源', status: 'done' },
+      { id: '3', label: '执行分析与比对', status: 'running' },
+      { id: '4', label: '生成结论与建议', status: 'pending' },
+      { id: '5', label: '输出可执行行动计划', status: 'pending' },
+    ],
+    currentStep: 2,
+    summary: '正在执行分析步骤，预计 2 分钟内完成',
+  };
+}
+
+function createDefaultResultData(): Record<string, unknown> {
+  return {
+    items: [
+      { type: 'finding', content: '核心指标在过去 7 天内有明显波动，需要进一步定位根因。', evidence: ['日环比 -12%', '周同比 +3%'] },
+      { type: 'insight', content: '移动端新用户的首日留存率与 onboarding 流程强相关，建议优化第 3 步引导。', confidence: 86 },
+      { type: 'conclusion', content: '整体业务健康度良好，但需关注华东区域回款进度。' },
+    ],
+    generatedAt: new Date().toLocaleString('zh-CN'),
+  };
+}
+
+function createDefaultActionsData(): Record<string, unknown> {
+  return {
+    actions: [
+      { id: '1', label: '生成排查 SQL', status: 'queued', type: 'sql' },
+      { id: '2', label: '创建数据看板', status: 'queued', type: 'report' },
+      { id: '3', label: '输出复盘摘要', status: 'queued', type: 'task' },
+    ],
+  };
+}
+
+function createDefaultArtifactData(): Record<string, unknown> {
+  return {
+    artifacts: [
+      {
+        id: 'art-1',
+        name: '排查 SQL',
+        type: 'sql',
+        content: "SELECT date, channel, new_users, retention_d1\nFROM daily_metrics\nWHERE date >= CURRENT_DATE - INTERVAL '14 days'\nORDER BY date DESC;",
+        language: 'sql',
+      },
+      {
+        id: 'art-2',
+        name: '分析摘要',
+        type: 'report',
+        content: '# 核心发现\n\n1. 移动端 1.8.2 版本新用户首日路径存在明显掉点\n2. 邮箱验证后首个任务创建步骤转化率下降 18%\n3. 建议优先检查模板加载和空状态引导',
+        language: 'markdown',
+      },
+    ],
+  };
+}
 
 const ICON_OPTIONS = [
   'BarChart3', 'PieChart', 'LineChart', 'Table2', 'Kanban', 'Clock', 'List',
@@ -187,7 +258,7 @@ type DeleteTarget =
   | { kind: 'widget'; id: string; name: string; builtin: boolean }
   | null;
 
-type TemplateFormData = Omit<CockpitTemplate, 'isBuiltin'>;
+type TemplateFormData = Omit<CockpitTemplate, 'isBuiltin'> & { isBuiltin?: boolean };
 
 function cloneForForm<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
@@ -217,6 +288,7 @@ export function TemplateManager() {
   const [creatingCockpit, setCreatingCockpit] = useState(false);
 
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget>(null);
+  const [restoreTarget, setRestoreTarget] = useState<{ kind: 'template' | 'widget' } | null>(null);
 
   // 全局分组策略
   const [groupingPolicy, setGroupingPolicy] = useState<GroupingPolicy>({ enabled: true, strategy: 'auto' });
@@ -338,7 +410,7 @@ export function TemplateManager() {
       if (widgetEditorMode === 'edit' && editingWidget?.id) {
         const res = await updateWidgetCatalogItem(editingWidget.id, data);
         setWidgets((prev) => prev.map((item) => (item.id === editingWidget.id ? res.widget : item)));
-        toast.success('组件已更新');
+        toast.success('组件已保存');
       } else {
         const res = await createWidgetCatalogItem(data);
         setWidgets((prev) => [...prev, res.widget]);
@@ -347,6 +419,40 @@ export function TemplateManager() {
       resetWidgetEditor();
     } catch (err: any) {
       toast.error('组件保存失败', { description: err.message });
+    }
+  };
+
+  const handleRestoreWidgetDefault = async () => {
+    if (!editingWidget?.id) return;
+    if (editingWidget.isBuiltin) {
+      toast.success('已是默认组件');
+      resetWidgetEditor();
+      return;
+    }
+    try {
+      await deleteWidgetCatalogItem(editingWidget.id);
+      toast.success('已恢复为默认组件');
+      resetWidgetEditor();
+      await refresh();
+    } catch (err: any) {
+      toast.error('恢复默认失败', { description: err.message });
+    }
+  };
+
+  const handleRestoreTemplateDefault = async () => {
+    if (!editingTemplate?.id) return;
+    if (editingTemplate.isBuiltin) {
+      toast.success('已是默认模板');
+      resetTemplateEditor();
+      return;
+    }
+    try {
+      await deleteTemplate(editingTemplate.id);
+      toast.success('已恢复为默认模板');
+      resetWidgetEditor();
+      await refresh();
+    } catch (err: any) {
+      toast.error('恢复默认失败', { description: err.message });
     }
   };
 
@@ -385,6 +491,19 @@ export function TemplateManager() {
     }
   };
 
+  const handleRestore = async () => {
+    if (!restoreTarget) return;
+    try {
+      if (restoreTarget.kind === 'widget') {
+        await handleRestoreWidgetDefault();
+      } else {
+        await handleRestoreTemplateDefault();
+      }
+    } finally {
+      setRestoreTarget(null);
+    }
+  };
+
   const handleCreateCockpit = async () => {
     if (!createTarget) return;
     setCreatingCockpit(true);
@@ -418,7 +537,7 @@ export function TemplateManager() {
   if (!adminKey) {
     return (
       <div className="flex h-screen w-screen items-center justify-center bg-app-bg">
-        <div className="w-full max-w-sm rounded-xl border border-app-border-subtle bg-app-surface p-6 shadow-[0_1px_3px_rgba(0,0,0,0.18)]">
+        <div className="w-full max-w-sm rounded-xl border border-app-border-subtle bg-app-surface p-6 shadow-sm">
           <h2 className="mb-1 text-lg font-semibold text-app-text">模板与组件管理</h2>
           <p className="mb-4 text-xs text-app-text-subtle">请输入管理员密钥</p>
           <div className="flex gap-2">
@@ -432,7 +551,7 @@ export function TemplateManager() {
             />
             <button
               onClick={handleLogin}
-              className="rounded-lg bg-red-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-600"
+              className="rounded-lg bg-red-500 px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-red-600"
             >
               进入
             </button>
@@ -466,7 +585,7 @@ export function TemplateManager() {
           </button>
           <button
             onClick={activeTab === 'templates' ? openCreateTemplate : openCreateWidget}
-            className="flex items-center gap-1.5 rounded-lg bg-red-500 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-red-600"
+            className="flex items-center gap-1.5 rounded-lg bg-red-500 px-3 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-red-600"
           >
             <Plus className="h-3.5 w-3.5" />
             {activeTab === 'templates' ? '新建模板' : '新建组件'}
@@ -540,6 +659,7 @@ export function TemplateManager() {
           widgetCatalog={widgets}
           groupingPolicy={groupingPolicy}
           onSave={handleSaveTemplate}
+          onRestoreDefault={templateEditorMode === 'edit' ? () => setRestoreTarget({ kind: 'template' }) : undefined}
           onClose={resetTemplateEditor}
         />
       )}
@@ -550,6 +670,7 @@ export function TemplateManager() {
           item={editingWidget}
           manualGroups={groupingPolicy.manualGroups}
           onSave={handleSaveWidget}
+          onRestoreDefault={widgetEditorMode === 'edit' ? () => setRestoreTarget({ kind: 'widget' }) : undefined}
           onClose={resetWidgetEditor}
         />
       )}
@@ -562,14 +683,7 @@ export function TemplateManager() {
             const target = widgetPreviewTarget;
             setWidgetPreviewTarget(null);
             if (!target) return;
-            if (target.isBuiltin) {
-              openDuplicateWidget(target);
-            } else {
-              openEditWidget(target);
-            }
-          }}
-          onShowDetail={() => {
-            setWidgetPreviewTarget(null);
+            openEditWidget(target);
           }}
         />
       )}
@@ -626,7 +740,7 @@ export function TemplateManager() {
               <button
                 onClick={handleCreateCockpit}
                 disabled={creatingCockpit}
-                className="flex items-center gap-1.5 rounded-lg bg-red-500 px-3 py-1.5 text-xs text-white transition-colors hover:bg-red-600 disabled:opacity-50"
+                className="flex items-center gap-1.5 rounded-lg bg-red-500 px-3 py-1.5 text-xs text-primary-foreground transition-colors hover:bg-red-600 disabled:opacity-50"
               >
                 {creatingCockpit ? <Loader2 className="h-3 w-3 animate-spin" /> : <Rocket className="h-3 w-3" />}
                 创建驾驶舱
@@ -668,6 +782,30 @@ export function TemplateManager() {
             </AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete} className="bg-red-500 text-white hover:bg-red-600">
               确认删除
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!restoreTarget} onOpenChange={(open) => !open && setRestoreTarget(null)}>
+        <AlertDialogContent className="border-app-border-subtle bg-app-surface text-app-text">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-app-text">
+              <AlertTriangle className="h-4 w-4 text-amber-400" />
+              确认恢复默认
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-app-text-subtle">
+              确定要将当前{restoreTarget?.kind === 'widget' ? '组件' : '模板'}恢复为默认状态吗？
+              <br />
+              当前自定义内容将丢失，此操作不可恢复。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="border-app-border-subtle bg-app-surface-subtle text-app-text hover:bg-app-surface-hover">
+              取消
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={handleRestore} className="bg-red-500 text-white hover:bg-red-600">
+              确认恢复
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -812,7 +950,7 @@ function WidgetsSection({
             key={widget.id}
             item={widget}
             onPreview={() => onPreview(widget)}
-            onEdit={() => (widget.isBuiltin ? onDuplicate(widget) : onEdit(widget))}
+            onEdit={() => onEdit(widget)}
             onDuplicate={() => onDuplicate(widget)}
             onDelete={() => onDelete(widget)}
           />
@@ -1348,11 +1486,12 @@ function WidgetCatalogCard({
 }
 
 function buildWidgetPreviewTemplate(item: WidgetCatalogItem) {
+  const pos = item.template.position || { x: 0, y: 0, w: 6, h: 4 };
   return {
     id: item.template.id || item.id,
     type: item.template.type || item.type,
     title: item.template.title || item.name,
-    position: item.template.position || { x: 0, y: 0, w: 6, h: 4 },
+    position: { ...pos, x: 0, y: 0 },
     data: item.template.data || {},
     dataSource: item.template.dataSource,
     dataIntent: item.template.dataIntent,
@@ -1365,16 +1504,14 @@ function WidgetPreviewModal({
   item,
   onClose,
   onEdit,
-  onShowDetail,
 }: {
   item: WidgetCatalogItem;
   onClose: () => void;
   onEdit: () => void;
-  onShowDetail: () => void;
 }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-app-overlay/80 p-4 backdrop-blur-sm">
-      <div className="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-[28px] border border-app-border-subtle bg-app-surface shadow-[0_30px_80px_rgba(15,23,42,0.18)]">
+      <div className="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-[28px] border border-app-border-subtle bg-app-surface shadow-xl">
         <div className="flex items-center justify-between border-b border-app-border-subtle px-6 py-4">
           <div className="flex min-w-0 items-center gap-4">
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-app-border-subtle bg-app-surface-subtle/60" style={{ backgroundColor: `${item.color}14` }}>
@@ -1398,11 +1535,8 @@ function WidgetPreviewModal({
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={onShowDetail} className="rounded-lg border border-app-border-subtle px-3 py-1.5 text-xs text-app-text-muted transition-colors hover:bg-app-surface-subtle hover:text-app-text">
-              查看详情
-            </button>
             <button onClick={onEdit} className="rounded-lg border border-app-border-subtle px-3 py-1.5 text-xs text-app-text-muted transition-colors hover:bg-app-surface-subtle hover:text-app-text">
-              {item.isBuiltin ? '基于此扩展' : '编辑组件'}
+              编辑组件
             </button>
             <button onClick={onClose} className="text-app-text-subtle transition-colors hover:text-app-text-muted"><X className="h-4 w-4" /></button>
           </div>
@@ -1451,7 +1585,7 @@ function TemplatePreviewModal({
 }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-app-overlay/80 p-4 backdrop-blur-sm">
-      <div className="flex max-h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-[28px] border border-app-border-subtle bg-app-surface shadow-[0_30px_80px_rgba(15,23,42,0.18)]">
+      <div className="flex max-h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-[28px] border border-app-border-subtle bg-app-surface shadow-xl">
         <div className="flex items-center justify-between border-b border-app-border-subtle px-6 py-4">
           <div className="flex min-w-0 items-center gap-4">
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-app-border-subtle bg-app-surface-subtle/60" style={{ backgroundColor: `${template.color}14` }}>
@@ -1479,7 +1613,7 @@ function TemplatePreviewModal({
             <button onClick={onEdit} className="rounded-lg border border-app-border-subtle px-3 py-1.5 text-xs text-app-text-muted transition-colors hover:bg-app-surface-subtle hover:text-app-text">
               编辑模板
             </button>
-            <button onClick={onCreateCockpit} className="rounded-lg bg-red-500 px-3 py-1.5 text-xs text-white transition-colors hover:bg-red-600">
+            <button onClick={onCreateCockpit} className="rounded-lg bg-red-500 px-3 py-1.5 text-xs text-primary-foreground transition-colors hover:bg-red-600">
               用此模板创建驾驶舱
             </button>
             <button onClick={onClose} className="text-app-text-subtle transition-colors hover:text-app-text-muted"><X className="h-4 w-4" /></button>
@@ -1538,6 +1672,7 @@ function TemplateEditor({
   widgetCatalog,
   groupingPolicy,
   onSave,
+  onRestoreDefault,
   onClose,
 }: {
   mode: 'create' | 'edit' | 'duplicate';
@@ -1545,6 +1680,7 @@ function TemplateEditor({
   widgetCatalog: WidgetCatalogItem[];
   groupingPolicy: GroupingPolicy;
   onSave: (data: TemplateFormData) => void;
+  onRestoreDefault?: () => void;
   onClose: () => void;
 }) {
   const [data, setData] = useState(() => initTemplateFormData(template));
@@ -1785,6 +1921,7 @@ function TemplateEditor({
                   widgets={data.widgets}
                   rowHeight={54}
                   emptyMessage="当前模板还没有组件，添加后即可看到真实布局预览。"
+                  showGridLines
                 />
               </section>
 
@@ -1852,8 +1989,16 @@ function TemplateEditor({
         </div>
 
         <div className="flex justify-end gap-2 border-t border-app-border-subtle px-5 py-3.5">
+          {mode === 'edit' && onRestoreDefault && (
+            <button
+              onClick={onRestoreDefault}
+              className="mr-auto rounded-lg border border-app-border-subtle px-4 py-2 text-sm text-app-text-muted transition-colors hover:bg-app-surface-subtle hover:text-red-500"
+            >
+              恢复默认
+            </button>
+          )}
           <button onClick={onClose} className="rounded-lg px-4 py-2 text-sm text-app-text-muted transition-colors hover:bg-app-surface-subtle">取消</button>
-          <button onClick={handleSave} className="rounded-lg bg-red-500 px-4 py-2 text-sm text-white transition-colors hover:bg-red-600">
+          <button onClick={handleSave} className="rounded-lg bg-red-500 px-4 py-2 text-sm text-primary-foreground transition-colors hover:bg-red-600">
             {mode === 'edit' ? '保存' : mode === 'duplicate' ? '创建副本' : '创建模板'}
           </button>
         </div>
@@ -1867,12 +2012,14 @@ function WidgetCatalogEditor({
   item,
   manualGroups,
   onSave,
+  onRestoreDefault,
   onClose,
 }: {
   mode: 'create' | 'edit' | 'duplicate';
   item: WidgetCatalogItem | null;
   manualGroups?: string[];
   onSave: (data: WidgetCatalogItem) => void;
+  onRestoreDefault?: () => void;
   onClose: () => void;
 }) {
   const [data, setData] = useState(() => initWidgetCatalogFormData(item));
@@ -1930,7 +2077,11 @@ function WidgetCatalogEditor({
               <Field label="组件类型">
                 <select
                   value={data.type}
-                  onChange={(e) => setData((prev) => ({ ...prev, type: e.target.value as WidgetType }))}
+                  onChange={(e) => {
+                    const nextType = e.target.value as WidgetType;
+                    const isBusiness = ['business', 'workflow', 'result', 'actions', 'artifact'].includes(nextType);
+                    setData((prev) => ({ ...prev, type: nextType, category: isBusiness ? '业务组件' : (prev.category || '通用') }));
+                  }}
                   className="w-full rounded-lg border border-app-border-subtle bg-app-surface-subtle px-3 py-2 text-sm text-app-text focus:border-red-400/50 focus:outline-none"
                 >
                   {WIDGET_TYPES.map((type) => (
@@ -2085,8 +2236,16 @@ function WidgetCatalogEditor({
         </div>
 
         <div className="flex justify-end gap-2 border-t border-app-border-subtle px-5 py-3.5">
+          {mode === 'edit' && onRestoreDefault && (
+            <button
+              onClick={onRestoreDefault}
+              className="mr-auto rounded-lg border border-app-border-subtle px-4 py-2 text-sm text-app-text-muted transition-colors hover:bg-app-surface-subtle hover:text-red-500"
+            >
+              恢复默认
+            </button>
+          )}
           <button onClick={onClose} className="rounded-lg px-4 py-2 text-sm text-app-text-muted transition-colors hover:bg-app-surface-subtle">取消</button>
-          <button onClick={handleSave} className="rounded-lg bg-red-500 px-4 py-2 text-sm text-white transition-colors hover:bg-red-600">
+          <button onClick={handleSave} className="rounded-lg bg-red-500 px-4 py-2 text-sm text-primary-foreground transition-colors hover:bg-red-600">
             {mode === 'edit' ? '保存' : mode === 'duplicate' ? '创建副本' : '创建组件'}
           </button>
         </div>
@@ -2242,6 +2401,71 @@ function AgentInput({
   );
 }
 
+// 迷你位置网格预览 — 帮助理解 12 列布局中各组件的位置关系
+function MiniPositionGrid({
+  widgets,
+  currentWidgetId,
+  maxRows = 6,
+}: {
+  widgets: Array<{ id: string; title?: string; position: { x: number; y: number; w: number; h: number } }>;
+  currentWidgetId: string;
+  maxRows?: number;
+}) {
+  const actualMaxRows = Math.max(
+    maxRows,
+    ...widgets.map((w) => w.position.y + w.position.h),
+  );
+  const rows = Math.min(actualMaxRows, 12);
+  return (
+    <div className="mt-2">
+      <div className="mb-1 flex items-center justify-between">
+        <span className="text-[10px] text-app-text-subtle">布局预览（12 列网格）</span>
+        <span className="text-[9px] text-app-text-muted">每个格子 = 1 列 × 1 行</span>
+      </div>
+      <div
+        className="grid gap-px overflow-hidden rounded border border-app-border-subtle bg-app-border-subtle"
+        style={{
+          gridTemplateColumns: 'repeat(12, 1fr)',
+          gridTemplateRows: `repeat(${rows}, 12px)`,
+        }}
+      >
+        {Array.from({ length: rows * 12 }).map((_, i) => {
+          const col = i % 12;
+          const row = Math.floor(i / 12);
+          const occupant = widgets.find((w) => {
+            const p = w.position;
+            return col >= p.x && col < p.x + p.w && row >= p.y && row < p.y + p.h;
+          });
+          const isCurrent = occupant?.id === currentWidgetId;
+          return (
+            <div
+              key={i}
+              className={`${
+                isCurrent
+                  ? 'bg-red-400/60'
+                  : occupant
+                    ? 'bg-primary/15'
+                    : 'bg-app-surface'
+              }`}
+              style={{ minHeight: '12px' }}
+            />
+          );
+        })}
+      </div>
+      <div className="mt-1 flex gap-3 text-[10px] text-app-text-subtle">
+        <span className="flex items-center gap-1">
+          <span className="inline-block h-2.5 w-2.5 rounded-sm bg-red-400/60" />
+          当前组件
+        </span>
+        <span className="flex items-center gap-1">
+          <span className="inline-block h-2.5 w-2.5 rounded-sm bg-primary/15" />
+          其他组件
+        </span>
+      </div>
+    </div>
+  );
+}
+
 function WidgetEditorItem({
   widget,
   index,
@@ -2282,6 +2506,27 @@ function WidgetEditorItem({
     return '';
   }, [isManual, manualGroups, widget.title]);
 
+  // 位置冲突与溢出检测
+  const positionIssues = useMemo(() => {
+    const issues: string[] = [];
+    const p = widget.position || { x: 0, y: 0, w: 3, h: 2 };
+    if (p.x < 0) issues.push('列起点 (x) 不能为负数');
+    if (p.y < 0) issues.push('行起点 (y) 不能为负数');
+    if (p.w < 1) issues.push('宽度 (w) 至少为 1');
+    if (p.h < 1) issues.push('高度 (h) 至少为 1');
+    if (p.x + p.w > 12) issues.push(`超出 12 列网格：x+w=${p.x + p.w}`);
+    for (const other of allWidgets) {
+      if (other.id === widget.id) continue;
+      const op = other.position || { x: 0, y: 0, w: 3, h: 2 };
+      const overlapX = p.x < op.x + op.w && p.x + p.w > op.x;
+      const overlapY = p.y < op.y + op.h && p.y + p.h > op.y;
+      if (overlapX && overlapY) {
+        issues.push(`与「${other.title || other.id}」位置重叠`);
+      }
+    }
+    return issues;
+  }, [widget.position, widget.id, allWidgets]);
+
   const currentGroup = widget.group?.trim() || '';
 
   return (
@@ -2291,6 +2536,9 @@ function WidgetEditorItem({
           <span className="w-5 text-[10px] text-app-text-subtle">#{index + 1}</span>
           <span className="text-xs font-medium text-app-text">{widget.title}</span>
           <span className="rounded border border-app-border-subtle bg-app-surface px-1.5 py-0.5 text-[10px] text-app-text-subtle">{widget.type}</span>
+          <span className="rounded border border-app-border-subtle bg-app-surface-subtle px-1.5 py-0.5 text-[10px] font-mono text-app-text-muted">
+            {widget.position?.x ?? 0},{widget.position?.y ?? 0} / {widget.position?.w ?? 3}×{widget.position?.h ?? 2}
+          </span>
           {currentGroup && (
             <span className="rounded border border-primary/15 bg-primary/8 px-1.5 py-0.5 text-[10px] text-primary">{currentGroup}</span>
           )}
@@ -2329,7 +2577,18 @@ function WidgetEditorItem({
             <Field label="类型">
               <select
                 value={widget.type}
-                onChange={(e) => onChange({ type: e.target.value as WidgetType })}
+                onChange={(e) => {
+                  const nextType = e.target.value as WidgetType;
+                  const patch: Partial<Widget> = { type: nextType };
+                  if (nextType === 'workflow') patch.data = createDefaultWorkflowData();
+                  else if (nextType === 'result') patch.data = createDefaultResultData();
+                  else if (nextType === 'actions') patch.data = createDefaultActionsData();
+                  else if (nextType === 'artifact') patch.data = createDefaultArtifactData();
+                  if (['business', 'workflow', 'result', 'actions', 'artifact'].includes(nextType)) {
+                    (patch as any).category = '业务组件';
+                  }
+                  onChange(patch);
+                }}
                 className="w-full rounded border border-app-border-subtle bg-app-surface px-2 py-1.5 text-xs text-app-text focus:border-red-400/50 focus:outline-none"
               >
                 {WIDGET_TYPES.map((type) => (
@@ -2337,6 +2596,125 @@ function WidgetEditorItem({
                 ))}
               </select>
             </Field>
+            {widget.type === 'business' && (
+              <>
+                <Field label="业务子类型">
+                  <select
+                    value={widget.business?.businessType || (widget.data as Record<string, unknown> | undefined)?.businessType || 'message-center'}
+                    onChange={(e) => {
+                      const subtype = e.target.value as BusinessWidgetType;
+                      onChange({
+                        business: { ...(widget.business || {}), businessType: subtype },
+                        data: createDefaultBusinessData(subtype),
+                      });
+                    }}
+                    className="w-full rounded border border-app-border-subtle bg-app-surface px-2 py-1.5 text-xs text-app-text focus:border-red-400/50 focus:outline-none"
+                  >
+                    {BUSINESS_SUBTYPES.map((type) => (
+                      <option key={type} value={type}>{BUSINESS_SUBTYPE_LABELS[type]}</option>
+                    ))}
+                  </select>
+                </Field>
+                <div className="col-span-2 space-y-2 rounded border border-app-border-subtle bg-app-surface-subtle/30 p-2">
+                  <div className="text-[10px] font-medium text-app-text-subtle">业务接口与权限配置</div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="mb-0.5 block text-[9px] text-app-text-muted">数据契约 — 读取数据的接口标识</label>
+                      <input
+                        value={(widget.business?.dataContract as string) || ''}
+                        onChange={(e) => onChange({ business: { ...widget.business, dataContract: e.target.value || undefined } })}
+                        placeholder="如 message-center.v1"
+                        className="w-full rounded border border-app-border-subtle bg-app-surface px-2 py-1 text-xs text-app-text placeholder:text-app-text-subtle/50 focus:border-red-400/50 focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-0.5 block text-[9px] text-app-text-muted">动作契约 — 执行业务操作的接口标识</label>
+                      <input
+                        value={(widget.business?.actionContract as string) || ''}
+                        onChange={(e) => onChange({ business: { ...widget.business, actionContract: e.target.value || undefined } })}
+                        placeholder="如 message-actions.v1"
+                        className="w-full rounded border border-app-border-subtle bg-app-surface px-2 py-1 text-xs text-app-text placeholder:text-app-text-subtle/50 focus:border-red-400/50 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="mb-0.5 block text-[9px] text-app-text-muted">交互模式 — 用户能否在组件内直接操作</label>
+                      <select
+                        value={(widget.business?.interactionMode as string) || 'actionable'}
+                        onChange={(e) => onChange({ business: { ...widget.business, interactionMode: e.target.value } })}
+                        className="w-full rounded border border-app-border-subtle bg-app-surface px-2 py-1 text-xs text-app-text focus:border-red-400/50 focus:outline-none"
+                      >
+                        <option value="readonly">只读展示 — 仅查看，不能操作</option>
+                        <option value="actionable">直接操作 — 可执行业务动作（审批、加入会议等）</option>
+                        <option value="agent-assisted">智能体辅助 — 需 AI 分析后人工确认再执行</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="mb-0.5 block text-[9px] text-app-text-muted">刷新间隔 — 多久自动拉取一次最新数据</label>
+                      <div className="flex items-center gap-1">
+                        <input
+                          type="number"
+                          min={5}
+                          value={Math.floor(((widget.business?.refreshInterval as number) || 30000) / 1000)}
+                          onChange={(e) => onChange({ business: { ...widget.business, refreshInterval: Number(e.target.value) * 1000 } })}
+                          className="w-16 rounded border border-app-border-subtle bg-app-surface px-2 py-1 text-center text-xs text-app-text focus:border-red-400/50 focus:outline-none"
+                        />
+                        <span className="text-[10px] text-app-text-muted">秒</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="mb-0.5 block text-[9px] text-app-text-muted">连接器策略 — 优先用哪种方式获取数据，失败时如何降级</label>
+                    <div className="flex gap-2">
+                      <select
+                        value={((widget.business?.connectorPolicy as Record<string, unknown>)?.preferred as string) || 'yonclaw'}
+                        onChange={(e) => {
+                          const fallback = ((widget.business?.connectorPolicy as Record<string, unknown>)?.fallback as string[]) || [];
+                          onChange({ business: { ...widget.business, connectorPolicy: { preferred: e.target.value, fallback } } });
+                        }}
+                        className="flex-1 rounded border border-app-border-subtle bg-app-surface px-2 py-1 text-xs text-app-text focus:border-red-400/50 focus:outline-none"
+                      >
+                        <option value="yonclaw">YonClaw Skill（用友生态技能直连）</option>
+                        <option value="openapi">OpenAPI（HTTP 开放接口）</option>
+                        <option value="cli">CLI（本地命令行工具）</option>
+                        <option value="local">Local（本地数据源 / 文件）</option>
+                      </select>
+                      <input
+                        value={(((widget.business?.connectorPolicy as Record<string, unknown>)?.fallback as string[]) || []).join(', ')}
+                        onChange={(e) => {
+                          const preferred = ((widget.business?.connectorPolicy as Record<string, unknown>)?.preferred as string) || 'yonclaw';
+                          const fallback = e.target.value.split(',').map((s) => s.trim()).filter(Boolean);
+                          onChange({ business: { ...widget.business, connectorPolicy: { preferred, fallback } } });
+                        }}
+                        placeholder="降级：openapi, local"
+                        className="flex-1 rounded border border-app-border-subtle bg-app-surface px-2 py-1 text-xs text-app-text placeholder:text-app-text-subtle/50 focus:border-red-400/50 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="mb-0.5 block text-[9px] text-app-text-muted">所需权限 — 访问该业务数据需要哪些权限</label>
+                    <input
+                      value={((widget.business?.permissions as string[]) || []).join(', ')}
+                      onChange={(e) => {
+                        const permissions = e.target.value.split(',').map((s) => s.trim()).filter(Boolean);
+                        onChange({ business: { ...widget.business, permissions: permissions.length > 0 ? permissions : undefined } });
+                      }}
+                      placeholder="如 approval.read, approval.action, message.read"
+                      className="w-full rounded border border-app-border-subtle bg-app-surface px-2 py-1 text-xs text-app-text placeholder:text-app-text-subtle/50 focus:border-red-400/50 focus:outline-none"
+                    />
+                  </div>
+                  <div className="rounded bg-app-surface-subtle/50 px-2 py-1.5">
+                    <div className="text-[9px] leading-4 text-app-text-muted">
+                      <span className="font-medium text-app-text-subtle">说明：</span>
+                      以上配置会被智能体（LLM / YonClaw）读取，用于自动匹配数据接口和执行器。
+                      创建驾驶舱时，系统会根据「连接器优先级」尝试获取真实业务数据；
+                      若接口不可用，则使用模板中的演示数据作为 fallback。
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
             <Field label={`分组${isManual ? '（手动模式）' : ''}`}>
               <select
                 value={currentGroup}
@@ -2362,19 +2740,40 @@ function WidgetEditorItem({
                 </div>
               )}
             </Field>
-            <div>
-              <label className="mb-1 block text-[10px] text-app-text-subtle">位置 (x,y,w,h)</label>
+            <div className="col-span-2">
+              <label className="mb-1 block text-[10px] text-app-text-subtle">位置 — 12 列网格布局</label>
               <div className="flex gap-1">
-                {(['x', 'y', 'w', 'h'] as const).map((key) => (
-                  <input
-                    key={key}
-                    type="number"
-                    value={widget.position?.[key] ?? 0}
-                    onChange={(e) => onChange({ position: { ...widget.position, [key]: Number(e.target.value) } })}
-                    className="w-12 rounded border border-app-border-subtle bg-app-surface px-1.5 py-1.5 text-center text-xs text-app-text focus:border-red-400/50 focus:outline-none"
-                  />
+                {([
+                  { key: 'x' as const, label: '列起点', min: 0, max: 11, placeholder: '0~11' },
+                  { key: 'y' as const, label: '行起点', min: 0, placeholder: '0+' },
+                  { key: 'w' as const, label: '宽度', min: 1, max: 12, placeholder: '1~12' },
+                  { key: 'h' as const, label: '高度', min: 1, placeholder: '1+' },
+                ]).map(({ key, label, min, max, placeholder }) => (
+                  <div key={key} className="flex-1">
+                    <label className="mb-0.5 block text-center text-[9px] text-app-text-muted">{label}</label>
+                    <input
+                      type="number"
+                      min={min}
+                      max={max}
+                      placeholder={placeholder}
+                      value={widget.position?.[key] ?? 0}
+                      onChange={(e) => onChange({ position: { ...widget.position, [key]: Number(e.target.value) } })}
+                      className="w-full rounded border border-app-border-subtle bg-app-surface px-1 py-1.5 text-center text-xs text-app-text focus:border-red-400/50 focus:outline-none"
+                    />
+                  </div>
                 ))}
               </div>
+              <MiniPositionGrid widgets={allWidgets} currentWidgetId={widget.id} />
+              {positionIssues.length > 0 && (
+                <div className="mt-1.5 space-y-0.5">
+                  {positionIssues.map((issue, i) => (
+                    <div key={i} className="flex items-center gap-1 text-[10px] text-amber-500">
+                      <AlertTriangle className="h-3 w-3" />
+                      <span>{issue}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
@@ -2450,7 +2849,14 @@ function WidgetSnapshotEditor({
         <Field label="类型">
           <select
             value={safeWidget.type}
-            onChange={(e) => onChange({ ...safeWidget, type: e.target.value as WidgetType })}
+            onChange={(e) => {
+              const nextType = e.target.value as WidgetType;
+              const patch = { ...safeWidget, type: nextType };
+              if (['business', 'workflow', 'result', 'actions', 'artifact'].includes(nextType)) {
+                (patch as any).category = '业务组件';
+              }
+              onChange(patch);
+            }}
             className="w-full rounded-lg border border-app-border-subtle bg-app-surface-subtle px-3 py-2 text-sm text-app-text focus:border-red-400/50 focus:outline-none"
           >
             {WIDGET_TYPES.map((type) => (
@@ -2574,16 +2980,17 @@ function initWidgetCatalogFormData(item: WidgetCatalogItem | null): WidgetCatalo
 }
 
 function sanitizeTemplateForForm(template: CockpitTemplate): TemplateFormData {
+  const cloned = cloneForForm(template) as CockpitTemplate & Record<string, unknown>;
   const {
-    isBuiltin: _isBuiltin,
     _custom: _custom,
     createdAt: _createdAt,
     updatedAt: _updatedAt,
     ...rest
-  } = cloneForForm(template) as CockpitTemplate & Record<string, unknown>;
+  } = cloned;
 
   return {
     ...rest,
+    isBuiltin: cloned.isBuiltin as boolean | undefined,
     keywords: Array.isArray(rest.keywords) ? rest.keywords : [],
     agentIds: Array.isArray(rest.agentIds) ? rest.agentIds : [],
     widgets: Array.isArray(rest.widgets) ? rest.widgets : [],
@@ -2737,5 +3144,6 @@ function LinkConfigEditor({
     </div>
   );
 }
+
 
 

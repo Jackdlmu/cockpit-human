@@ -67,7 +67,7 @@ export default function CreationProgressToast({
 
   return (
     <div className="fixed bottom-6 right-6 z-50 w-80">
-      <div className="rounded-2xl border border-app-border/85 bg-[linear-gradient(180deg,rgba(255,255,255,0.97),rgba(248,245,244,0.94))] p-4 shadow-[0_18px_40px_rgba(15,23,42,0.18)]">
+      <div className="rounded-xl border border-app-border/70 bg-app-surface p-4 shadow-md">
         {/* 头部 */}
         <div className="flex items-center gap-2 mb-3">
           {done ? (

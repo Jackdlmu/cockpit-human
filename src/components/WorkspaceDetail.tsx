@@ -19,6 +19,10 @@ import { CanvasGrid } from './CanvasGrid';
 import { GroupedCanvas } from './GroupedCanvas';
 import { WidgetLibraryPanel } from './WidgetLibraryPanel';
 import { BusinessWidgetRenderer } from './business/BusinessWidgetRenderer';
+import { WorkflowWidgetRenderer } from './workflow/WorkflowWidgetRenderer';
+import { ResultWidgetRenderer } from './workflow/ResultWidgetRenderer';
+import { ActionsWidgetRenderer } from './workflow/ActionsWidgetRenderer';
+import { ArtifactWidgetRenderer } from './workflow/ArtifactWidgetRenderer';
 import { inferWidgetType, isTypeMismatched } from '@/lib/widget-type-inferer';
 import { getDefaultWidgetSize, normalizeWidget, normalizeWidgets, compactGridLayout } from '@/lib/widget-normalizer';
 import { buildReportDisplayData } from '@/lib/report-widget';
@@ -30,7 +34,7 @@ import { toast } from 'sonner';
 import {
   Layers, BarChart3, UserPlus, CheckCircle, Monitor, Target,
   ArrowLeft, RefreshCw, Send, Sparkles,
-  ChevronDown, Trash2,
+  ChevronDown, Trash2, Pencil, Save,
   ArrowRight, TrendingUp, TrendingDown, ArrowLeftIcon, Loader2, Check,
   FileText, AlertCircle, ExternalLink,
   DollarSign, Code2, Users, Truck, Plus, LayoutGrid,
@@ -38,7 +42,7 @@ import {
 } from 'lucide-react';
 
 /** Sparkline 微型趋势图组件（SVG 纯实现） */
-function Sparkline({ values, color = '#818cf8', height = 32 }: { values: number[]; color?: string; height?: number }) {
+function Sparkline({ values, color = 'hsl(var(--bi-chart-6))', height = 32 }: { values: number[]; color?: string; height?: number }) {
   if (!values || values.length < 2) return null;
   const min = Math.min(...values);
   const max = Math.max(...values);
@@ -873,30 +877,52 @@ function WorkspaceDetailInner({ workspaceId, agents, workspaces: allWorkspaces, 
                   </button>
                 </>
               )}
-              <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-app-border-subtle bg-app-surface-subtle px-3 py-2">
-                <span className="text-[11px] text-app-text-subtle">编辑模式</span>
-                <Switch checked={isEditing} onCheckedChange={setIsEditing} />
-              </label>
               <button
                 onClick={() => {
-                  refreshWorkspace();
-                  setDetailWidget(null);
-                  setDrillState(null);
+                  if (!isEditing) setIsEditing(true);
                 }}
-                className="inline-flex items-center gap-1 rounded-xl border border-app-border-subtle px-3 py-2 text-xs text-app-text-muted transition-colors hover:bg-app-surface-hover hover:text-app-text-secondary"
+                disabled={isEditing}
+                className={`inline-flex h-8 w-8 items-center justify-center rounded-lg border transition-colors ${
+                  isEditing
+                    ? 'border-primary/30 bg-primary/10 text-primary cursor-default'
+                    : 'border-app-border-subtle bg-app-surface-subtle text-app-text-subtle hover:bg-app-surface-hover hover:text-app-text-secondary'
+                }`}
+                title={isEditing ? '编辑中' : '进入编辑'}
               >
-                <RefreshCw className="h-3.5 w-3.5" />
-                刷新
+                <Pencil className="h-3.5 w-3.5" />
               </button>
-              {onRequestDelete && (
+              {isEditing && (
                 <button
-                  onClick={() => onRequestDelete(workspaceId)}
-                  className="inline-flex items-center gap-1 rounded-xl border border-red-500/15 bg-red-500/8 px-3 py-2 text-xs text-red-500 transition-colors hover:bg-red-500/12"
-                  title="删除驾驶舱"
+                  onClick={() => setIsEditing(false)}
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-primary/30 bg-primary/10 text-primary transition-colors hover:bg-primary/20"
+                  title="保存"
                 >
-                  <Trash2 className="h-3.5 w-3.5" />
-                  删除
+                  <Save className="h-3.5 w-3.5" />
                 </button>
+              )}
+              {!isEditing && (
+                <>
+                  <button
+                    onClick={() => {
+                      refreshWorkspace();
+                      setDetailWidget(null);
+                      setDrillState(null);
+                    }}
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-app-border-subtle text-app-text-subtle transition-colors hover:bg-app-surface-hover hover:text-app-text-secondary"
+                    title="刷新"
+                  >
+                    <RefreshCw className="h-3.5 w-3.5" />
+                  </button>
+                  {onRequestDelete && (
+                    <button
+                      onClick={() => onRequestDelete(workspaceId)}
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-red-500/15 bg-red-500/8 text-red-500 transition-colors hover:bg-red-500/12"
+                      title="删除驾驶舱"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </>
               )}
             </div>
           </div>
@@ -904,7 +930,7 @@ function WorkspaceDetailInner({ workspaceId, agents, workspaces: allWorkspaces, 
       </div>
 
       {activeAgentId && (
-        <div className="mx-6 mt-3 rounded-2xl border border-app-border-subtle bg-app-surface px-4 py-3 shadow-[0_8px_24px_rgba(0,0,0,0.08)] animate-in slide-in-from-top-2">
+        <div className="mx-6 mt-3 rounded-2xl border border-app-border-subtle bg-app-surface px-4 py-3 shadow-[0_8px_24px_hsl(var(--app-overlay)/0.08)] animate-in slide-in-from-top-2">
           {(() => {
             const agent = agents.find((a) => a.id === activeAgentId) || (activeAgentId === 'cockpit-self' ? cockpitAgentVirtual : null);
             if (!agent) return null;
@@ -1443,7 +1469,39 @@ const TYPE_GRADIENTS: Record<string, string> = {
   alert:    'from-red-500/70 via-orange-400/50 to-transparent',
   map:      'from-emerald-500/70 via-teal-400/50 to-transparent',
   sparkline:'from-indigo-500/70 via-blue-400/50 to-transparent',
+  workflow: 'from-violet-500/70 via-purple-400/50 to-transparent',
+  result:   'from-amber-500/70 via-orange-400/50 to-transparent',
+  actions:  'from-emerald-500/70 via-teal-400/50 to-transparent',
+  artifact: 'from-sky-500/70 via-cyan-400/50 to-transparent',
   business: 'from-fuchsia-500/70 via-violet-400/50 to-transparent',
+};
+
+const TYPE_SECTION_LABELS: Record<string, string> = {
+  metric: 'METRIC',
+  chart: 'CHART',
+  table: 'TABLE',
+  list: 'LIST',
+  kanban: 'KANBAN',
+  timeline: 'TIMELINE',
+  report: 'REPORT',
+  html: 'HTML',
+  progress: 'PROGRESS',
+  status: 'STATUS',
+  universal: 'WIDGET',
+  adaptive: 'ADAPTIVE',
+  gauge: 'GAUGE',
+  funnel: 'FUNNEL',
+  radar: 'RADAR',
+  heatmap: 'HEATMAP',
+  bullet: 'BULLET',
+  alert: 'ALERT',
+  map: 'MAP',
+  sparkline: 'SPARKLINE',
+  workflow: 'WORKFLOW',
+  result: 'RESULT',
+  actions: 'ACTIONS',
+  artifact: 'ARTIFACT',
+  business: 'BUSINESS',
 };
 
 export function WidgetRenderer({ workspaceId, widget, useDemoDataFallback, isEditing, onClick, onRename, onDrillDown, filterContext, onRuntimeDataChange, previewMode = false }: { workspaceId: string; widget: Widget; useDemoDataFallback?: boolean; isEditing?: boolean; onClick?: () => void; onRename?: (title: string) => void; onDrillDown?: (context: Record<string, unknown>, dimension: string) => void; filterContext?: Record<string, unknown>; onRuntimeDataChange?: (snapshot: RuntimeWidgetSnapshot | null) => void; previewMode?: boolean }) {
@@ -1513,7 +1571,10 @@ export function WidgetRenderer({ workspaceId, widget, useDemoDataFallback, isEdi
             <h4 className="truncate text-[13px] font-semibold text-app-text-secondary tracking-[0.01em]">{renderWidget.title}</h4>
           )}
         </div>
-        <div className="flex items-center gap-1 shrink-0">
+        <div className="flex items-center gap-1.5 shrink-0">
+          <span className="hidden lg:inline text-[9px] font-semibold text-app-text-subtle/35 uppercase tracking-[0.12em]">
+            {TYPE_SECTION_LABELS[renderWidget.type] || 'DATA'}
+          </span>
           {hasLink && <ExternalLink className="w-3.5 h-3.5 text-app-text-subtle/70 group-hover:text-primary/70 transition-colors" />}
           {hasDetail && <ArrowRight className="w-3.5 h-3.5 text-app-text-subtle/70 group-hover:text-primary/70 transition-colors" />}
         </div>
@@ -1618,31 +1679,31 @@ const DATA_VIZ_PALETTE = [
     badgeClass: 'bg-primary/8 border-primary/15 text-primary',
   },
   {
-    hex: '#0f766e',
+    hex: 'hsl(var(--bi-chart-2))',
     dotClass: 'bg-teal-600',
     gradientClass: 'from-teal-600 to-emerald-400',
     badgeClass: 'bg-teal-500/8 border-teal-500/15 text-teal-600',
   },
   {
-    hex: '#d97706',
+    hex: 'hsl(var(--bi-chart-3))',
     dotClass: 'bg-amber-500',
     gradientClass: 'from-amber-500 to-orange-400',
     badgeClass: 'bg-amber-500/8 border-amber-500/15 text-amber-600',
   },
   {
-    hex: '#4f46e5',
+    hex: 'hsl(var(--bi-chart-6))',
     dotClass: 'bg-indigo-500',
     gradientClass: 'from-indigo-600 to-indigo-400',
     badgeClass: 'bg-indigo-500/8 border-indigo-500/15 text-indigo-600',
   },
   {
-    hex: '#e11d48',
+    hex: 'hsl(var(--bi-chart-4))',
     dotClass: 'bg-rose-500',
     gradientClass: 'from-rose-600 to-rose-400',
     badgeClass: 'bg-rose-500/8 border-rose-500/15 text-rose-600',
   },
   {
-    hex: '#0284c7',
+    hex: 'hsl(var(--bi-chart-5))',
     dotClass: 'bg-sky-500',
     gradientClass: 'from-sky-600 to-cyan-400',
     badgeClass: 'bg-sky-500/8 border-sky-500/15 text-sky-600',
@@ -1886,7 +1947,7 @@ function renderAdaptiveSection(section: WidgetAdaptiveSection, gridSize: { w: nu
   const density = getDensityProfile(gridSize);
 
   return (
-    <div key={`${title}-${sectionIndex}`} className="rounded-2xl border border-app-border-subtle/75 bg-[linear-gradient(180deg,rgba(255,255,255,0.75),rgba(246,243,241,0.72))] p-3.5">
+    <div key={`${title}-${sectionIndex}`} className="rounded-xl border border-app-border-subtle/60 bg-app-surface p-3.5">
       {(section.title || section.description) && (
         <div className="mb-2.5">
           {section.title && <div className="text-[13px] font-semibold text-app-text-secondary">{section.title}</div>}
@@ -2043,6 +2104,22 @@ function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onD
     case 'business': {
       const d = (displayData || {}) as Record<string, unknown>;
       return <BusinessWidgetRenderer widget={widget} data={d} gridSize={gridSize} />;
+    }
+    case 'workflow': {
+      const d = (displayData || {}) as Record<string, unknown>;
+      return <WorkflowWidgetRenderer data={d} />;
+    }
+    case 'result': {
+      const d = (displayData || {}) as Record<string, unknown>;
+      return <ResultWidgetRenderer data={d} />;
+    }
+    case 'actions': {
+      const d = (displayData || {}) as Record<string, unknown>;
+      return <ActionsWidgetRenderer data={d} />;
+    }
+    case 'artifact': {
+      const d = (displayData || {}) as Record<string, unknown>;
+      return <ArtifactWidgetRenderer data={d} />;
     }
     case 'metric': {
       const d = (displayData || {}) as Record<string, unknown>;
@@ -2796,7 +2873,7 @@ function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onD
       return (
         <div className="h-full flex flex-col gap-3">
           {showHeadline && (
-            <div className="rounded-2xl border border-app-border-subtle/70 bg-gradient-to-br from-app-surface-subtle/80 via-widget-bg to-widget-bg px-4 py-3.5">
+            <div className="rounded-xl border border-app-border-subtle/60 bg-app-surface px-4 py-3.5">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
                   {headline.eyebrow && (
@@ -2948,7 +3025,7 @@ function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onD
       const showLabel = gridSize.h > 2;
       return (
         <div
-          className="flex h-full cursor-pointer flex-col items-center justify-center rounded-2xl bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.82),rgba(246,243,241,0.55))] hover:opacity-80 transition-opacity"
+          className="flex h-full cursor-pointer flex-col items-center justify-center rounded-xl bg-app-surface-subtle/40 hover:bg-app-surface-subtle/60 transition-colors"
           onClick={(e) => {
             e.stopPropagation();
             onDrillDown?.({ gauge: widget.title, value, pct: Math.round(pct) }, `${widget.title}: ${value}${unit}`);
@@ -2993,7 +3070,7 @@ function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onD
             return (
               <div key={i} className="flex items-center gap-3">
                 <div className="flex-1 flex items-center">
-                  <div className="flex h-6 items-center justify-center rounded-md text-[11px] font-semibold text-white shadow-sm" style={{ width: `${Math.max(widthPct, 12)}%`, background: `linear-gradient(90deg, ${style.hex}, rgba(255,255,255,0.28))`, minWidth: '36px', transition: 'width 0.6s cubic-bezier(0.4,0,0.2,1)' }}>
+                  <div className="flex h-6 items-center justify-center rounded-md text-[11px] font-semibold text-app-text shadow-sm" style={{ width: `${Math.max(widthPct, 12)}%`, background: `linear-gradient(90deg, ${style.hex}, hsl(var(--app-border) / 0.28))`, minWidth: '36px', transition: 'width 0.6s cubic-bezier(0.4,0,0.2,1)' }}>
                     {stage.value}
                   </div>
                 </div>
@@ -3050,7 +3127,7 @@ function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onD
               return <line key={i} x1={cx} y1={cy} x2={cx + r * Math.cos(angle)} y2={cy + r * Math.sin(angle)} stroke="currentColor" strokeWidth="0.5" className="text-app-border-subtle" />;
             })}
             {/* 数据面 */}
-            <polygon points={points} fill="rgba(193, 18, 31, 0.12)" stroke="hsl(var(--primary))" strokeWidth="1.5" />
+            <polygon points={points} fill="hsl(var(--primary) / 0.12)" stroke="hsl(var(--primary))" strokeWidth="1.5" />
             {/* 数据点 */}
             {values.map((v, i) => {
               const angle = (Math.PI * 2 * i) / n - Math.PI / 2;
@@ -3110,7 +3187,7 @@ function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onD
                   const cell = rawRows.find((r) => (r.x || r.column || r.label) === x && (r.y || r.row || '') === y);
                   const v = cell ? Number(cell.value ?? 0) : 0;
                   return (
-                    <div key={xi} className="m-0.5 flex items-center justify-center rounded-md text-[10px] font-semibold shadow-[inset_0_0_0_1px_rgba(255,255,255,0.28)]" style={{ width: cellW - 4, height: cellH - 4, backgroundColor: cellColor(v), color: (v - minV) / range > 0.46 ? '#fff' : '#334155' }} title={`${x}${y ? ` / ${y}` : ''}: ${v}`}>
+                    <div key={xi} className="m-0.5 flex items-center justify-center rounded-md text-[10px] font-semibold shadow-[inset_0_0_0_1px_hsl(var(--app-border)/0.28)]" style={{ width: cellW - 4, height: cellH - 4, backgroundColor: cellColor(v), color: (v - minV) / range > 0.46 ? 'hsl(var(--app-text))' : 'hsl(var(--app-text-muted))' }} title={`${x}${y ? ` / ${y}` : ''}: ${v}`}>
                       {v}
                     </div>
                   );
@@ -3126,7 +3203,7 @@ function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onD
       const value = Number(d.value ?? 0);
       const target = Number(d.target ?? 0);
       const max = Number(d.max ?? Math.max(value, target) * 1.2);
-      const ranges = (d.ranges || [{ value: max * 0.6, color: '#ef4444' }, { value: max * 0.8, color: '#f59e0b' }, { value: max, color: '#22c55e' }]) as Array<{ value: number; color: string }>;
+      const ranges = (d.ranges || [{ value: max * 0.6, color: 'hsl(var(--destructive))' }, { value: max * 0.8, color: 'hsl(var(--warning))' }, { value: max, color: 'hsl(var(--success))' }]) as Array<{ value: number; color: string }>;
       const pct = max > 0 ? (value / max) * 100 : 0;
       const targetPct = max > 0 ? (target / max) * 100 : 0;
       const label = (d.label || '') as string;

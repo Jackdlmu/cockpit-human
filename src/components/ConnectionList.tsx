@@ -69,14 +69,14 @@ export default function ConnectionList({
 
   return (
     <div className="space-y-4">
-      <div className="rounded-xl bg-white/[0.02] border border-white/[0.06] p-3 space-y-2">
+      <div className="rounded-xl bg-app-surface-subtle/20 border border-app-border-subtle/60 p-3 space-y-2">
         {adminStatus?.localFallbackEnabled ? (
           <div className="text-[11px] leading-5 text-emerald-400">
             本地开发管理已启用，可直接新增、测试和维护连接。上线部署时请在服务端配置 ADMIN_KEY。
           </div>
         ) : (
           <>
-            <div className="text-[11px] text-white/45">
+            <div className="text-[11px] text-app-text-subtle">
               连接配置属于管理员操作。请填写服务端配置的 ADMIN_KEY 后再保存、测试或删除连接。
             </div>
             <div className="flex items-center gap-2">
@@ -103,7 +103,7 @@ export default function ConnectionList({
 
       {/* 统计 */}
       <div className="flex items-center justify-between">
-        <div className="text-xs text-white/30">
+        <div className="text-xs text-app-text-subtle">
           共 {connections.length} 个连接
           {activeConnections.length > 0 && (
             <span className="ml-2 text-emerald-400">· {activeConnections.length} 个活跃</span>
@@ -112,7 +112,7 @@ export default function ConnectionList({
         <Button
           size="sm"
           onClick={() => { setShowForm(true); setEditing(null); }}
-          className="h-8 text-xs bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-400 hover:to-orange-400 text-white border-0"
+          className="h-8 text-xs bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-400 hover:to-orange-400 text-app-text border-0"
         >
           <Plus className="w-3.5 h-3.5 mr-1" />
           添加连接
@@ -121,7 +121,7 @@ export default function ConnectionList({
 
       {/* 表单 */}
       {(showForm || editing) && (
-        <div className="rounded-xl bg-white/[0.02] border border-white/[0.06] p-4">
+        <div className="rounded-xl bg-app-surface-subtle/20 border border-app-border-subtle/60 p-4">
           <ConnectionForm
             connection={editing}
             onSubmit={editing ? handleUpdate : handleCreate}
@@ -134,7 +134,7 @@ export default function ConnectionList({
       {/* 列表 */}
       <div className="space-y-3">
         {connections.length === 0 ? (
-          <div className="text-center py-8 text-white/20 text-sm">
+          <div className="text-center py-8 text-app-text-muted text-sm">
             暂无连接，点击「添加连接」开始配置
           </div>
         ) : (

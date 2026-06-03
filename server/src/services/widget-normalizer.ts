@@ -24,6 +24,11 @@ const SUPPORTED_WIDGET_TYPES = new Set([
   'bullet',
   'alert',
   'map',
+  'business',
+  'workflow',
+  'result',
+  'actions',
+  'artifact',
 ]);
 
 const LEGACY_TOP_LEVEL_DATA_FIELDS = new Set([

@@ -1,6 +1,6 @@
 // ─── Workspace 持久化存储（JSON 文件）───
 // 替代静态 workspacesData，支持运行时增删改
-// 关键设计：内存缓存 + 原子写入 + 自动备份，避免并发竞态导致数据丢失
+// 关键设计：内存缓存 + 原子写入 + 自动备份 + 写入校验 + 多版本备份，避免并发竞态导致数据丢失
 
 import fs from 'fs';
 import path from 'path';
@@ -19,6 +19,8 @@ let DATA_DIR = path.resolve(__dirname, '../../data');
 let STORE_FILE = path.join(DATA_DIR, 'workspaces.json');
 let BAK_FILE = path.join(DATA_DIR, 'workspaces.json.bak');
 
+const MAX_BACKUPS = 5;
+
 /** 测试专用：切换数据目录并清空缓存 */
 export function __setTestDir(testDir: string): void {
   DATA_DIR = testDir;
@@ -33,6 +35,46 @@ let storeCache: { workspaces: WorkspaceData[] } | null = null;
 
 // 写入队列：串行化所有写操作，防止并发竞态导致数据丢失
 let writeQueue: Promise<void> = Promise.resolve();
+
+function getBackupFiles(): string[] {
+  try {
+    return fs.readdirSync(DATA_DIR)
+      .filter((f) => f.startsWith('workspaces.json.bak.'))
+      .map((f) => path.join(DATA_DIR, f))
+      .sort((a, b) => fs.statSync(b).mtime.getTime() - fs.statSync(a).mtime.getTime());
+  } catch {
+    return [];
+  }
+}
+
+function rotateBackups(): void {
+  const backups = getBackupFiles();
+  while (backups.length >= MAX_BACKUPS) {
+    const old = backups.pop();
+    if (old) {
+      try { fs.unlinkSync(old); } catch { /* ignore */ }
+    }
+  }
+}
+
+function createTimestampBackup(): void {
+  if (!fs.existsSync(STORE_FILE)) return;
+  const ts = new Date().toISOString().replace(/[:.]/g, '-');
+  const backupPath = path.join(DATA_DIR, `workspaces.json.bak.${ts}`);
+  try {
+    fs.copyFileSync(STORE_FILE, backupPath);
+    rotateBackups();
+  } catch {
+    // 时间戳备份失败不阻塞主流程
+  }
+}
+
+function validateStoreData(data: unknown): data is { workspaces: WorkspaceData[] } {
+  if (!data || typeof data !== 'object') return false;
+  const record = data as Record<string, unknown>;
+  if (!Array.isArray(record.workspaces)) return false;
+  return true;
+}
 
 // 确保目录和文件存在（首次运行从静态数据初始化）
 function ensureStore(): { workspaces: WorkspaceData[] } {
@@ -49,22 +91,43 @@ function ensureStore(): { workspaces: WorkspaceData[] } {
   }
   const raw = fs.readFileSync(STORE_FILE, 'utf-8');
   try {
-    storeCache = JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+    if (!validateStoreData(parsed)) {
+      throw new Error('数据结构无效：缺少 workspaces 数组');
+    }
+    storeCache = parsed;
     console.log(`[WorkspaceStore] Loaded ${storeCache.workspaces.length} workspaces from ${STORE_FILE}`);
     return storeCache;
   } catch (err) {
-    console.error(`[WorkspaceStore] JSON parse failed, attempting backup recovery. File: ${STORE_FILE}`);
-    // 尝试从备份恢复
+    console.error(`[WorkspaceStore] JSON parse/validation failed, attempting backup recovery. File: ${STORE_FILE}`);
+    // 1. 尝试时间戳备份恢复（最新的优先）
+    const timestampBackups = getBackupFiles();
+    for (const backupPath of timestampBackups) {
+      try {
+        const bakRaw = fs.readFileSync(backupPath, 'utf-8');
+        const bakParsed = JSON.parse(bakRaw);
+        if (!validateStoreData(bakParsed)) continue;
+        storeCache = bakParsed;
+        console.log(`[WorkspaceStore] Recovered ${storeCache.workspaces.length} workspaces from timestamp backup: ${path.basename(backupPath)}`);
+        fs.copyFileSync(backupPath, STORE_FILE);
+        return storeCache;
+      } catch {
+        // 尝试下一个备份
+      }
+    }
+    // 2. 尝试经典备份恢复
     if (fs.existsSync(BAK_FILE)) {
       try {
         const bakRaw = fs.readFileSync(BAK_FILE, 'utf-8');
-        storeCache = JSON.parse(bakRaw);
-        console.log(`[WorkspaceStore] Recovered ${storeCache.workspaces.length} workspaces from backup`);
-        // 将备份恢复为主文件
-        fs.copyFileSync(BAK_FILE, STORE_FILE);
-        return storeCache;
+        const bakParsed = JSON.parse(bakRaw);
+        if (validateStoreData(bakParsed)) {
+          storeCache = bakParsed;
+          console.log(`[WorkspaceStore] Recovered ${storeCache.workspaces.length} workspaces from legacy backup`);
+          fs.copyFileSync(BAK_FILE, STORE_FILE);
+          return storeCache;
+        }
       } catch (bakErr) {
-        console.error(`[WorkspaceStore] Backup recovery also failed:`, bakErr);
+        console.error(`[WorkspaceStore] Legacy backup recovery failed:`, bakErr);
       }
     }
     console.error(`[WorkspaceStore] No valid backup found, returning empty. Data may be lost!`);
@@ -73,22 +136,33 @@ function ensureStore(): { workspaces: WorkspaceData[] } {
   }
 }
 
-// 原子写入：先写临时文件，再重命名，同时创建备份
+// 原子写入：先写临时文件，再重命名，同时创建多版本备份
 // 通过 writeQueue 串行化，防止并发写入覆盖
 function writeStore(data: { workspaces: WorkspaceData[] }): void {
   storeCache = data;
   writeQueue = writeQueue.then(() => {
     const tmpFile = STORE_FILE + '.tmp';
-    // 写入前先备份当前文件
+    // 写入前先备份当前文件（经典备份 + 时间戳版本）
     if (fs.existsSync(STORE_FILE)) {
       try {
         fs.copyFileSync(STORE_FILE, BAK_FILE);
       } catch {
-        // 备份失败不阻塞写入
+        // 经典备份失败不阻塞写入
       }
+      createTimestampBackup();
     }
     fs.writeFileSync(tmpFile, JSON.stringify(data, null, 2), 'utf-8');
+    // 校验：确保临时文件可正确解析
+    try {
+      const verify = JSON.parse(fs.readFileSync(tmpFile, 'utf-8'));
+      if (!validateStoreData(verify)) {
+        throw new Error('写入校验失败：临时文件数据结构无效');
+      }
+    } catch (verifyErr) {
+      throw new Error(`写入校验失败: ${verifyErr instanceof Error ? verifyErr.message : String(verifyErr)}`);
+    }
     fs.renameSync(tmpFile, STORE_FILE);
+    console.log(`[WorkspaceStore] Persisted ${data.workspaces.length} workspaces`);
   }).catch((err) => {
     console.error('[WorkspaceStore] Write failed:', err);
   });

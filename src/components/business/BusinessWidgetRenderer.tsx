@@ -255,8 +255,7 @@ function MessageCenter({ widget, data, gridSize }: BusinessWidgetRendererProps) 
   const pendingApprovals = messages.filter((item) => item.type === 'approval' && item.status === 'pending').length;
   const alerts = messages.filter((item) => item.type === 'alert' || item.priority === 'critical' || item.priority === 'high').length;
   const overdue = messages.filter((item) => item.status === 'expired').length;
-
-  if (messages.length === 0) return <BusinessEmptyState title={widget.title} />;
+  const hasData = messages.length > 0;
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-3">
@@ -266,6 +265,20 @@ function MessageCenter({ widget, data, gridSize }: BusinessWidgetRendererProps) 
         <BusinessStat label="超时" value={overdue} tone="danger" icon={Clock3} />
       </div>
 
+      {!hasData && (
+        <div className="flex flex-1 flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-app-border-subtle bg-app-surface-subtle/30 px-4 py-6 text-center">
+          <FileCheck2 className="h-5 w-5 text-app-text-subtle" />
+          <div className="text-[13px] font-medium text-app-text-secondary">暂无待处理事项</div>
+          <div className="text-[11px] text-app-text-muted">当前没有审批、预警或待办消息</div>
+          {gridSize.h >= 4 && (
+            <div className="mt-1 text-[11px] text-app-text-subtle">
+              系统会定时拉取最新业务数据，有新消息时将自动显示
+            </div>
+          )}
+        </div>
+      )}
+
+      {hasData && (
       <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1 sidebar-scroll">
         {visible.map((message) => {
           const cfg = priorityClasses(message.priority);
@@ -297,6 +310,7 @@ function MessageCenter({ widget, data, gridSize }: BusinessWidgetRendererProps) 
           );
         })}
       </div>
+      )}
     </div>
   );
 }
@@ -325,12 +339,11 @@ function CalendarWidget({ widget, data, gridSize }: BusinessWidgetRendererProps)
   const visible = events.slice(0, gridSize.h <= 3 ? 4 : 7);
   const todayCount = events.filter((event) => event.start.includes('今天') || event.start.includes('09:') || event.start.includes('14:')).length;
   const conflicts = events.filter((event) => event.status === 'conflict').length;
-
-  if (events.length === 0) return <BusinessEmptyState title={widget.title} />;
+  const hasData = events.length > 0;
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-3">
-      <div className="flex items-center justify-between rounded-lg border border-app-border-subtle bg-[linear-gradient(135deg,hsl(var(--app-surface-subtle)),hsl(var(--widget-bg)))] px-3 py-2.5">
+      <div className="flex items-center justify-between rounded-lg border border-app-border-subtle bg-app-surface-subtle/50 px-3 py-2.5">
         <div>
           <div className="text-[11px] uppercase tracking-[0.14em] text-app-text-muted">今日日程</div>
           <div className="mt-0.5 text-xl font-semibold text-app-text">{todayCount || events.length}</div>
@@ -343,6 +356,20 @@ function CalendarWidget({ widget, data, gridSize }: BusinessWidgetRendererProps)
         </div>
       </div>
 
+      {!hasData && (
+        <div className="flex flex-1 flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-app-border-subtle bg-app-surface-subtle/30 px-4 py-6 text-center">
+          <Clock3 className="h-5 w-5 text-app-text-subtle" />
+          <div className="text-[13px] font-medium text-app-text-secondary">暂无日程安排</div>
+          <div className="text-[11px] text-app-text-muted">当前没有会议、审批截止或风险提醒</div>
+          {gridSize.h >= 4 && (
+            <div className="mt-1 text-[11px] text-app-text-subtle">
+              点击右上角 + 可手动添加日程，或等待系统自动同步企业日历
+            </div>
+          )}
+        </div>
+      )}
+
+      {hasData && (
       <div className="min-h-0 flex-1 overflow-y-auto pr-1 sidebar-scroll">
         <div className="relative space-y-2 pl-5 before:absolute before:left-1.5 before:top-2 before:h-[calc(100%-16px)] before:w-px before:bg-app-border-subtle">
           {visible.map((event) => {
@@ -379,6 +406,7 @@ function CalendarWidget({ widget, data, gridSize }: BusinessWidgetRendererProps)
           })}
         </div>
       </div>
+      )}
     </div>
   );
 }

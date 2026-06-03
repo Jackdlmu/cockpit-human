@@ -106,6 +106,22 @@ function publishInitProgress(
   });
 }
 
+function isEmptyWidgetData(data: Record<string, unknown>, type: string): boolean {
+  if (!data || typeof data !== 'object') return true;
+  const keys = Object.keys(data).filter((k) => !k.startsWith('_') && k !== 'businessType');
+  if (keys.length === 0) return true;
+
+  // business 类型：核心数组为空则视为空数据
+  if (type === 'business') {
+    const bt = data.businessType;
+    const keyField = bt === 'calendar' ? 'events' : bt === 'insight-hub' ? 'insights' : 'messages';
+    const arr = data[keyField];
+    if (Array.isArray(arr) && arr.length === 0) return true;
+  }
+
+  return false;
+}
+
 async function mergeWidgetData(
   workspaceId: string,
   updates: Map<string, Record<string, unknown>>
@@ -117,6 +133,13 @@ async function mergeWidgetData(
   const updatedWidgets = currentWs.widgets.map((widget: any) => {
     const nextData = updates.get(widget.id);
     if (!nextData) return widget;
+
+    // 空数据保护：若 LLM 返回了空结构，保留原始演示数据
+    if (isEmptyWidgetData(nextData, widget.type)) {
+      console.log(`[WorkspaceInit] Skipping empty data for widget "${widget.title}" (${widget.id}), preserving original demo data`);
+      return widget;
+    }
+
     const nextType = isTypeMismatched(widget.type, nextData)
       ? inferWidgetType(nextData)
       : widget.type;
@@ -328,7 +351,7 @@ async function initializeBatchWithLLM(
 - 金额、收入、利润等数值字段必须使用纯数字+单位格式（如 "850亿元"），禁止使用 ~ 前缀（~ 会被误解为负号）
 - 含正负值、差额、盈亏、预算偏差的数据必须使用 bar 图表，并在 data.styleConfig 中配置 baseline="zero"、mode="diverging"
 - 只有全为非负值且 2-5 个分类占比时才使用 donut
-- 不要把 chartType/styleConfig/value/change/trend 等配置字段作为报告正文或详情展示字段
+- 不要把 chartType/styleConfig/value/change/trend 等配置字段作为报告正文或详情展示字段`;
 
   const userPrompt = `驾驶舱名称: ${workspaceName}
 模板来源: ${templateName}
@@ -363,6 +386,14 @@ ${widgetDesc}
 - bullet: { value: number, target: number, max: number, label: string }
 - alert: { alerts: [{ level: "warning"|"critical"|"info"|"success", message: string, time: string }] }
 - map: { points: [{ name: string, value: number }] }
+- business: 根据 businessType 决定数据结构，必须保留原始数据中的业务对象
+  - message-center: { businessType: 'message-center', messages: [{ id, type: 'approval'|'alert'|'todo', priority: 'critical'|'high'|'medium'|'low', status: 'pending'|'processing'|'done', title, summary, source, dueAt?, intelligence?, actions: [{id,label,type,tone?}] }] }
+  - calendar: { businessType: 'calendar', events: [{ id, type: 'meeting'|'approval'|'risk'|'deadline'|'reminder'|'milestone', start, end?, location?, participants?: string[], source, status?, actions: [{id,label,type}] }] }
+  - insight-hub: { businessType: 'insight-hub', insights: [{ id, type: 'risk'|'opportunity'|'anomaly'|'recommendation', severity: 'critical'|'high'|'medium'|'low', summary, evidence?: [{label,value}], recommendation?, confidence?: number, actions: [{id,label,type,tone?}] }] }
+- workflow: { steps: [{ id, label, status: 'pending'|'running'|'done'|'error', detail? }], currentStep?: number, summary?: string }
+- result: { items: [{ type: 'finding'|'conclusion'|'warning'|'insight', content, evidence?: string[], confidence?: number }], generatedAt?: string }
+- actions: { actions: [{ id, label, status: 'queued'|'running'|'done', type?: 'sql'|'report'|'script'|'task', output?: string }] }
+- artifact: { artifacts: [{ id, name, type: 'sql'|'code'|'report'|'chart'|'document', content, language?: string }] }
 - universal: 根据组件标题自由发挥
 
 要求:
@@ -852,7 +883,15 @@ export async function runWorkspaceInitializationJob(jobId: string): Promise<void
   if (existing.status === 'succeeded') {
     return;
   }
+  // 防御：任何已耗尽重试次数的 job（无论 pending 还是 running）都应被清理
+  if (existing.attempts >= existing.maxAttempts) {
+    console.warn(`[WorkspaceInit] Job ${jobId} attempts(${existing.attempts}) >= maxAttempts(${existing.maxAttempts}), marking as failed`);
+    await markWorkspaceInitFailed(existing, existing.lastError || '重试次数已耗尽，初始化失败');
+    return;
+  }
+  // 防御：running 且 attempts 超限的僵尸 job（理论上已被上一条处理，但保留双保险）
   if (existing.status === 'running' && existing.attempts >= existing.maxAttempts) {
+    await markWorkspaceInitFailed(existing, existing.lastError || '僵尸任务，强制失败');
     return;
   }
 

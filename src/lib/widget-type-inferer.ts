@@ -10,6 +10,33 @@ export function inferWidgetType(data: Record<string, unknown>): string {
     return 'business';
   }
 
+  // Workflow: steps 数组含 status 字段（在 timeline 之前判断）
+  if (Array.isArray(d.steps) && d.steps.length > 0) {
+    const first = d.steps[0];
+    if (typeof first === 'object' && first !== null && first.status !== undefined) {
+      return 'workflow';
+    }
+  }
+
+  // Result: items 数组含 type 为 finding/conclusion/warning/insight
+  if (Array.isArray(d.items) && d.items.length > 0) {
+    const first = d.items[0];
+    if (typeof first === 'object' && first !== null &&
+      ['finding', 'conclusion', 'warning', 'insight'].includes(first.type)) {
+      return 'result';
+    }
+  }
+
+  // Actions: actions 数组
+  if (Array.isArray(d.actions) && d.actions.length > 0) {
+    return 'actions';
+  }
+
+  // Artifact: artifacts 数组
+  if (Array.isArray(d.artifacts) && d.artifacts.length > 0) {
+    return 'artifact';
+  }
+
   const adaptiveSections = d.sections || d.blocks || d.cards;
   if (Array.isArray(adaptiveSections) && adaptiveSections.length > 0) {
     return 'adaptive';
@@ -159,6 +186,10 @@ export function isTypeMismatched(type: string, data: Record<string, unknown>): b
   if (type === 'bullet' && typeof data.target !== 'number') return true;
   if (type === 'alert' && !Array.isArray(data.alerts) && !Array.isArray(data.events)) return true;
   if (type === 'map' && !Array.isArray(data.points) && !Array.isArray(data.locations)) return true;
+  if (type === 'workflow' && !Array.isArray(data.steps)) return true;
+  if (type === 'result' && !Array.isArray(data.items)) return true;
+  if (type === 'actions' && !Array.isArray(data.actions)) return true;
+  if (type === 'artifact' && !Array.isArray(data.artifacts)) return true;
 
   return false;
 }

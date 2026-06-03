@@ -391,7 +391,7 @@ function HtmlReportContent({ data }: { data: Record<string, unknown> | null }) {
         <iframe
           title={title}
           src={resolvedUrl}
-          className="m-4 h-full w-[calc(100%-2rem)] flex-1 rounded-lg border border-app-border-subtle bg-white"
+          className="m-4 h-full w-[calc(100%-2rem)] flex-1 rounded-lg border border-app-border-subtle bg-app-surface"
           sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
         />
       </div>
@@ -451,7 +451,7 @@ function HtmlReportContent({ data }: { data: Record<string, unknown> | null }) {
     <iframe
       title={title}
       srcDoc={doc}
-      className="m-4 h-[calc(100%-2rem)] w-[calc(100%-2rem)] rounded-lg border border-app-border-subtle bg-white"
+      className="m-4 h-[calc(100%-2rem)] w-[calc(100%-2rem)] rounded-lg border border-app-border-subtle bg-app-surface"
       sandbox="allow-same-origin"
     />
   );

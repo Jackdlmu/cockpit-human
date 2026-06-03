@@ -208,7 +208,11 @@ export type WidgetType =
   | 'bullet'     // 子弹图：紧凑目标进度
   | 'alert'      // 告警列表：带级别的事件日志
   | 'map'        // 地图：地理分布
-  | 'business';  // 业务组件：消息中心、日程、洞察等可交互复合组件
+  | 'business'   // 业务组件：消息中心、日程、洞察等可交互复合组件
+  | 'workflow'   // 工作流：AI 执行步骤与进度展示
+  | 'result'     // 结果：结构化分析结论与发现
+  | 'actions'    // 行动：下一步计划与待办
+  | 'artifact';  // 产出物：SQL/代码/报告等可交付物预览
 
 export type BusinessWidgetType = 'message-center' | 'calendar' | 'insight-hub';
 

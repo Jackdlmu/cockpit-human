@@ -24,6 +24,10 @@ const BASE_SIZE: Record<WidgetType, WidgetSize> = {
   alert: { w: 5, h: 3 },
   map: { w: 6, h: 4 },
   business: { w: 6, h: 4 },
+  workflow: { w: 5, h: 4 },
+  result: { w: 6, h: 4 },
+  actions: { w: 5, h: 4 },
+  artifact: { w: 6, h: 5 },
 };
 
 function asRecord(data: unknown): Record<string, unknown> {

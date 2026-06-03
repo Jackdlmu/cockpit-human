@@ -647,6 +647,132 @@ const BUILTIN_WIDGETS = [
     },
     isBuiltin: true,
   },
+  {
+    id: 'builtin-workflow',
+    name: '工作流进度',
+    type: 'workflow',
+    category: '业务组件',
+    icon: 'GitBranch',
+    color: '#7c3aed',
+    description: '用于展示 AI 执行分析任务的步骤进度、状态流转和实时执行详情。',
+    agentDescription: '当需要展示多步骤任务（如数据分析、报告生成）的执行进度、步骤状态和流转时，优先选择 workflow 组件。',
+    useCases: ['数据分析流程', '报告生成步骤', '审批流转', '任务执行监控'],
+    tags: ['workflow', 'steps', 'progress', 'agent'],
+    schemaHint: {
+      recommendedDataShape: {
+        steps: 'Array<{ id, label, status: pending|running|done|error, detail? }>',
+        currentStep: '可选，number',
+        summary: '可选，string',
+      },
+      layoutAdvice: '适合宽度 4-6、高度 4-5，适合放在分析类驾驶舱顶部或左侧。',
+    },
+    template: {
+      type: 'workflow',
+      title: '工作流进度',
+      position: { x: 0, y: 0, w: 5, h: 4 },
+      data: {
+        steps: [
+          { id: '1', label: '需求解析', status: 'done' },
+          { id: '2', label: '数据获取', status: 'running', detail: '正在连接数据源...' },
+          { id: '3', label: '分析建模', status: 'pending' },
+          { id: '4', label: '结果输出', status: 'pending' },
+        ],
+        currentStep: 1,
+        summary: '正在执行数据获取，预计 2 分钟完成',
+      },
+    },
+    isBuiltin: true,
+  },
+  {
+    id: 'builtin-result',
+    name: '分析结果',
+    type: 'result',
+    category: '业务组件',
+    icon: 'Lightbulb',
+    color: '#d97706',
+    description: '用于展示结构化分析结论、发现、洞察和警告，支持证据链和可信度标注。',
+    agentDescription: '当 AI 分析完成后需要呈现结构化结论（发现、洞察、警告、建议）时，优先选择 result 组件。',
+    useCases: ['经营分析结论', '风险评估结果', '诊断报告', '策略建议'],
+    tags: ['result', 'finding', 'insight', 'conclusion'],
+    schemaHint: {
+      recommendedDataShape: {
+        items: 'Array<{ type: finding|conclusion|warning|insight, content, evidence?: string[], confidence?: number }>',
+        generatedAt: '可选，string',
+      },
+      layoutAdvice: '适合宽度 5-7、高度 4-5，适合放在分析工作流之后。',
+    },
+    template: {
+      type: 'result',
+      title: '分析结果',
+      position: { x: 0, y: 0, w: 6, h: 4 },
+      data: {
+        items: [
+          { type: 'finding', content: 'Q3 营收同比增长 18.5%，超出预期目标', confidence: 92 },
+          { type: 'insight', content: '华东区客户留存率连续两季度下滑，建议重点跟进', confidence: 78 },
+        ],
+      },
+    },
+    isBuiltin: true,
+  },
+  {
+    id: 'builtin-actions',
+    name: '行动计划',
+    type: 'actions',
+    category: '业务组件',
+    icon: 'ListChecks',
+    color: '#059669',
+    description: '用于展示分析完成后生成的下一步行动计划、待办任务和执行状态。',
+    agentDescription: '当分析结论需要转化为可执行的行动项（SQL、报告、审批、任务）时，优先选择 actions 组件。',
+    useCases: ['待办行动清单', 'SQL 生成任务', '报告生成任务', '审批触发'],
+    tags: ['actions', 'todo', 'plan', 'execution'],
+    schemaHint: {
+      recommendedDataShape: {
+        actions: 'Array<{ id, label, status: queued|running|done, type?: sql|report|script|task, output?: string }>',
+      },
+      layoutAdvice: '适合宽度 4-6、高度 4，适合放在结果组件下方。',
+    },
+    template: {
+      type: 'actions',
+      title: '行动计划',
+      position: { x: 0, y: 0, w: 5, h: 4 },
+      data: {
+        actions: [
+          { id: '1', label: '生成客户流失预警报告', status: 'running', type: 'report' },
+          { id: '2', label: '更新费用预算审批流程', status: 'queued', type: 'task' },
+        ],
+      },
+    },
+    isBuiltin: true,
+  },
+  {
+    id: 'builtin-artifact',
+    name: '产出物预览',
+    type: 'artifact',
+    category: '业务组件',
+    icon: 'FileCode2',
+    color: '#2563eb',
+    description: '用于预览 AI 生成的可交付产出物，包括 SQL、代码、报告、图表等。',
+    agentDescription: '当工作流生成 SQL、代码片段、报告文档或图表配置等可交付物时，优先选择 artifact 组件。',
+    useCases: ['SQL 预览', '代码片段', '报告文档', '图表配置'],
+    tags: ['artifact', 'sql', 'code', 'report', 'preview'],
+    schemaHint: {
+      recommendedDataShape: {
+        artifacts: 'Array<{ id, name, type: sql|code|report|chart|document, content, language?: string }>',
+      },
+      layoutAdvice: '适合宽度 5-7、高度 5-6，适合放在工作流末端或独立展示。',
+    },
+    template: {
+      type: 'artifact',
+      title: '产出物预览',
+      position: { x: 0, y: 0, w: 6, h: 5 },
+      data: {
+        artifacts: [
+          { id: '1', name: '营收分析 SQL', type: 'sql', content: "SELECT region, SUM(revenue) FROM sales WHERE quarter = 'Q3' GROUP BY region;", language: 'sql' },
+        ],
+      },
+    },
+    isBuiltin: true,
+  },
 ];
 
 function ensureStoreFile() {

@@ -1,0 +1,26 @@
+{
+  "connections": [
+    {
+      "id": "conn-1779638435480-4osx3",
+      "name": "kimi",
+      "type": "generic-llm",
+      "config": {
+        "endpoint": "https://api.moonshot.cn/v1",
+        "protocol": "http",
+        "timeout": 30000,
+        "model": "moonshot-v1-8k"
+      },
+      "status": "connected",
+      "capabilities": [
+        "llm-chat",
+        "llm-stream",
+        "cockpit-plan"
+      ],
+      "priority": 100,
+      "enabled": true,
+      "lastHealthCheck": "2026-06-03T08:41:13.698Z",
+      "createdAt": "2026-05-24T16:00:35.480Z",
+      "updatedAt": "2026-06-03T08:41:13.698Z"
+    }
+  ]
+}

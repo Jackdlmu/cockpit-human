@@ -93,11 +93,11 @@
     --widget-border-hover: 220 13% 78%;
     --widget-bg: 0 0% 100%;
     --widget-bg-hover: 220 18% 99%;
-    --widget-shadow: 0 1px 2px rgb(15 23 42 / 0.035), 0 8px 20px -18px rgb(15 23 42 / 0.18);
-    --widget-shadow-hover: 0 2px 4px rgb(15 23 42 / 0.045), 0 18px 36px -24px rgb(15 23 42 / 0.24);
+    --widget-shadow: 0 1px 2px rgb(15 23 42 / 0.03), 0 4px 12px -6px rgb(15 23 42 / 0.07);
+    --widget-shadow-hover: 0 2px 4px rgb(15 23 42 / 0.04), 0 8px 20px -10px rgb(15 23 42 / 0.1);
 
     /* ── BI 视觉系统 Token：后续主题切换优先覆盖这些变量 ── */
-    --bi-radius: 8px;
+    --bi-radius: 12px;
     --bi-radius-sm: 6px;
     --bi-widget-title-height: 40px;
     --bi-widget-padding: 12px;
@@ -202,8 +202,8 @@
     --widget-border-hover: 222 25% 22%;
     --widget-bg: 222 47% 7%;
     --widget-bg-hover: 222 40% 9%;
-    --widget-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.25), 0 1px 2px -1px rgb(0 0 0 / 0.15);
-    --widget-shadow-hover: 0 8px 24px -4px rgb(0 0 0 / 0.4), 0 4px 12px -4px rgb(0 0 0 / 0.25);
+    --widget-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.2), 0 4px 12px -6px rgb(0 0 0 / 0.12);
+    --widget-shadow-hover: 0 2px 6px rgb(0 0 0 / 0.25), 0 8px 20px -10px rgb(0 0 0 / 0.18);
 
     --bi-radius: 8px;
     --bi-radius-sm: 6px;
@@ -230,6 +230,7 @@
     @apply bg-app-bg text-app-text antialiased;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
     text-rendering: optimizeLegibility;
+    transition: background-color 0.3s ease, color 0.3s ease;
   }
 }
 
@@ -305,9 +306,7 @@
 
   /* BI 基础视觉类：模块化升级时逐步替换使用 */
   .bi-page {
-    background:
-      linear-gradient(180deg, hsl(var(--app-bg-elevated) / 0.6) 0%, hsl(var(--app-bg) / 0) 220px),
-      hsl(var(--app-bg));
+    background: hsl(var(--app-bg));
     color: hsl(var(--app-text));
   }
 

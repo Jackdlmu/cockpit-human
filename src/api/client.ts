@@ -26,8 +26,8 @@ export function getHealth() {
 }
 
 // ─── Agents ───
-export function getAgents() {
-  return fetchJson<{ agents: Agent[] }>('/agents');
+export function getAgents(signal?: AbortSignal) {
+  return fetchJson<{ agents: Agent[] }>('/agents', { signal });
 }
 
 export function getAgent(id: string) {
@@ -39,8 +39,8 @@ export function getAgentStats(id: string) {
 }
 
 // ─── Workspaces (Cockpits) ───
-export function getWorkspaces() {
-  return fetchJson<{ workspaces: Workspace[] }>('/workspaces');
+export function getWorkspaces(signal?: AbortSignal) {
+  return fetchJson<{ workspaces: Workspace[] }>('/workspaces', { signal });
 }
 
 export function getWorkspace(id: string) {
