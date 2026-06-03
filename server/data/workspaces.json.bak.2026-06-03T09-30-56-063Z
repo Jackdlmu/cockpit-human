@@ -463,7 +463,7 @@
         ],
         "cockpitAgentActive": true,
         "reason": "驾驶舱智能体自主运行中",
-        "timestamp": "2026-06-03T08:59:25.885Z"
+        "timestamp": "2026-06-03T09:30:56.024Z"
       }
     },
     {
@@ -870,7 +870,7 @@
         ],
         "cockpitAgentActive": true,
         "reason": "驾驶舱智能体自主运行中",
-        "timestamp": "2026-06-03T08:59:25.898Z"
+        "timestamp": "2026-06-03T09:30:56.038Z"
       }
     },
     {
@@ -1306,7 +1306,7 @@
         ],
         "cockpitAgentActive": true,
         "reason": "驾驶舱智能体自主运行中",
-        "timestamp": "2026-06-03T08:59:25.904Z"
+        "timestamp": "2026-06-03T09:30:56.046Z"
       },
       "workspace": {
         "id": "ws-1780323169615-93ef9",
@@ -2602,7 +2602,7 @@
         ],
         "cockpitAgentActive": true,
         "reason": "驾驶舱智能体自主运行中",
-        "timestamp": "2026-06-03T08:59:25.910Z"
+        "timestamp": "2026-06-03T09:30:56.053Z"
       },
       "grouping": {
         "enabled": true,
@@ -3006,7 +3006,7 @@
         ],
         "cockpitAgentActive": true,
         "reason": "驾驶舱智能体自主运行中",
-        "timestamp": "2026-06-03T08:59:25.916Z"
+        "timestamp": "2026-06-03T09:30:41.044Z"
       }
     },
     {
@@ -3313,7 +3313,7 @@
         ],
         "cockpitAgentActive": true,
         "reason": "驾驶舱智能体自主运行中",
-        "timestamp": "2026-06-03T08:59:10.900Z"
+        "timestamp": "2026-06-03T09:30:41.049Z"
       }
     },
     {
@@ -3691,7 +3691,7 @@
         ],
         "cockpitAgentActive": true,
         "reason": "驾驶舱智能体自主运行中",
-        "timestamp": "2026-06-03T08:59:10.904Z"
+        "timestamp": "2026-06-03T09:30:41.054Z"
       },
       "initializedAt": "2026-06-03T01:41:50.637Z"
     },
@@ -4008,7 +4008,7 @@
         ],
         "cockpitAgentActive": true,
         "reason": "驾驶舱智能体自主运行中",
-        "timestamp": "2026-06-03T08:59:10.908Z"
+        "timestamp": "2026-06-03T09:30:41.059Z"
       }
     }
   ]
