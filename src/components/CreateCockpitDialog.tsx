@@ -142,7 +142,7 @@ export default function CreateCockpitDialog({
       <DialogContent className="flex h-[min(88vh,760px)] flex-col gap-0 overflow-hidden border border-app-border bg-app-surface-elevated p-0 text-app-text sm:!max-w-5xl">
         <DialogHeader className="border-b border-app-border-subtle bg-app-surface-elevated px-5 py-4 pr-12">
           <DialogTitle className="flex items-center gap-2 text-lg font-semibold text-app-text">
-            <Sparkles className="h-4 w-4 text-red-500" />
+            <Sparkles className="h-4 w-4 text-primary" />
             创建驾驶舱
           </DialogTitle>
           <p className="text-sm text-app-text-muted">
@@ -193,7 +193,7 @@ export default function CreateCockpitDialog({
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder="可留空，系统会根据任务自动生成"
-                    className="w-full rounded-2xl border border-app-border-subtle bg-app-surface px-3.5 py-3 text-sm text-app-text-secondary outline-none transition-colors placeholder:text-app-text-subtle focus:border-red-500/25"
+                    className="w-full rounded-2xl border border-app-border-subtle bg-app-surface px-3.5 py-3 text-sm text-app-text-secondary outline-none transition-colors placeholder:text-app-text-subtle focus:border-primary/25"
                     disabled={executing}
                   />
                   <p className="mt-1.5 text-[11px] text-app-text-subtle">
@@ -207,8 +207,8 @@ export default function CreateCockpitDialog({
                     value={command}
                     onChange={(e) => setCommand(e.target.value)}
                     onKeyDown={handleKeyDown}
-                    placeholder={mode === 'template' ? '补充这个模板实例的目标、企业、区域、数据要求...' : '例如：帮我创建一个北京七日天气驾驶舱，优先获取真实天气数据，展示温度趋势、空气质量、降雨概率和出行建议'}
-                    className={`${mode === 'template' ? 'min-h-[150px] lg:min-h-[390px]' : 'min-h-[260px]'} w-full resize-none rounded-3xl border border-app-border-subtle bg-app-surface px-4 py-3.5 text-sm leading-relaxed text-app-text-secondary outline-none transition-colors placeholder:text-app-text-subtle focus:border-red-500/25`}
+                    placeholder={mode === 'template' ? '补充这个模板实例的目标、企业、区域、数据要求...' : '例如：帮我创建一个集团销售总览驾驶舱，聚焦华东区域各事业部的月度业绩达成情况，展示收入趋势、订单转化率、Top10客户贡献、区域同比环比分析，以及未达标部门的预警提示和跟进建议'}
+                    className={`${mode === 'template' ? 'min-h-[150px] lg:min-h-[390px]' : 'min-h-[260px]'} w-full resize-none rounded-3xl border border-app-border-subtle bg-app-surface px-4 py-3.5 text-sm leading-relaxed text-app-text-secondary outline-none transition-colors placeholder:text-app-text-subtle focus:border-primary/25`}
                     disabled={executing}
                   />
                 </div>
@@ -218,7 +218,7 @@ export default function CreateCockpitDialog({
             {mode === 'template' && (
               <div className="border-t border-app-border-subtle bg-app-bg/45 px-5 py-4 lg:min-h-0 lg:border-l lg:border-t-0">
                 {templates && templates.length > 0 ? (
-                  <div className="flex flex-col rounded-[24px] border border-app-border-subtle bg-app-surface-subtle/35 p-4 lg:h-full lg:min-h-0">
+                  <div className="flex flex-col rounded-xl border border-app-border-subtle bg-app-surface-subtle/35 p-4 lg:h-full lg:min-h-0">
                     <div className="flex shrink-0 items-start justify-between gap-3">
                       <div className="min-w-0">
                         <div className="text-base font-semibold text-app-text-secondary">选择模板</div>
@@ -234,7 +234,7 @@ export default function CreateCockpitDialog({
                     </div>
 
                     {selectedTemplate && (
-                      <div className="mt-3 shrink-0 rounded-2xl border border-red-500/15 bg-red-500/6 px-3.5 py-3">
+                      <div className="mt-3 shrink-0 rounded-2xl border border-primary/15 bg-primary/6 px-3.5 py-3">
                         <div className="flex items-center gap-2">
                           <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: selectedTemplate.color }} />
                           <div className="truncate text-sm font-semibold text-app-text-secondary">{selectedTemplate.name}</div>
@@ -257,7 +257,7 @@ export default function CreateCockpitDialog({
                             onClick={() => handleSelectTemplate(template)}
                             className={`min-h-[118px] rounded-2xl border px-3.5 py-3 text-left transition-all ${
                               active
-                                ? 'border-red-500/35 bg-red-500/8 shadow-sm'
+                                ? 'border-primary/35 bg-primary/8 shadow-sm'
                                 : 'border-app-border-subtle bg-app-surface hover:border-app-border hover:bg-app-surface-subtle'
                             }`}
                           >
@@ -279,7 +279,7 @@ export default function CreateCockpitDialog({
                     </div>
                   </div>
                 ) : (
-                  <div className="flex h-full items-center justify-center rounded-[24px] border border-app-border-subtle bg-app-surface-subtle/35 p-6 text-sm text-app-text-muted">
+                  <div className="flex h-full items-center justify-center rounded-xl border border-app-border-subtle bg-app-surface-subtle/35 p-6 text-sm text-app-text-muted">
                     暂无可用模板
                   </div>
                 )}
@@ -301,7 +301,7 @@ export default function CreateCockpitDialog({
             <Button
               onClick={handleSubmit}
               disabled={isSubmitDisabled}
-              className="h-10 rounded-xl border-0 bg-gradient-to-r from-red-500 to-orange-500 px-4 text-xs text-white hover:from-red-400 hover:to-orange-400"
+              className="h-10 rounded-xl border-0 bg-primary px-4 text-xs text-primary-foreground hover:bg-primary/90"
             >
               {executing ? (
                 <>

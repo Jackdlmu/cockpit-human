@@ -3,6 +3,7 @@
 
 import type { CockpitTemplate, TemplateContext } from './types';
 import * as templateStore from '../../services/template-store';
+// grouping is now globally controlled via grouping-policy, not per-template
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';

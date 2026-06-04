@@ -266,6 +266,40 @@ function buildDefaultPreviewData(type: WidgetType, title: string): Record<string
       if (subject.includes('日程')) return createDefaultBusinessData('calendar');
       if (subject.includes('洞察')) return createDefaultBusinessData('insight-hub');
       return createDefaultBusinessData('message-center');
+    case 'workflow':
+      return {
+        steps: [
+          { id: '1', label: '数据清洗与预处理', status: 'done', detail: '完成数据去重和格式标准化' },
+          { id: '2', label: '特征工程与建模', status: 'running', detail: '正在训练回归模型...' },
+          { id: '3', label: '结果验证与输出', status: 'pending' },
+        ],
+        currentStep: 1,
+        summary: '整体进度正常，预计 5 分钟内完成',
+      };
+    case 'result':
+      return {
+        items: [
+          { type: 'finding', content: 'Q3 营收同比增长 18.5%，超出预期目标 3.2 个百分点', evidence: ['财务报告', '区域对比'], confidence: 92 },
+          { type: 'insight', content: '华东区客户留存率连续两季度下滑，建议重点跟进', evidence: ['客户调研'], confidence: 78 },
+          { type: 'warning', content: '三项费用率逼近警戒线，需关注成本控制', confidence: 85 },
+        ],
+        generatedAt: new Date().toLocaleString('zh-CN'),
+      };
+    case 'actions':
+      return {
+        actions: [
+          { id: '1', label: '生成华东区客户流失预警报告', status: 'running', type: 'report', output: '正在汇总数据...' },
+          { id: '2', label: '更新费用预算审批流程', status: 'queued', type: 'task' },
+          { id: '3', label: '导出 Q3 财务对比 SQL', status: 'done', type: 'sql', output: '已生成 47 行 SQL' },
+        ],
+      };
+    case 'artifact':
+      return {
+        artifacts: [
+          { id: '1', name: '营收分析 SQL', type: 'sql', content: "SELECT region, SUM(revenue) FROM sales WHERE quarter = 'Q3' GROUP BY region;", language: 'sql' },
+          { id: '2', name: '客户留存趋势图', type: 'chart', content: '{"type": "line", "data": [...]}', language: 'json' },
+        ],
+      };
     default:
       return {};
   }
@@ -331,7 +365,7 @@ export function WidgetPreviewCard({
   const previewWidget = useMemo(() => buildSinglePreviewWidget(widget), [widget]);
 
   return (
-    <div className={`rounded-[22px] border border-app-border/75 bg-[linear-gradient(180deg,rgba(255,255,255,0.78),rgba(246,243,241,0.72))] p-3 shadow-[0_14px_34px_rgba(15,23,42,0.05)] ${className}`}>
+    <div className={`rounded-xl border border-app-border/60 bg-app-surface p-3 shadow-sm ${className}`}>
       <div className="h-full min-h-[320px]">
         <WidgetRenderer
           workspaceId="widget-preview"
@@ -349,16 +383,26 @@ export function TemplatePreviewCanvas({
   className = '',
   rowHeight = 38,
   emptyMessage = '模板中还没有组件，可先添加组件后查看布局预览。',
+  showGridLines = false,
 }: {
   widgets: Array<Widget | Partial<Widget>>;
   className?: string;
   rowHeight?: number;
   emptyMessage?: string;
+  showGridLines?: boolean;
 }) {
-  const normalizedWidgets = useMemo(
-    () => normalizeWidgets(widgets).map(enrichWidgetForPreview).sort(sortWidgets),
-    [widgets],
-  );
+  const normalizedWidgets = useMemo(() => {
+    const list = normalizeWidgets(widgets).map(enrichWidgetForPreview).sort(sortWidgets);
+    if (list.length === 0) return list;
+    // 归一化位置：消除不必要的顶部/左侧空白，保留相对布局
+    const minX = Math.min(...list.map((w) => w.position.x));
+    const minY = Math.min(...list.map((w) => w.position.y));
+    if (minX === 0 && minY === 0) return list;
+    return list.map((w) => ({
+      ...w,
+      position: { ...w.position, x: w.position.x - minX, y: w.position.y - minY },
+    }));
+  }, [widgets]);
 
   const maxRows = normalizedWidgets.reduce(
     (max, widget) => Math.max(max, widget.position.y + widget.position.h),
@@ -367,14 +411,14 @@ export function TemplatePreviewCanvas({
 
   if (normalizedWidgets.length === 0) {
     return (
-      <div className={`flex min-h-[260px] items-center justify-center rounded-[24px] border border-dashed border-app-border bg-[linear-gradient(180deg,rgba(255,255,255,0.72),rgba(246,243,241,0.6))] px-6 text-center text-sm leading-6 text-app-text-muted ${className}`}>
+      <div className={`flex min-h-[260px] items-center justify-center rounded-xl border border-dashed border-app-border bg-app-surface-subtle/40 px-6 text-center text-sm leading-6 text-app-text-muted ${className}`}>
         {emptyMessage}
       </div>
     );
   }
 
   return (
-    <div className={`overflow-auto rounded-[24px] border border-app-border/75 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.96),rgba(248,245,244,1)_42%,rgba(242,239,236,1))] p-4 shadow-[0_18px_40px_rgba(15,23,42,0.06)] ${className}`}>
+    <div className={`relative overflow-auto rounded-xl border border-app-border/60 bg-app-surface p-4 shadow-sm ${className}`}>
       <div
         className="grid grid-cols-12 gap-3"
         style={{
@@ -382,6 +426,13 @@ export function TemplatePreviewCanvas({
           minHeight: `${Math.max(maxRows, 8) * rowHeight}px`,
         }}
       >
+        {showGridLines && (
+          <div className="pointer-events-none absolute inset-4 flex gap-3">
+            {Array.from({ length: 12 }).map((_, i) => (
+              <div key={i} className="flex-1 border-r border-dashed border-app-border-subtle/30 last:border-r-0" />
+            ))}
+          </div>
+        )}
         {normalizedWidgets.map((widget) => (
           <div
             key={widget.id}

@@ -23,6 +23,10 @@ const BASE_SIZE: Record<string, WidgetSize> = {
   alert: { w: 5, h: 3 },
   map: { w: 6, h: 4 },
   business: { w: 6, h: 4 },
+  workflow: { w: 5, h: 4 },
+  result: { w: 6, h: 4 },
+  actions: { w: 5, h: 4 },
+  artifact: { w: 6, h: 5 },
 };
 
 function asRecord(data: unknown): Record<string, unknown> {
@@ -61,9 +65,18 @@ function columnCount(data: Record<string, unknown>): number {
   return 0;
 }
 
+function stripHtmlTags(html: string): string {
+  return html.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
+}
+
 function textLength(data: Record<string, unknown>): number {
   return ['html', 'content', 'body', 'summary', 'markdown', 'text']
-    .map((key) => typeof data[key] === 'string' ? (data[key] as string).length : 0)
+    .map((key) => {
+      if (typeof data[key] !== 'string') return 0;
+      const text = data[key] as string;
+      // html 字段先去除标签再计算纯文本长度
+      return key === 'html' ? stripHtmlTags(text).length : text.length;
+    })
     .reduce((sum, len) => sum + len, 0);
 }
 

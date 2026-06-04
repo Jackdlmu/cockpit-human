@@ -1,4 +1,4 @@
-import type { Agent, Connection, CreateConnectionInput, Workspace, CockpitTemplate, WidgetCatalogItem } from '@/types';
+import type { Agent, Connection, CreateConnectionInput, Workspace, CockpitTemplate, WidgetCatalogItem, GroupingPolicy } from '@/types';
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3001/api';
 export const API_BASE_ORIGIN = /^https?:\/\//i.test(API_BASE)
@@ -26,8 +26,8 @@ export function getHealth() {
 }
 
 // ─── Agents ───
-export function getAgents() {
-  return fetchJson<{ agents: Agent[] }>('/agents');
+export function getAgents(signal?: AbortSignal) {
+  return fetchJson<{ agents: Agent[] }>('/agents', { signal });
 }
 
 export function getAgent(id: string) {
@@ -39,8 +39,8 @@ export function getAgentStats(id: string) {
 }
 
 // ─── Workspaces (Cockpits) ───
-export function getWorkspaces() {
-  return fetchJson<{ workspaces: Workspace[] }>('/workspaces');
+export function getWorkspaces(signal?: AbortSignal) {
+  return fetchJson<{ workspaces: Workspace[] }>('/workspaces', { signal });
 }
 
 export function getWorkspace(id: string) {
@@ -59,7 +59,7 @@ export function createWorkspace(data: {
   return fetchJson<{ workspace: Workspace }>('/workspaces', { method: 'POST', body: JSON.stringify(data) });
 }
 
-export function updateWorkspace(id: string, data: Partial<{ name: string; description: string; widgets: Workspace['widgets'] }>) {
+export function updateWorkspace(id: string, data: Partial<{ name: string; description: string; widgets: Workspace['widgets']; grouping: Workspace['grouping'] }>) {
   return fetchJson<{ workspace: Workspace }>(`/workspaces/${id}`, { method: 'PUT', body: JSON.stringify(data) });
 }
 
@@ -305,6 +305,18 @@ export function updateWidgetCatalogItem(id: string, data: Partial<WidgetCatalogI
 export function deleteWidgetCatalogItem(id: string) {
   return adminFetch<{ success: boolean }>(`/widget-catalog/${id}`, {
     method: 'DELETE',
+  });
+}
+
+// ─── Grouping Policy ───
+export function getGroupingPolicy() {
+  return fetchJson<{ policy: GroupingPolicy }>('/grouping-policy');
+}
+
+export function updateGroupingPolicy(policy: Partial<GroupingPolicy>) {
+  return adminFetch<{ policy: GroupingPolicy }>('/grouping-policy', {
+    method: 'PUT',
+    body: JSON.stringify(policy),
   });
 }
 

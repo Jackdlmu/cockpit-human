@@ -114,7 +114,7 @@ export default function ConnectionCard({ connection, onEdit, onDelete, onConnect
           </button>
           <button
             onClick={() => onDelete(connection.id)}
-            className="p-1.5 rounded-lg hover:bg-app-surface-hover text-app-text-subtle hover:text-red-400 transition-colors"
+            className="p-1.5 rounded-lg hover:bg-app-surface-hover text-app-text-subtle hover:text-primary transition-colors"
             title="删除"
           >
             <Trash2 className="w-3.5 h-3.5" />

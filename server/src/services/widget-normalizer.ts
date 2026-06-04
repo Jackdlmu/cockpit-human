@@ -24,6 +24,11 @@ const SUPPORTED_WIDGET_TYPES = new Set([
   'bullet',
   'alert',
   'map',
+  'business',
+  'workflow',
+  'result',
+  'actions',
+  'artifact',
 ]);
 
 const LEGACY_TOP_LEVEL_DATA_FIELDS = new Set([
@@ -483,18 +488,72 @@ export function normalizeWidget(
           h: size.h,
         },
     data: recommendedData,
+    group: typeof widget.group === 'string' && widget.group.trim() ? widget.group.trim() : undefined,
   };
+}
+
+interface LayoutItem {
+  position: { x: number; y: number; w: number; h: number };
+}
+
+/**
+ * 将 widgets 按流式布局重新排列，消除空白间隙。
+ * - 保持 widgets 的原始顺序
+ * - 从左到右、从上到下紧密排列
+ * - 每行总宽度不超过 12 列
+ * - 行高由该行最高的 widget 决定
+ */
+export function compactGridLayout<T extends LayoutItem>(widgets: T[]): T[] {
+  if (!widgets || widgets.length === 0) return widgets;
+
+  const result: T[] = [];
+  let currentRowY = 0;
+  let currentRowHeight = 0;
+  let currentRowWidth = 0;
+
+  for (const widget of widgets) {
+    const w = Math.min(12, Math.max(1, widget.position?.w ?? 6));
+    const h = Math.max(1, widget.position?.h ?? 4);
+
+    // 如果当前行放不下且当前行已有内容，换行
+    if (currentRowWidth + w > 12 && currentRowWidth > 0) {
+      currentRowY += currentRowHeight;
+      currentRowHeight = 0;
+      currentRowWidth = 0;
+    }
+
+    result.push({
+      ...widget,
+      position: {
+        x: currentRowWidth,
+        y: currentRowY,
+        w: Math.min(12, w),
+        h,
+      },
+    });
+
+    currentRowWidth += w;
+    currentRowHeight = Math.max(currentRowHeight, h);
+  }
+
+  return result;
 }
 
 export function normalizeWidgets(
   widgets: unknown,
-  options?: { idPrefix?: string }
+  options?: { idPrefix?: string; autoLayout?: boolean }
 ): RawWidget[] {
   if (!Array.isArray(widgets)) {
     return [];
   }
 
-  return widgets
+  const normalized = widgets
     .map((widget, index) => normalizeWidget(widget, index, options))
     .filter((widget): widget is RawWidget => widget !== null);
+
+  if (options?.autoLayout) {
+    return compactGridLayout(normalized);
+  }
+
+  return normalized;
 }

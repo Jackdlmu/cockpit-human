@@ -57,6 +57,15 @@ export interface OrchestrationState {
   timestamp: string;
 }
 
+export interface WorkspaceGrouping {
+  enabled: boolean;
+  groups?: Array<{
+    id: string;
+    name: string;
+    widgetIds: string[];
+  }>;
+}
+
 export interface WorkspaceData {
   id: string; name: string; description: string; icon: string; color: string;
   status: 'running' | 'stopped' | 'error';
@@ -84,6 +93,8 @@ export interface WorkspaceData {
   externalProvider?: 'yonclaw' | 'openclaw' | 'generic-llm' | 'other';
   externalWorkspaceId?: string;
   externalConnectionId?: string;
+  /** 组件分组配置 */
+  grouping?: WorkspaceGrouping;
 }
 
 export const workspacesData: WorkspaceData[] = [

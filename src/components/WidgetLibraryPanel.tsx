@@ -5,7 +5,8 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import {
   BarChart3, Table, List, Kanban, Clock, FileText, Activity,
   TrendingUp, CheckCircle, Layers, Plus, Gauge, Funnel, Radar,
-  Grid3X3, Crosshair, AlertTriangle, Map, Search, Sparkles, PanelTop
+  Grid3X3, Crosshair, AlertTriangle, Map, Search, Sparkles, PanelTop,
+  GitBranch, Lightbulb, ListChecks, FileCode2
 } from 'lucide-react';
 // 快速创建入口暂时隐藏，如需恢复请参考 git 历史
 
@@ -22,6 +23,7 @@ const typeIcons: Record<string, React.ElementType> = {
   adaptive: PanelTop,
   gauge: Gauge, funnel: Funnel, radar: Radar,
   heatmap: Grid3X3, bullet: Crosshair, alert: AlertTriangle, map: Map,
+  workflow: GitBranch, result: Lightbulb, actions: ListChecks, artifact: FileCode2,
 };
 
 const typeLabels: Record<string, string> = {
@@ -31,6 +33,7 @@ const typeLabels: Record<string, string> = {
   adaptive: '智能容器',
   gauge: '仪表盘', funnel: '漏斗', radar: '雷达',
   heatmap: '热力', bullet: '子弹', alert: '告警', map: '地图',
+  workflow: '工作流', result: '分析结果', actions: '行动计划', artifact: '产出物',
 };
 
 export function WidgetLibraryPanel({ open, onClose, onAdd }: WidgetLibraryPanelProps) {

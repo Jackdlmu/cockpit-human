@@ -106,6 +106,22 @@ function publishInitProgress(
   });
 }
 
+function isEmptyWidgetData(data: Record<string, unknown>, type: string): boolean {
+  if (!data || typeof data !== 'object') return true;
+  const keys = Object.keys(data).filter((k) => !k.startsWith('_') && k !== 'businessType');
+  if (keys.length === 0) return true;
+
+  // business 类型：核心数组为空则视为空数据
+  if (type === 'business') {
+    const bt = data.businessType;
+    const keyField = bt === 'calendar' ? 'events' : bt === 'insight-hub' ? 'insights' : 'messages';
+    const arr = data[keyField];
+    if (Array.isArray(arr) && arr.length === 0) return true;
+  }
+
+  return false;
+}
+
 async function mergeWidgetData(
   workspaceId: string,
   updates: Map<string, Record<string, unknown>>
@@ -117,13 +133,35 @@ async function mergeWidgetData(
   const updatedWidgets = currentWs.widgets.map((widget: any) => {
     const nextData = updates.get(widget.id);
     if (!nextData) return widget;
+
+    // 空数据保护：若 LLM 返回了空结构，保留原始演示数据
+    if (isEmptyWidgetData(nextData, widget.type)) {
+      console.log(`[WorkspaceInit] Skipping empty data for widget "${widget.title}" (${widget.id}), preserving original demo data`);
+      return widget;
+    }
+
     const nextType = isTypeMismatched(widget.type, nextData)
       ? inferWidgetType(nextData)
       : widget.type;
+
+    // 业务洞察组件：对 LLM 返回的数据进行字段级合并，保留模板中预置的
+    // cockpitSummary / persona / highlights / recommendations 等结构化字段
+    let mergedData = { ...nextData };
+    if (widget.type === 'business' && (widget.business?.businessType === 'insight-hub' || nextData.businessType === 'insight-hub')) {
+      const preserveFields = ['cockpitSummary', 'persona', 'highlights', 'recommendations'];
+      for (const field of preserveFields) {
+        const original = widget.data?.[field];
+        const next = nextData[field];
+        if (next === undefined && original !== undefined) {
+          mergedData[field] = original;
+        }
+      }
+    }
+
     return {
       ...widget,
       type: nextType,
-      data: { ...nextData },
+      data: mergedData,
     };
   });
 
@@ -183,6 +221,45 @@ function extractJsonFromText(text: string): unknown {
   }
 
   return null;
+}
+
+/**
+ * 递归解码 widget data 中可能存在的 JSON 双重转义字符串。
+ * LLM 有时会在字符串值内部返回字面量的 \\n、\\uXXXX 等序列，
+ * 需要把它们还原为实际的换行符和 Unicode 字符。
+ */
+function unescapeJsonStrings(value: unknown): unknown {
+  if (typeof value === 'string') {
+    // 检测是否包含 JSON 转义序列（\\n、\\uXXXX、\\t 等）
+    if (/\\[nrtbf"\\/]|\\u[0-9a-fA-F]{4}/.test(value)) {
+      try {
+        // 尝试用 JSON.parse 解码：把字符串包成 JSON 字符串再解析
+        const decoded = JSON.parse(`"${value.replace(/"/g, '\\"')}"`);
+        if (typeof decoded === 'string') return decoded;
+      } catch {
+        // 解析失败则退回到手动替换
+        return value
+          .replace(/\\n/g, '\n')
+          .replace(/\\r/g, '\r')
+          .replace(/\\t/g, '\t')
+          .replace(/\\"/g, '"')
+          .replace(/\\\\/g, '\\')
+          .replace(/\\u([0-9a-fA-F]{4})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
+      }
+    }
+    return value;
+  }
+  if (Array.isArray(value)) {
+    return value.map(unescapeJsonStrings);
+  }
+  if (value && typeof value === 'object') {
+    const result: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value)) {
+      result[k] = unescapeJsonStrings(v);
+    }
+    return result;
+  }
+  return value;
 }
 
 function getWidgetPriorityScore(widget: InitWidget): number {
@@ -282,7 +359,14 @@ async function initializeBatchWithLLM(
 重要原则：
 - 如果用户要求"真实数据"、"实际数据"或"最新数据"，请生成尽可能真实、合理、符合业务逻辑的数据，而不是明显的占位符或示例数据
 - 数据应体现专业性和业务深度，数值要有合理的分布和逻辑关系
-- 严格遵循用户提出的初始化要求`;
+- 严格遵循用户提出的初始化要求
+
+【内部可视化规则（不对外展示）】
+- 指标卡(metric)必须使用 data.value/change/trend/unit/target/compareLabel/description 等语义字段
+- 金额、收入、利润等数值字段必须使用纯数字+单位格式（如 "850亿元"），禁止使用 ~ 前缀（~ 会被误解为负号）
+- 含正负值、差额、盈亏、预算偏差的数据必须使用 bar 图表，并在 data.styleConfig 中配置 baseline="zero"、mode="diverging"
+- 只有全为非负值且 2-5 个分类占比时才使用 donut
+- 不要把 chartType/styleConfig/value/change/trend 等配置字段作为报告正文或详情展示字段`;
 
   const userPrompt = `驾驶舱名称: ${workspaceName}
 模板来源: ${templateName}
@@ -317,6 +401,14 @@ ${widgetDesc}
 - bullet: { value: number, target: number, max: number, label: string }
 - alert: { alerts: [{ level: "warning"|"critical"|"info"|"success", message: string, time: string }] }
 - map: { points: [{ name: string, value: number }] }
+- business: 根据 businessType 决定数据结构，必须保留原始数据中的业务对象
+  - message-center: { businessType: 'message-center', messages: [{ id, type: 'approval'|'alert'|'todo', priority: 'critical'|'high'|'medium'|'low', status: 'pending'|'processing'|'done', title, summary, source, dueAt?, intelligence?, actions: [{id,label,type,tone?}] }] }
+  - calendar: { businessType: 'calendar', events: [{ id, type: 'meeting'|'approval'|'risk'|'deadline'|'reminder'|'milestone', start, end?, location?, participants?: string[], source, status?, actions: [{id,label,type}] }] }
+  - insight-hub（业务洞察组件）: { businessType: 'insight-hub', cockpitSummary: { title: 'xx业务洞察', subtitle?, domain?, scope?, description: '一句话说明该组件的价值' }, persona: { role: '角色', focus: ['关注维度1', '关注维度2'], preferences?: string[] }, highlights: [{ id, label, value, change?, trend: 'up'|'down'|'neutral' }], insights: [{ id, type: 'risk'|'opportunity'|'anomaly'|'recommendation'|'summary', severity: 'critical'|'high'|'medium'|'low', title, summary, evidence?: [{label,value}], recommendation?, confidence?: number, actions: [{id,label,type,tone?}] }], recommendations: [{ id, text, priority: 'high'|'medium'|'low' }] }
+- workflow: { steps: [{ id, label, status: 'pending'|'running'|'done'|'error', detail? }], currentStep?: number, summary?: string }
+- result: { items: [{ type: 'finding'|'conclusion'|'warning'|'insight', content, evidence?: string[], confidence?: number }], generatedAt?: string }
+- actions: { actions: [{ id, label, status: 'queued'|'running'|'done', type?: 'sql'|'report'|'script'|'task', output?: string }] }
+- artifact: { artifacts: [{ id, name, type: 'sql'|'code'|'report'|'chart'|'document', content, language?: string }] }
 - universal: 根据组件标题自由发挥
 
 要求:
@@ -333,11 +425,18 @@ ${groundingGuide ? `5. 请额外遵守以下场景约束：\n${groundingGuide}` 
 
   try {
     const tools = getAllToolDefinitionsForLLM();
-    const raw = await llmConnector.chat(messages, {
+    // 添加 60 秒超时，防止 LLM 无响应导致初始化永久卡住
+    const chatPromise = llmConnector.chat(messages, {
       temperature: 0.5,
       maxTokens: 4096,
       tools: tools.length > 0 ? tools : undefined,
     });
+    const raw = await Promise.race([
+      chatPromise,
+      new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('LLM 初始化请求超时（60秒）')), 60000);
+      }),
+    ]);
     const parsed = extractJsonFromText(raw) as {
       widgets?: Array<{ id: string; data: Record<string, unknown> }>;
       unavailableReason?: string;
@@ -368,7 +467,7 @@ ${groundingGuide ? `5. 请额外遵守以下场景约束：\n${groundingGuide}` 
     const dataMap = new Map<string, Record<string, unknown>>();
     for (const item of parsed.widgets) {
       if (item.id && item.data && typeof item.data === 'object' && !Array.isArray(item.data)) {
-        dataMap.set(item.id, item.data);
+        dataMap.set(item.id, unescapeJsonStrings(item.data) as Record<string, unknown>);
       }
     }
 
@@ -799,7 +898,15 @@ export async function runWorkspaceInitializationJob(jobId: string): Promise<void
   if (existing.status === 'succeeded') {
     return;
   }
+  // 防御：任何已耗尽重试次数的 job（无论 pending 还是 running）都应被清理
+  if (existing.attempts >= existing.maxAttempts) {
+    console.warn(`[WorkspaceInit] Job ${jobId} attempts(${existing.attempts}) >= maxAttempts(${existing.maxAttempts}), marking as failed`);
+    await markWorkspaceInitFailed(existing, existing.lastError || '重试次数已耗尽，初始化失败');
+    return;
+  }
+  // 防御：running 且 attempts 超限的僵尸 job（理论上已被上一条处理，但保留双保险）
   if (existing.status === 'running' && existing.attempts >= existing.maxAttempts) {
+    await markWorkspaceInitFailed(existing, existing.lastError || '僵尸任务，强制失败');
     return;
   }
 

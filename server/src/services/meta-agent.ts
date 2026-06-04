@@ -107,7 +107,7 @@ const COCKPIT_TOOLS: ToolDefinition[] = [
       icon: { type: 'string', description: '图标标识', required: false },
       color: { type: 'string', description: '主题色', required: false },
       agentIds: { type: 'string', description: '关联智能体ID列表，逗号分隔', required: false },
-      widgets: { type: 'string', description: '可选，完整组件列表（JSON 字符串或数组）。如果外部智能体已经完成规划或取数，建议直接传入组件及其 data。', required: false },
+      widgets: { type: 'string', description: '可选，完整组件列表（JSON 字符串或数组）。如果外部智能体已经完成规划或取数，建议直接传入组件及其 data。每个组件可包含可选 "group" 字段来指定所属分组（如 "group": "财务指标"），系统会根据 group 字段自动进行组件分组展示。组件还可包含可选 "link" 字段配置点击穿透行为：link = { type: "workspace|widget|url", targetId?: "...", url?: "...", title?: "...", openMode?: "drawer|blank|self" }，其中 openMode=drawer（默认）打开浮层面板，blank 新标签页，self 当前页跳转。', required: false },
       connectionId: { type: 'string', description: '外部平台连接ID。传入后会记录为该驾驶舱的外部主控来源。', required: false },
       provider: { type: 'string', description: '外部平台类型，如 yonclaw / openclaw。', required: false },
       executionOwner: { type: 'string', description: '执行主导方：external 或 cockpit。外部集成默认推荐 external。', required: false, enum: ['external', 'cockpit'] },
@@ -129,7 +129,7 @@ const COCKPIT_TOOLS: ToolDefinition[] = [
     parameters: {
       workspaceId: { type: 'string', description: '驾驶舱ID', required: true },
       action: { type: 'string', description: '操作类型：add_widget(添加组件) | remove_widget(删除组件) | update_widget(修改组件) | update_config(修改配置)', required: true, enum: ['add_widget', 'remove_widget', 'update_widget', 'update_config'] },
-      widget: { type: 'string', description: '组件数据（JSON字符串），add_widget/update_widget时使用。建议将真实数据写入 widget.data；如果误写在顶层字段，系统会自动尝试归并。', required: false },
+      widget: { type: 'string', description: '组件数据（JSON字符串），add_widget/update_widget时使用。建议将真实数据写入 widget.data；如果误写在顶层字段，系统会自动尝试归并。支持 link 字段配置点击穿透：link = { type: "workspace|widget|url", targetId?: "...", url?: "...", title?: "...", openMode?: "drawer|blank|self" }', required: false },
       widgetId: { type: 'string', description: '组件ID，remove_widget/update_widget时使用', required: false },
       config: { type: 'string', description: '配置数据（JSON字符串），update_config时使用，如 {"name":"新名称","color":"#ff0000"}', required: false },
     },
@@ -198,7 +198,7 @@ export class CockpitMetaAgent {
     this.meta = {
       id: 'yoncockpit-meta-agent',
       name: 'YonCockpit 智能驾驶舱',
-      description: '一个智能驾驶舱 Meta-Agent，具备驾驶舱规划、创建、执行、调度能力，同时可编排多个外部智能体协同工作。',
+      description: '一个智能驾驶舱 Meta-Agent，具备驾驶舱规划、创建、执行、调度能力，支持驾驶舱组件智能分组（页签/流式/混合模式），同时可编排多个外部智能体协同工作。',
       version: '1.0.0',
       capabilities: [
         'cockpit-plan',
@@ -208,6 +208,7 @@ export class CockpitMetaAgent {
         'agent-orchestration',
         'event-subscribe',
         'tool-calling',
+        'widget-grouping',
       ],
       tools: COCKPIT_TOOLS,
       status: 'active',
@@ -530,6 +531,18 @@ ${existingWidgetSummary || '  (无)'}
 - report/html: 常规 w=8 h=4，长报告/完整 HTML 用 w=12 h=6。
 - timeline 可 w=8 h=4；heatmap/map/funnel/adaptive 建议 w=6-7 h=4。
 - 位置需避免与现有组件重叠，y 坐标优先放在最下方空行
+
+【关联/穿透配置（可选 link 字段）】
+- link = { type: "workspace|widget|url", targetId?: "...", targetTemplate?: "...", url?: "https://...", title?: "...", openMode?: "drawer|blank|self" }
+- openMode 说明：
+  - drawer（默认）：点击后从右侧滑出浮层面板，用于在同页面内查看详情。适合 report/html 类型的"摘要 → 详情"穿透场景
+  - blank：点击后在新浏览器标签页中打开目标页面。适合外部系统链接
+  - self：点击后在当前页面内直接跳转。适合 workspace 类型跳转到其他驾驶舱
+- 典型场景：
+  1. html 组件生成报告摘要：data.html 放摘要/概览，配置 link = { type: "widget", openMode: "drawer", title: "查看报告详情" }，用户点击后浮层显示完整报告
+  2. report 组件：data.summary 放摘要，配置 link = { type: "widget", openMode: "drawer", title: "查看完整报告" }
+  3. 跳转到其他驾驶舱：link = { type: "workspace", targetId: "ws-xxx", openMode: "self" }
+  4. 外部链接：link = { type: "url", url: "https://...", openMode: "blank" }
 
 用户指令："""${cmd}"""
 
@@ -1474,7 +1487,7 @@ ${widgetDesc}
       'alert': 'alert', '告警': 'alert', '告警列表': 'alert', '事件': 'alert', '通知': 'alert',
       'map': 'map', '地图': 'map', '地理': 'map', '区域': 'map', '分布图': 'map',
       'business': 'business', '业务组件': 'business', '消息中心': 'business', '审批中心': 'business',
-      '智能日程': 'business', '日程组件': 'business', '洞察中心': 'business', '洞察组件': 'business',
+      '智能日程': 'business', '日程组件': 'business', '洞察中心': 'business', '洞察组件': 'business', '业务洞察': 'business',
     };
     const key = String(raw || '').toLowerCase().trim();
     const mapped = map[key] || 'metric';

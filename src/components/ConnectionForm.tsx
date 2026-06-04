@@ -232,7 +232,7 @@ export default function ConnectionForm({ connection, onSubmit, onCancel, onTest 
         )}
         <Button
           type="submit"
-          className="flex-1 h-9 text-xs bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-400 hover:to-orange-400 text-white border-0"
+          className="flex-1 h-9 text-xs bg-primary hover:bg-primary/90 text-primary-foreground border-0"
         >
           {connection ? '保存修改' : '创建连接'}
         </Button>

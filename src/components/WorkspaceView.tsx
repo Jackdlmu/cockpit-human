@@ -341,7 +341,7 @@ export function WorkspaceView({
                 <button
                   key={preset.id}
                   type="button"
-                  onClick={() => openCreateDialog(preset.id, { name: preset.title, command: preset.prompt })}
+                  onClick={() => openCreateDialog(preset.id, { name: preset.title })}
                   className="group flex min-h-[172px] flex-col rounded-lg border border-app-border-subtle bg-app-surface p-4 text-left shadow-sm transition-all hover:border-app-border-hover hover:shadow-md"
                 >
                   <div className="flex min-h-0 flex-1 items-start gap-4">
@@ -396,7 +396,7 @@ export function WorkspaceView({
                     {onDeleteWorkspace && (
                       <button
                         onClick={(e) => handleDeleteClick(e, workspace)}
-                        className="bi-icon-button bg-app-surface/90 text-app-text-subtle shadow-sm hover:bg-red-500/10 hover:text-red-500"
+                        className="bi-icon-button bg-app-surface/90 text-app-text-subtle shadow-sm hover:bg-primary/10 hover:text-primary"
                         title="删除驾驶舱"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
@@ -489,7 +489,7 @@ export function WorkspaceView({
             <AlertDialogAction
               onClick={handleConfirmDelete}
               disabled={deleting}
-              className="h-9 border-0 bg-red-500 text-xs text-white hover:bg-red-400"
+              className="h-9 border-0 bg-destructive text-xs text-destructive-foreground hover:bg-destructive/90"
             >
               {deleting ? '删除中...' : '确认删除'}
             </AlertDialogAction>

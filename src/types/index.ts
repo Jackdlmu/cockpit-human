@@ -65,6 +65,24 @@ export interface OrchestrationState {
   timestamp: string;
 }
 
+export interface WorkspaceGrouping {
+  enabled: boolean;
+  groups?: Array<{
+    id: string;
+    name: string;
+    widgetIds: string[];
+  }>;
+}
+
+/** 全局分组策略配置 */
+export interface GroupingPolicy {
+  enabled: boolean;
+  /** 分组策略：auto=自动推断，manual=严格遵循手动标签 */
+  strategy: 'auto' | 'manual';
+  /** 手动模式下的预定义分组标签 */
+  manualGroups?: string[];
+}
+
 export interface Workspace {
   id: string;
   name: string;
@@ -89,6 +107,8 @@ export interface Workspace {
   externalProvider?: 'yonclaw' | 'openclaw' | 'generic-llm' | 'other';
   externalWorkspaceId?: string;
   externalConnectionId?: string;
+  /** 组件分组配置 */
+  grouping?: WorkspaceGrouping;
 }
 
 export interface WidgetDataSource {
@@ -174,6 +194,8 @@ export interface WidgetLinkConfig {
   targetTemplate?: string;
   url?: string;
   title?: string;
+  /** 打开方式：drawer=浮层面板(默认)，blank=新标签页，self=当前页 */
+  openMode?: 'drawer' | 'blank' | 'self';
 }
 
 export type WidgetType =
@@ -186,7 +208,11 @@ export type WidgetType =
   | 'bullet'     // 子弹图：紧凑目标进度
   | 'alert'      // 告警列表：带级别的事件日志
   | 'map'        // 地图：地理分布
-  | 'business';  // 业务组件：消息中心、日程、洞察等可交互复合组件
+  | 'business'   // 业务组件：消息中心、日程、洞察等可交互复合组件
+  | 'workflow'   // 工作流：AI 执行步骤与进度展示
+  | 'result'     // 结果：结构化分析结论与发现
+  | 'actions'    // 行动：下一步计划与待办
+  | 'artifact';  // 产出物：SQL/代码/报告等可交付物预览
 
 export type BusinessWidgetType = 'message-center' | 'calendar' | 'insight-hub';
 
@@ -215,6 +241,10 @@ export interface Widget {
   business?: BusinessWidgetConfig;
   detail?: WidgetDetailConfig;
   link?: WidgetLinkConfig;
+  /** 组件所属分组标识 */
+  group?: string;
+  /** 是否启用 AI 分析建议（默认：数据类组件开启，容器类关闭） */
+  enableAIAnalysis?: boolean;
 }
 
 export interface WidgetCatalogItem {

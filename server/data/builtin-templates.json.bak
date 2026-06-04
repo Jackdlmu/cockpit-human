@@ -1,0 +1,3159 @@
+[
+  {
+    "id": "strategic-overview",
+    "name": "CEO战略总览驾驶舱",
+    "domain": "战略管理",
+    "keywords": [
+      "CEO",
+      "总裁",
+      "战略",
+      "总览",
+      "经营",
+      "高管",
+      "executive",
+      "overview",
+      "strategy"
+    ],
+    "icon": "Target",
+    "color": "#1e3a5f",
+    "agentIds": [
+      "ceo-agent"
+    ],
+    "primaryAgentId": "ceo-agent",
+    "description": "{{name}} — 企业战略健康度一站式总览，覆盖经营、财务、客户、运营、人力、风险六大维度",
+    "useDemoDataFallback": true,
+    "widgets": [
+      {
+        "id": "w-revenue",
+        "type": "metric",
+        "title": "营收达成率",
+        "position": {
+          "x": 0,
+          "y": 0,
+          "w": 3,
+          "h": 2
+        },
+        "data": {
+          "value": "¥8,420万",
+          "change": "+12.3% 同比",
+          "trend": "up",
+          "unit": "万元",
+          "target": "年度目标",
+          "compareLabel": "同比",
+          "description": "展示当前营收完成情况、同比变化和目标达成状态。",
+          "caption": "展示当前营收完成情况、同比变化和目标达成状态。"
+        },
+        "dataIntent": {
+          "domain": "战略管理",
+          "metricKey": "w-revenue",
+          "sourcePreference": "template-first"
+        }
+      },
+      {
+        "id": "w-profit",
+        "type": "metric",
+        "title": "净利润率",
+        "position": {
+          "x": 3,
+          "y": 0,
+          "w": 3,
+          "h": 2
+        },
+        "data": {
+          "value": "18.5%",
+          "change": "+1.2pp 同比",
+          "trend": "up",
+          "unit": "%",
+          "target": "20%",
+          "compareLabel": "同比",
+          "description": "净利润占收入比例，用于观察盈利质量。",
+          "caption": "净利润占收入比例，用于观察盈利质量。"
+        },
+        "dataIntent": {
+          "domain": "战略管理",
+          "metricKey": "w-profit",
+          "sourcePreference": "template-first"
+        }
+      },
+      {
+        "id": "w-cashflow",
+        "type": "metric",
+        "title": "经营现金流",
+        "position": {
+          "x": 6,
+          "y": 0,
+          "w": 3,
+          "h": 2
+        },
+        "data": {
+          "value": "¥1,260万",
+          "change": "+8.7% 环比",
+          "trend": "up",
+          "unit": "万元",
+          "target": "安全垫30天以上",
+          "compareLabel": "环比",
+          "description": "经营活动现金流入流出后的净额，是现金安全的重要指标。",
+          "caption": "经营活动现金流入流出后的净额，是现金安全的重要指标。"
+        },
+        "dataIntent": {
+          "domain": "战略管理",
+          "metricKey": "w-cashflow",
+          "sourcePreference": "template-first"
+        }
+      },
+      {
+        "id": "w-retention",
+        "type": "metric",
+        "title": "客户留存率",
+        "position": {
+          "x": 9,
+          "y": 0,
+          "w": 3,
+          "h": 2
+        },
+        "data": {
+          "value": "94.2%",
+          "change": "-0.8pp 环比",
+          "trend": "down",
+          "unit": "%",
+          "target": "95%",
+          "compareLabel": "环比",
+          "description": "衡量客户续约与持续合作稳定性。",
+          "caption": "衡量客户续约与持续合作稳定性。"
+        },
+        "dataIntent": {
+          "domain": "战略管理",
+          "metricKey": "w-retention",
+          "sourcePreference": "template-first"
+        }
+      },
+      {
+        "id": "w-strategy-gauge",
+        "type": "gauge",
+        "title": "年度战略达成率",
+        "position": {
+          "x": 0,
+          "y": 2,
+          "w": 3,
+          "h": 3
+        },
+        "data": {
+          "value": 68,
+          "min": 0,
+          "max": 100,
+          "unit": "%",
+          "thresholds": [
+            {
+              "value": 70,
+              "color": "#f59e0b",
+              "level": "warning"
+            },
+            {
+              "value": 90,
+              "color": "#ef4444",
+              "level": "critical"
+            }
+          ]
+        }
+      },
+      {
+        "id": "w-radar",
+        "type": "radar",
+        "title": "企业六维能力评估",
+        "position": {
+          "x": 3,
+          "y": 2,
+          "w": 6,
+          "h": 4
+        },
+        "data": {
+          "labels": [
+            "财务健康",
+            "运营效率",
+            "创新能力",
+            "客户满意",
+            "人才发展",
+            "合规风控"
+          ],
+          "values": [
+            85,
+            78,
+            72,
+            88,
+            75,
+            92
+          ]
+        }
+      },
+      {
+        "id": "w-alert",
+        "type": "alert",
+        "title": "风险告警",
+        "position": {
+          "x": 9,
+          "y": 2,
+          "w": 3,
+          "h": 3
+        },
+        "data": {
+          "alerts": [
+            {
+              "level": "warning",
+              "message": "现金流安全垫低于30天",
+              "time": "09:30"
+            },
+            {
+              "level": "critical",
+              "message": "关键人才流失率接近阈值",
+              "time": "09:15"
+            },
+            {
+              "level": "info",
+              "message": "Q2华东市场拓展进度正常",
+              "time": "08:45"
+            }
+          ]
+        }
+      },
+      {
+        "id": "w-org-health",
+        "type": "status",
+        "title": "组织健康度",
+        "position": {
+          "x": 4,
+          "y": 6,
+          "w": 4,
+          "h": 2
+        },
+        "data": {
+          "items": [
+            {
+              "label": "财务健康",
+              "status": "green",
+              "value": "良好"
+            },
+            {
+              "label": "运营效率",
+              "status": "green",
+              "value": "正常"
+            },
+            {
+              "label": "人才稳定",
+              "status": "yellow",
+              "value": "关注"
+            },
+            {
+              "label": "合规风险",
+              "status": "green",
+              "value": "正常"
+            }
+          ]
+        }
+      },
+      {
+        "id": "w-per-capita",
+        "type": "metric",
+        "title": "人均产出",
+        "position": {
+          "x": 8,
+          "y": 6,
+          "w": 4,
+          "h": 2
+        },
+        "data": {
+          "value": "¥52.6万",
+          "change": "+5.3% 同比",
+          "trend": "up",
+          "unit": "万元/人",
+          "compareLabel": "同比",
+          "description": "用于衡量组织效率和人效提升趋势。",
+          "caption": "用于衡量组织效率和人效提升趋势。"
+        },
+        "dataIntent": {
+          "domain": "战略管理",
+          "metricKey": "w-per-capita",
+          "sourcePreference": "template-first"
+        }
+      },
+      {
+        "id": "w-trend",
+        "type": "chart",
+        "title": "核心指标趋势（近6个月）",
+        "position": {
+          "x": 0,
+          "y": 8,
+          "w": 6,
+          "h": 4
+        },
+        "data": {
+          "labels": [
+            "1月",
+            "2月",
+            "3月",
+            "4月",
+            "5月",
+            "6月"
+          ],
+          "values": [
+            7200,
+            7450,
+            7800,
+            8100,
+            8200,
+            8420
+          ],
+          "styleConfig": {
+            "variant": "bar",
+            "baseline": "zero",
+            "mode": "standard",
+            "guidance": "时间序列可用 bar；如改为 line，应保持 labels/values 对齐。"
+          }
+        },
+        "dataIntent": {
+          "domain": "战略管理",
+          "metricKey": "w-trend",
+          "sourcePreference": "template-first"
+        }
+      },
+      {
+        "id": "w-risk",
+        "type": "kanban",
+        "title": "风险预警面板",
+        "position": {
+          "x": 6,
+          "y": 8,
+          "w": 6,
+          "h": 4
+        },
+        "data": {
+          "stages": [
+            "🔴 现金流安全垫低于30天",
+            "🟡 关键人才流失率接近阈值",
+            "🟡 某核心客户续约延迟",
+            "🟢 所有合规检查通过",
+            "🟢 供应链交付正常"
+          ]
+        }
+      },
+      {
+        "id": "w-nav",
+        "type": "list",
+        "title": "职能驾驶舱导航",
+        "position": {
+          "x": 0,
+          "y": 12,
+          "w": 6,
+          "h": 4
+        },
+        "data": {
+          "items": [
+            "📊 CFO财务决策驾驶舱 — 深入盈利与现金流分析",
+            "⚙️ COO运营效率驾驶舱 — 生产与交付实时监控",
+            "📈 CMO营销营收驾驶舱 — 增长引擎与管道健康",
+            "💻 CTO研发效能驾驶舱 — DORA指标与代码质量",
+            "👥 HRD人力资本驾驶舱 — 人才九宫格与流失预警",
+            "🚚 供应链协同驾驶舱 — 库存与供应商全景"
+          ]
+        },
+        "link": {
+          "type": "workspace",
+          "targetTemplate": "financial-decision",
+          "title": "下钻到财务驾驶舱"
+        }
+      },
+      {
+        "id": "w-milestone",
+        "type": "timeline",
+        "title": "战略里程碑",
+        "position": {
+          "x": 6,
+          "y": 12,
+          "w": 6,
+          "h": 4
+        },
+        "data": {
+          "steps": [
+            "✓ Q1 完成组织架构调整",
+            "✓ Q1 上线新CRM系统",
+            "→ Q2 拓展华东市场（进行中）",
+            "Q3 完成B轮融资",
+            "Q4 启动海外业务试点"
+          ]
+        }
+      }
+    ],
+    "initPrompt": "你是一个企业战略分析专家。请为「CEO战略总览驾驶舱」初始化最新经营数据，覆盖以下widget：\n1. 营收达成率、净利润率、经营现金流、客户留存率、人均产出 — 填充最新财务和运营指标\n2. 年度战略目标进度 — 更新关键举措完成百分比\n3. 组织健康度 — 评估财务/运营/人才/合规四维度状态\n4. 核心指标趋势 — 提供近6个月营收趋势数据\n5. 风险预警 — 扫描当前异常事件\n6. 战略里程碑 — 更新项目状态\n请使用真实合理的模拟数据，格式保持与模板data字段一致。\n\n可视化适配要求：指标卡必须使用 data.value/change/trend/unit/target/compareLabel/description 等语义字段；含正负值、差额、盈亏、预算偏差的数据必须使用 bar 且配置 styleConfig.baseline=\"zero\"、styleConfig.mode=\"diverging\"；只有全为非负且 2-5 个分类占比时才使用 donut；不要把 chartType/styleConfig/value/change/trend 等配置字段作为报告正文或详情展示字段。",
+    "grouping": {
+      "enabled": true,
+      "mode": "tabs-flow",
+      "groups": [
+        {
+          "id": "financial",
+          "name": "核心财务",
+          "widgetIds": [
+            "w-revenue",
+            "w-profit",
+            "w-cashflow",
+            "w-retention"
+          ]
+        },
+        {
+          "id": "strategy",
+          "name": "战略达成",
+          "widgetIds": [
+            "w-strategy-gauge",
+            "w-radar",
+            "w-alert"
+          ]
+        },
+        {
+          "id": "operations",
+          "name": "组织运营",
+          "widgetIds": [
+            "w-org-health",
+            "w-per-capita"
+          ]
+        },
+        {
+          "id": "trend-risk",
+          "name": "趋势与风险",
+          "widgetIds": [
+            "w-trend",
+            "w-risk"
+          ]
+        },
+        {
+          "id": "navigation",
+          "name": "导航与里程碑",
+          "widgetIds": [
+            "w-nav",
+            "w-milestone"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "financial-decision",
+    "name": "CFO财务决策驾驶舱",
+    "domain": "财务",
+    "keywords": [
+      "CFO",
+      "财务",
+      "盈利",
+      "现金流",
+      "预算",
+      "资产负债",
+      "成本",
+      "应收应付",
+      "finance",
+      "profit",
+      "cashflow"
+    ],
+    "icon": "DollarSign",
+    "color": "#0f5c3e",
+    "agentIds": [
+      "finance-agent"
+    ],
+    "primaryAgentId": "finance-agent",
+    "description": "{{name}} — 企业财务雷达，覆盖盈利分析、现金流管理、预算管控、资产负债、成本费用与风险预警",
+    "useDemoDataFallback": true,
+    "widgets": [
+      {
+        "id": "w-revenue",
+        "type": "metric",
+        "title": "营业收入",
+        "position": {
+          "x": 0,
+          "y": 0,
+          "w": 3,
+          "h": 2
+        },
+        "data": {
+          "value": "¥8,420万",
+          "change": "预算达成 105%",
+          "trend": "up",
+          "unit": "万元",
+          "target": "预算100%",
+          "compareLabel": "预算",
+          "description": "展示当前收入规模与预算达成情况。",
+          "caption": "展示当前收入规模与预算达成情况。"
+        },
+        "dataIntent": {
+          "domain": "财务",
+          "metricKey": "w-revenue",
+          "sourcePreference": "template-first"
+        }
+      },
+      {
+        "id": "w-gross-margin",
+        "type": "metric",
+        "title": "毛利率",
+        "position": {
+          "x": 3,
+          "y": 0,
+          "w": 3,
+          "h": 2
+        },
+        "data": {
+          "value": "42.8%",
+          "change": "+1.5pp 同比",
+          "trend": "up",
+          "unit": "%",
+          "target": "45%",
+          "compareLabel": "同比",
+          "description": "收入扣除直接成本后的利润率，用于观察产品和交付盈利能力。",
+          "caption": "收入扣除直接成本后的利润率，用于观察产品和交付盈利能力。"
+        },
+        "dataIntent": {
+          "domain": "财务",
+          "metricKey": "w-gross-margin",
+          "sourcePreference": "template-first"
+        }
+      },
+      {
+        "id": "w-cash",
+        "type": "metric",
+        "title": "经营现金流净额",
+        "position": {
+          "x": 6,
+          "y": 0,
+          "w": 3,
+          "h": 2
+        },
+        "data": {
+          "value": "¥1,260万",
+          "change": "安全垫 45天",
+          "trend": "up",
+          "unit": "万元",
+          "target": "安全垫30天以上",
+          "compareLabel": "安全垫",
+          "description": "经营现金流净额用于评估企业日常经营造血能力。",
+          "caption": "经营现金流净额用于评估企业日常经营造血能力。"
+        },
+        "dataIntent": {
+          "domain": "财务",
+          "metricKey": "w-cash",
+          "sourcePreference": "template-first"
+        }
+      },
+      {
+        "id": "w-debt",
+        "type": "gauge",
+        "title": "资产负债率",
+        "position": {
+          "x": 9,
+          "y": 0,
+          "w": 3,
+          "h": 3
+        },
+        "data": {
+          "value": 38.2,
+          "min": 0,
+          "max": 100,
+          "unit": "%",
+          "thresholds": [
+            {
+              "value": 50,
+              "color": "#f59e0b",
+              "level": "warning"
+            },
+            {
+              "value": 70,
+              "color": "#ef4444",
+              "level": "critical"
+            }
+          ]
+        }
+      },
+      {
+        "id": "w-profit-structure",
+        "type": "chart",
+        "title": "盈利结构（按事业部）",
+        "position": {
+          "x": 0,
+          "y": 2,
+          "w": 6,
+          "h": 4
+        },
+        "data": {
+          "labels": [
+            "消费电子",
+            "企业软件",
+            "云服务",
+            "咨询服务"
+          ],
+          "values": [
+            3200,
+            2100,
+            1850,
+            1270
+          ],
+          "styleConfig": {
+            "variant": "bar",
+            "baseline": "zero",
+            "mode": "standard",
+            "guidance": "分类对比优先 bar；如果 values 全为非负且表达占比结构，可改用 donut。"
+          }
+        },
+        "dataIntent": {
+          "domain": "财务",
+          "metricKey": "w-profit-structure",
+          "sourcePreference": "template-first"
+        }
+      },
+      {
+        "id": "w-budget",
+        "type": "bullet",
+        "title": "预算执行率",
+        "position": {
+          "x": 6,
+          "y": 3,
+          "w": 6,
+          "h": 2
+        },
+        "data": {
+          "value": 82,
+          "target": 85,
+          "max": 100,
+          "label": "预算执行率",
+          "ranges": [
+            {
+              "value": 60,
+              "color": "#ef4444"
+            },
+            {
+              "value": 80,
+              "color": "#f59e0b"
+            },
+            {
+              "value": 100,
+              "color": "#22c55e"
+            }
+          ]
+        }
+      },
+      {
+        "id": "w-heatmap",
+        "type": "heatmap",
+        "title": "费用热力分布",
+        "position": {
+          "x": 0,
+          "y": 10,
+          "w": 6,
+          "h": 4
+        },
+        "data": {
+          "rows": [
+            {
+              "x": "销售",
+              "y": "Q1",
+              "value": 3200
+            },
+            {
+              "x": "管理",
+              "y": "Q1",
+              "value": 1800
+            },
+            {
+              "x": "研发",
+              "y": "Q1",
+              "value": 2100
+            },
+            {
+              "x": "财务",
+              "y": "Q1",
+              "value": 300
+            },
+            {
+              "x": "销售",
+              "y": "Q2",
+              "value": 3500
+            },
+            {
+              "x": "管理",
+              "y": "Q2",
+              "value": 1900
+            },
+            {
+              "x": "研发",
+              "y": "Q2",
+              "value": 2400
+            },
+            {
+              "x": "财务",
+              "y": "Q2",
+              "value": 320
+            }
+          ]
+        }
+      },
+      {
+        "id": "w-cashflow-detail",
+        "type": "universal",
+        "title": "现金流瀑布",
+        "position": {
+          "x": 6,
+          "y": 5,
+          "w": 6,
+          "h": 4
+        },
+        "data": {
+          "content": "## 本月现金流结构\n\n**流入**\n- 销售收入：¥9,800万\n- 投资收益：¥320万\n- 其他收入：¥180万\n\n**流出**\n- 采购支出：¥5,200万\n- 人工费用：¥2,100万\n- 运营费用：¥1,140万\n- 税费：¥600万\n\n**净额：¥1,260万**"
+        }
+      },
+      {
+        "id": "w-ar-ap",
+        "type": "table",
+        "title": "应收应付明细",
+        "position": {
+          "x": 0,
+          "y": 6,
+          "w": 6,
+          "h": 4
+        },
+        "data": {
+          "rows": [
+            [
+              "应收账款周转",
+              "42天",
+              "↓ 3天"
+            ],
+            [
+              "应付账款周转",
+              "38天",
+              "→ 持平"
+            ],
+            [
+              "坏账率",
+              "0.8%",
+              "↓ 0.2pp"
+            ],
+            [
+              "逾期客户数",
+              "5家",
+              "↑ 2家"
+            ],
+            [
+              "回款预测(下月)",
+              "¥7,200万",
+              "—"
+            ]
+          ]
+        }
+      },
+      {
+        "id": "w-cost",
+        "type": "chart",
+        "title": "费用结构",
+        "position": {
+          "x": 6,
+          "y": 9,
+          "w": 6,
+          "h": 4
+        },
+        "data": {
+          "labels": [
+            "销售费用",
+            "管理费用",
+            "研发费用",
+            "财务费用"
+          ],
+          "values": [
+            18,
+            12,
+            15,
+            3
+          ],
+          "styleConfig": {
+            "variant": "donut",
+            "donut": {
+              "innerRatio": 0.58,
+              "legendRatio": 0.42,
+              "maxSlices": 5
+            },
+            "guidance": "仅用于全为非负的 2-5 个占比分类；出现负值或差额时改用 bar。"
+          }
+        },
+        "dataIntent": {
+          "domain": "财务",
+          "metricKey": "w-cost",
+          "sourcePreference": "template-first"
+        }
+      },
+      {
+        "id": "w-health-radar",
+        "type": "status",
+        "title": "财务健康雷达",
+        "position": {
+          "x": 0,
+          "y": 14,
+          "w": 6,
+          "h": 2
+        },
+        "data": {
+          "items": [
+            {
+              "label": "偿债能力",
+              "status": "green",
+              "value": "流动比率 2.1"
+            },
+            {
+              "label": "盈利能力",
+              "status": "green",
+              "value": "ROE 15.3%"
+            },
+            {
+              "label": "运营效率",
+              "status": "green",
+              "value": "资产周转 1.2"
+            },
+            {
+              "label": "成长能力",
+              "status": "yellow",
+              "value": "营收增速 12%"
+            },
+            {
+              "label": "现金流",
+              "status": "green",
+              "value": "经营现金流 +"
+            }
+          ]
+        }
+      }
+    ],
+    "initPrompt": "你是一个财务分析专家。请为「CFO财务决策驾驶舱」初始化最新财务数据：\n1. 营业收入、毛利率、经营现金流净额、资产负债率 — 最新财务指标\n2. 盈利结构 — 按事业部/产品线拆分的收入数据\n3. 预算执行率 — 各部门预算vs实际\n4. 现金流瀑布 — 流入流出明细\n5. 应收应付明细 — 周转天数、坏账率、逾期清单\n6. 费用结构 — 销售/管理/研发/财务费用占比\n7. 财务健康雷达 — 偿债/盈利/运营/成长/现金流五维评估\n请使用真实合理的模拟数据。\n\n可视化适配要求：指标卡必须使用 data.value/change/trend/unit/target/compareLabel/description 等语义字段；含正负值、差额、盈亏、预算偏差的数据必须使用 bar 且配置 styleConfig.baseline=\"zero\"、styleConfig.mode=\"diverging\"；只有全为非负且 2-5 个分类占比时才使用 donut；不要把 chartType/styleConfig/value/change/trend 等配置字段作为报告正文或详情展示字段。",
+    "grouping": {
+      "enabled": true,
+      "mode": "tabs-flow",
+      "groups": [
+        {
+          "id": "core-finance",
+          "name": "核心财务",
+          "widgetIds": [
+            "w-revenue",
+            "w-gross-margin",
+            "w-cash",
+            "w-debt"
+          ]
+        },
+        {
+          "id": "profit-analysis",
+          "name": "盈利分析",
+          "widgetIds": [
+            "w-profit-structure",
+            "w-budget"
+          ]
+        },
+        {
+          "id": "cost-cashflow",
+          "name": "费用与现金流",
+          "widgetIds": [
+            "w-heatmap",
+            "w-cashflow-detail",
+            "w-ar-ap",
+            "w-cost"
+          ]
+        },
+        {
+          "id": "health-radar",
+          "name": "健康雷达",
+          "widgetIds": [
+            "w-health-radar"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "operational-efficiency",
+    "name": "COO运营效率驾驶舱",
+    "domain": "运营",
+    "keywords": [
+      "COO",
+      "运营",
+      "生产",
+      "OEE",
+      "质量",
+      "交付",
+      "设备",
+      "产能",
+      "operations",
+      "manufacturing"
+    ],
+    "icon": "Monitor",
+    "color": "#7c3aed",
+    "agentIds": [
+      "ops-agent"
+    ],
+    "primaryAgentId": "ops-agent",
+    "description": "{{name}} — 生产运营全流程效率监控，覆盖OEE、质量、交付、能耗与设备状态",
+    "useDemoDataFallback": true,
+    "widgets": [
+      {
+        "id": "w-oee",
+        "type": "gauge",
+        "title": "OEE综合效率",
+        "position": {
+          "x": 0,
+          "y": 0,
+          "w": 3,
+          "h": 3
+        },
+        "data": {
+          "value": 72.4,
+          "min": 0,
+          "max": 100,
+          "unit": "%",
+          "thresholds": [
+            {
+              "value": 60,
+              "color": "#ef4444",
+              "level": "critical"
+            },
+            {
+              "value": 80,
+              "color": "#f59e0b",
+              "level": "warning"
+            }
+          ]
+        }
+      },
+      {
+        "id": "w-otd",
+        "type": "metric",
+        "title": "订单准时交付率",
+        "position": {
+          "x": 3,
+          "y": 0,
+          "w": 3,
+          "h": 2
+        },
+        "data": {
+          "value": "93.6%",
+          "change": "+1.8pp 环比",
+          "trend": "up",
+          "unit": "%",
+          "target": "95%",
+          "compareLabel": "环比",
+          "description": "衡量订单按承诺时间交付的比例。",
+          "caption": "衡量订单按承诺时间交付的比例。"
+        },
+        "dataIntent": {
+          "domain": "运营",
+          "metricKey": "w-otd",
+          "sourcePreference": "template-first"
+        }
+      },
+      {
+        "id": "w-quality",
+        "type": "metric",
+        "title": "一次合格率",
+        "position": {
+          "x": 6,
+          "y": 0,
+          "w": 3,
+          "h": 2
+        },
+        "data": {
+          "value": "98.2%",
+          "change": "+0.3pp 环比",
+          "trend": "up",
+          "unit": "%",
+          "target": "99%",
+          "compareLabel": "环比",
+          "description": "衡量首次质检通过率，反映质量稳定性。",
+          "caption": "衡量首次质检通过率，反映质量稳定性。"
+        },
+        "dataIntent": {
+          "domain": "运营",
+          "metricKey": "w-quality",
+          "sourcePreference": "template-first"
+        }
+      },
+      {
+        "id": "w-capacity",
+        "type": "metric",
+        "title": "产能利用率",
+        "position": {
+          "x": 9,
+          "y": 0,
+          "w": 3,
+          "h": 2
+        },
+        "data": {
+          "value": "85.7%",
+          "change": "+4.1pp 环比",
+          "trend": "up",
+          "unit": "%",
+          "target": "85%",
+          "compareLabel": "环比",
+          "description": "衡量实际产出对可用产能的利用水平。",
+          "caption": "衡量实际产出对可用产能的利用水平。"
+        },
+        "dataIntent": {
+          "domain": "运营",
+          "metricKey": "w-capacity",
+          "sourcePreference": "template-first"
+        }
+      },
+      {
+        "id": "w-funnel",
+        "type": "funnel",
+        "title": "生产流程转化漏斗",
+        "position": {
+          "x": 0,
+          "y": 3,
+          "w": 6,
+          "h": 4
+        },
+        "data": {
+          "stages": [
+            {
+              "name": "投料",
+              "value": 10000,
+              "rate": 100
+            },
+            {
+              "name": "加工",
+              "value": 9850,
+              "rate": 98.5
+            },
+            {
+              "name": "质检",
+              "value": 9720,
+              "rate": 98.7
+            },
+            {
+              "name": "包装",
+              "value": 9680,
+              "rate": 99.6
+            },
+            {
+              "name": "入库",
+              "value": 9650,
+              "rate": 99.7
+            }
+          ]
+        }
+      },
+      {
+        "id": "w-line-status",
+        "type": "status",
+        "title": "产线实时状态",
+        "position": {
+          "x": 6,
+          "y": 2,
+          "w": 6,
+          "h": 3
+        },
+        "data": {
+          "items": [
+            {
+              "label": "A产线-主板组装",
+              "status": "green",
+              "value": "运行中 92%"
+            },
+            {
+              "label": "B产线-电池封装",
+              "status": "green",
+              "value": "运行中 88%"
+            },
+            {
+              "label": "C产线-外壳注塑",
+              "status": "yellow",
+              "value": "待机 换模中"
+            },
+            {
+              "label": "D产线-总装测试",
+              "status": "red",
+              "value": "故障 维修中"
+            },
+            {
+              "label": "E产线-包装入库",
+              "status": "green",
+              "value": "运行中 95%"
+            }
+          ]
+        }
+      },
+      {
+        "id": "w-quality-trend",
+        "type": "chart",
+        "title": "质量趋势（近30天）",
+        "position": {
+          "x": 0,
+          "y": 7,
+          "w": 6,
+          "h": 3
+        },
+        "data": {
+          "labels": [
+            "W1",
+            "W2",
+            "W3",
+            "W4"
+          ],
+          "values": [
+            97.5,
+            97.8,
+            98,
+            98.2
+          ],
+          "styleConfig": {
+            "variant": "bar",
+            "baseline": "zero",
+            "mode": "standard",
+            "guidance": "时间序列可用 bar；如改为 line，应保持 labels/values 对齐。"
+          }
+        },
+        "dataIntent": {
+          "domain": "运营",
+          "metricKey": "w-quality-trend",
+          "sourcePreference": "template-first"
+        }
+      },
+      {
+        "id": "w-delivery-delay",
+        "type": "table",
+        "title": "交付延迟分析",
+        "position": {
+          "x": 6,
+          "y": 5,
+          "w": 6,
+          "h": 3
+        },
+        "data": {
+          "rows": [
+            [
+              "客户A-订单#20240601",
+              "延迟2天",
+              "缺料"
+            ],
+            [
+              "客户B-订单#20240605",
+              "延迟1天",
+              "质检返工"
+            ],
+            [
+              "客户C-订单#20240608",
+              "准时",
+              "—"
+            ],
+            [
+              "客户D-订单#20240612",
+              "延迟3天",
+              "设备故障"
+            ]
+          ]
+        }
+      },
+      {
+        "id": "w-energy",
+        "type": "metric",
+        "title": "单位产品能耗",
+        "position": {
+          "x": 0,
+          "y": 10,
+          "w": 3,
+          "h": 2
+        },
+        "data": {
+          "value": "12.4kWh",
+          "change": "-5.2% 同比",
+          "trend": "up",
+          "unit": "kWh",
+          "target": "持续下降",
+          "compareLabel": "同比",
+          "description": "单位产品能源消耗，下降通常代表效率提升。",
+          "caption": "单位产品能源消耗，下降通常代表效率提升。"
+        },
+        "dataIntent": {
+          "domain": "运营",
+          "metricKey": "w-energy",
+          "sourcePreference": "template-first"
+        }
+      },
+      {
+        "id": "w-equipment-alert",
+        "type": "alert",
+        "title": "设备故障预警",
+        "position": {
+          "x": 3,
+          "y": 10,
+          "w": 6,
+          "h": 4
+        },
+        "data": {
+          "alerts": [
+            {
+              "level": "critical",
+              "message": "D产线测试机#3温度异常 85°C",
+              "time": "10:15"
+            },
+            {
+              "level": "warning",
+              "message": "C产线模具磨损度达78%",
+              "time": "09:42"
+            },
+            {
+              "level": "warning",
+              "message": "空压机压力波动 ±0.3MPa",
+              "time": "09:30"
+            },
+            {
+              "level": "info",
+              "message": "B产线例行维护已完成",
+              "time": "08:00"
+            }
+          ]
+        }
+      },
+      {
+        "id": "w-shift-output",
+        "type": "chart",
+        "title": "班次产量对比",
+        "position": {
+          "x": 6,
+          "y": 14,
+          "w": 6,
+          "h": 3
+        },
+        "data": {
+          "labels": [
+            "早班",
+            "中班",
+            "晚班"
+          ],
+          "values": [
+            420,
+            380,
+            350
+          ],
+          "styleConfig": {
+            "variant": "bar",
+            "baseline": "zero",
+            "mode": "standard",
+            "guidance": "分类对比优先 bar；如果 values 全为非负且表达占比结构，可改用 donut。"
+          }
+        },
+        "dataIntent": {
+          "domain": "运营",
+          "metricKey": "w-shift-output",
+          "sourcePreference": "template-first"
+        }
+      }
+    ],
+    "initPrompt": "你是一个生产运营专家。请为「COO运营效率驾驶舱」初始化制造运营数据：\n1. OEE综合效率及三要素分解（稼动率/性能/良率）\n2. 订单准时交付率、一次合格率、产能利用率\n3. 产线实时状态 — 各产线运行/待机/故障状态\n4. 质量趋势 — 近30天合格率数据\n5. 交付延迟分析 — 延迟订单及根因\n6. 单位产品能耗、设备故障预警\n7. 班次产量对比\n请使用制造业真实合理的模拟数据。\n\n可视化适配要求：指标卡必须使用 data.value/change/trend/unit/target/compareLabel/description 等语义字段；含正负值、差额、盈亏、预算偏差的数据必须使用 bar 且配置 styleConfig.baseline=\"zero\"、styleConfig.mode=\"diverging\"；只有全为非负且 2-5 个分类占比时才使用 donut；不要把 chartType/styleConfig/value/change/trend 等配置字段作为报告正文或详情展示字段。",
+    "grouping": {
+      "enabled": true,
+      "mode": "tabs-flow",
+      "groups": [
+        {
+          "id": "core-efficiency",
+          "name": "核心效率",
+          "widgetIds": [
+            "w-oee",
+            "w-quality",
+            "w-capacity"
+          ]
+        },
+        {
+          "id": "production",
+          "name": "生产流程",
+          "widgetIds": [
+            "w-funnel",
+            "w-line-status",
+            "w-quality-trend"
+          ]
+        },
+        {
+          "id": "delivery",
+          "name": "交付与能耗",
+          "widgetIds": [
+            "w-otd",
+            "w-delivery-delay",
+            "w-energy",
+            "w-shift-output"
+          ]
+        },
+        {
+          "id": "equipment",
+          "name": "设备预警",
+          "widgetIds": [
+            "w-equipment-alert"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "marketing-revenue",
+    "name": "CMO营销营收驾驶舱",
+    "domain": "营销",
+    "keywords": [
+      "CMO",
+      "CRO",
+      "营销",
+      "营收",
+      "销售",
+      "MRR",
+      "ARR",
+      "获客",
+      "管道",
+      "marketing",
+      "revenue",
+      "sales"
+    ],
+    "icon": "TrendingUp",
+    "color": "#ea580c",
+    "agentIds": [
+      "marketing-agent"
+    ],
+    "primaryAgentId": "marketing-agent",
+    "description": "{{name}} — 增长引擎仪表盘，覆盖收入业绩、销售漏斗、获客效率、客户成功与营销ROI",
+    "useDemoDataFallback": true,
+    "widgets": [
+      {
+        "id": "w-mrr",
+        "type": "metric",
+        "title": "MRR月经常性收入",
+        "position": {
+          "x": 0,
+          "y": 0,
+          "w": 3,
+          "h": 2
+        },
+        "data": {
+          "value": "¥320万",
+          "change": "+8.5% 环比",
+          "trend": "up",
+          "unit": "万元",
+          "target": "月度目标",
+          "compareLabel": "环比",
+          "description": "订阅/经常性收入的月度规模。",
+          "caption": "订阅/经常性收入的月度规模。"
+        },
+        "dataIntent": {
+          "domain": "营销",
+          "metricKey": "w-mrr",
+          "sourcePreference": "template-first"
+        }
+      },
+      {
+        "id": "w-arr",
+        "type": "metric",
+        "title": "ARR年经常性收入",
+        "position": {
+          "x": 3,
+          "y": 0,
+          "w": 3,
+          "h": 2
+        },
+        "data": {
+          "value": "¥3,840万",
+          "change": "+35% 同比",
+          "trend": "up",
+          "unit": "万元",
+          "target": "年度目标",
+          "compareLabel": "同比",
+          "description": "经常性收入年化规模，反映收入确定性。",
+          "caption": "经常性收入年化规模，反映收入确定性。"
+        },
+        "dataIntent": {
+          "domain": "营销",
+          "metricKey": "w-arr",
+          "sourcePreference": "template-first"
+        }
+      },
+      {
+        "id": "w-nrr",
+        "type": "metric",
+        "title": "NRR净留存率",
+        "position": {
+          "x": 6,
+          "y": 0,
+          "w": 3,
+          "h": 2
+        },
+        "data": {
+          "value": "112%",
+          "change": "+4pp 同比",
+          "trend": "up"
+        },
+        "dataIntent": {
+          "domain": "营销",
+          "metricKey": "w-nrr",
+          "sourcePreference": "template-first"
+        }
+      },
+      {
+        "id": "w-cac",
+        "type": "metric",
+        "title": "CAC获客成本",
+        "position": {
+          "x": 9,
+          "y": 0,
+          "w": 3,
+          "h": 2
+        },
+        "data": {
+          "value": "¥8,200",
+          "change": "-12% 同比",
+          "trend": "up",
+          "unit": "元/客户",
+          "target": "持续下降",
+          "compareLabel": "环比",
+          "description": "获取单个客户所需成本，下降通常代表获客效率提升。",
+          "caption": "获取单个客户所需成本，下降通常代表获客效率提升。"
+        },
+        "dataIntent": {
+          "domain": "营销",
+          "metricKey": "w-cac",
+          "sourcePreference": "template-first"
+        }
+      },
+      {
+        "id": "w-revenue-trend",
+        "type": "chart",
+        "title": "ARR趋势（近6个月）",
+        "position": {
+          "x": 0,
+          "y": 2,
+          "w": 6,
+          "h": 3
+        },
+        "data": {
+          "labels": [
+            "1月",
+            "2月",
+            "3月",
+            "4月",
+            "5月",
+            "6月"
+          ],
+          "values": [
+            3200,
+            3320,
+            3450,
+            3580,
+            3720,
+            3840
+          ],
+          "styleConfig": {
+            "variant": "bar",
+            "baseline": "zero",
+            "mode": "standard",
+            "guidance": "时间序列可用 bar；如改为 line，应保持 labels/values 对齐。"
+          }
+        },
+        "dataIntent": {
+          "domain": "营销",
+          "metricKey": "w-revenue-trend",
+          "sourcePreference": "template-first"
+        }
+      },
+      {
+        "id": "w-funnel",
+        "type": "funnel",
+        "title": "销售漏斗",
+        "position": {
+          "x": 6,
+          "y": 2,
+          "w": 6,
+          "h": 4
+        },
+        "data": {
+          "stages": [
+            {
+              "name": "访客",
+              "value": 120000,
+              "rate": 100
+            },
+            {
+              "name": "MQL",
+              "value": 4200,
+              "rate": 3.5
+            },
+            {
+              "name": "SQL",
+              "value": 1050,
+              "rate": 25
+            },
+            {
+              "name": "成交",
+              "value": 315,
+              "rate": 30
+            },
+            {
+              "name": "续约",
+              "value": 280,
+              "rate": 89
+            }
+          ]
+        }
+      },
+      {
+        "id": "w-radar",
+        "type": "radar",
+        "title": "销售团队能力评估",
+        "position": {
+          "x": 0,
+          "y": 10,
+          "w": 6,
+          "h": 4
+        },
+        "data": {
+          "labels": [
+            "获客能力",
+            "转化能力",
+            "客单价",
+            "客户成功",
+            "协作效率",
+            "产品知识"
+          ],
+          "values": [
+            82,
+            75,
+            88,
+            70,
+            78,
+            85
+          ]
+        }
+      },
+      {
+        "id": "w-map",
+        "type": "map",
+        "title": "区域营收分布",
+        "position": {
+          "x": 6,
+          "y": 11,
+          "w": 6,
+          "h": 4
+        },
+        "data": {
+          "points": [
+            {
+              "name": "华东区",
+              "value": 420
+            },
+            {
+              "name": "华北区",
+              "value": 380
+            },
+            {
+              "name": "华南区",
+              "value": 310
+            },
+            {
+              "name": "西南区",
+              "value": 260
+            },
+            {
+              "name": "海外市场",
+              "value": 180
+            }
+          ]
+        }
+      },
+      {
+        "id": "w-pipeline",
+        "type": "table",
+        "title": "管道覆盖",
+        "position": {
+          "x": 0,
+          "y": 5,
+          "w": 6,
+          "h": 3
+        },
+        "data": {
+          "rows": [
+            [
+              "潜在客户",
+              "¥1,200万",
+              "40%"
+            ],
+            [
+              "需求确认",
+              "¥860万",
+              "28%"
+            ],
+            [
+              "方案评估",
+              "¥520万",
+              "17%"
+            ],
+            [
+              "商务谈判",
+              "¥280万",
+              "9%"
+            ],
+            [
+              "即将成交",
+              "¥180万",
+              "6%"
+            ]
+          ]
+        }
+      },
+      {
+        "id": "w-team-rank",
+        "type": "chart",
+        "title": "销售团队业绩排名",
+        "position": {
+          "x": 6,
+          "y": 6,
+          "w": 6,
+          "h": 3
+        },
+        "data": {
+          "labels": [
+            "华东一队",
+            "华北二队",
+            "华南三队",
+            "西南四队"
+          ],
+          "values": [
+            420,
+            380,
+            310,
+            260
+          ]
+        },
+        "dataIntent": {
+          "domain": "营销",
+          "metricKey": "w-team-rank",
+          "sourcePreference": "template-first"
+        }
+      },
+      {
+        "id": "w-customer-health",
+        "type": "status",
+        "title": "客户健康度",
+        "position": {
+          "x": 0,
+          "y": 8,
+          "w": 3,
+          "h": 2
+        },
+        "data": {
+          "items": [
+            {
+              "label": "健康",
+              "status": "green",
+              "value": "68%"
+            },
+            {
+              "label": "关注",
+              "status": "yellow",
+              "value": "22%"
+            },
+            {
+              "label": "风险",
+              "status": "red",
+              "value": "10%"
+            }
+          ]
+        }
+      },
+      {
+        "id": "w-ltv-cac",
+        "type": "metric",
+        "title": "LTV/CAC比率",
+        "position": {
+          "x": 3,
+          "y": 8,
+          "w": 3,
+          "h": 2
+        },
+        "data": {
+          "value": "4.2x",
+          "change": "回收期 9.8个月",
+          "trend": "up"
+        },
+        "dataIntent": {
+          "domain": "营销",
+          "metricKey": "w-ltv-cac",
+          "sourcePreference": "template-first"
+        }
+      },
+      {
+        "id": "w-win-rate",
+        "type": "progress",
+        "title": "赢单率",
+        "position": {
+          "x": 6,
+          "y": 9,
+          "w": 3,
+          "h": 2
+        },
+        "data": {
+          "value": 30,
+          "max": 100,
+          "label": "30%",
+          "color": "indigo",
+          "caption": "行业均值 25%"
+        }
+      },
+      {
+        "id": "w-rule40",
+        "type": "metric",
+        "title": "Rule of 40",
+        "position": {
+          "x": 9,
+          "y": 9,
+          "w": 3,
+          "h": 2
+        },
+        "data": {
+          "value": "47%",
+          "change": "增长率35% + 利润率12%",
+          "trend": "up"
+        },
+        "dataIntent": {
+          "domain": "营销",
+          "metricKey": "w-rule40",
+          "sourcePreference": "template-first"
+        }
+      }
+    ],
+    "initPrompt": "你是一个增长运营专家。请为「CMO营销营收驾驶舱」初始化SaaS营收数据：\n1. MRR/ARR、NRR净留存率、CAC获客成本、赢单率\n2. ARR趋势 — 近6个月经常性收入\n3. 销售漏斗 — 访客→MQL→SQL→成交→续约各阶段转化率\n4. 管道覆盖 — 各阶段管道金额及转化率\n5. 销售团队业绩排名\n6. 客户健康度分布（健康/关注/风险）\n7. LTV/CAC比率、Rule of 40\n请使用SaaS企业真实合理的模拟数据。\n\n可视化适配要求：指标卡必须使用 data.value/change/trend/unit/target/compareLabel/description 等语义字段；含正负值、差额、盈亏、预算偏差的数据必须使用 bar 且配置 styleConfig.baseline=\"zero\"、styleConfig.mode=\"diverging\"；只有全为非负且 2-5 个分类占比时才使用 donut；不要把 chartType/styleConfig/value/change/trend 等配置字段作为报告正文或详情展示字段。",
+    "grouping": {
+      "enabled": true,
+      "mode": "tabs-flow",
+      "groups": [
+        {
+          "id": "core-metrics",
+          "name": "核心指标",
+          "widgetIds": [
+            "w-mrr",
+            "w-arr",
+            "w-nrr",
+            "w-cac",
+            "w-ltv-cac"
+          ]
+        },
+        {
+          "id": "sales-funnel",
+          "name": "销售漏斗",
+          "widgetIds": [
+            "w-funnel",
+            "w-pipeline",
+            "w-win-rate",
+            "w-team-rank"
+          ]
+        },
+        {
+          "id": "customer-health",
+          "name": "客户健康",
+          "widgetIds": [
+            "w-customer-health",
+            "w-rule40"
+          ]
+        },
+        {
+          "id": "trend-capability",
+          "name": "趋势与能力",
+          "widgetIds": [
+            "w-revenue-trend",
+            "w-radar",
+            "w-map"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "rd-effectiveness",
+    "name": "CTO研发效能驾驶舱",
+    "domain": "研发",
+    "keywords": [
+      "CTO",
+      "研发",
+      "技术",
+      "DORA",
+      "DevOps",
+      "代码质量",
+      "部署",
+      "研发效能",
+      "engineering",
+      "R&D"
+    ],
+    "icon": "Code2",
+    "color": "#0891b2",
+    "agentIds": [
+      "tech-agent"
+    ],
+    "primaryAgentId": "tech-agent",
+    "description": "{{name}} — 技术创新引擎仪表盘，基于DORA框架衡量研发交付效率、质量、能力与成本",
+    "useDemoDataFallback": true,
+    "widgets": [
+      {
+        "id": "w-deploy-freq",
+        "type": "metric",
+        "title": "部署频率",
+        "position": {
+          "x": 0,
+          "y": 0,
+          "w": 3,
+          "h": 2
+        },
+        "data": {
+          "value": "12次/周",
+          "change": "+3次 环比",
+          "trend": "up",
+          "unit": "次/周",
+          "target": "持续提升",
+          "compareLabel": "环比",
+          "description": "发布频率用于衡量交付节奏和自动化成熟度。",
+          "caption": "发布频率用于衡量交付节奏和自动化成熟度。"
+        },
+        "dataIntent": {
+          "domain": "研发",
+          "metricKey": "w-deploy-freq",
+          "sourcePreference": "template-first"
+        }
+      },
+      {
+        "id": "w-lead-time",
+        "type": "metric",
+        "title": "变更前置时间",
+        "position": {
+          "x": 3,
+          "y": 0,
+          "w": 3,
+          "h": 2
+        },
+        "data": {
+          "value": "4.2小时",
+          "change": "-1.5小时 环比",
+          "trend": "up"
+        },
+        "dataIntent": {
+          "domain": "研发",
+          "metricKey": "w-lead-time",
+          "sourcePreference": "template-first"
+        }
+      },
+      {
+        "id": "w-failure-rate",
+        "type": "metric",
+        "title": "变更失败率",
+        "position": {
+          "x": 6,
+          "y": 0,
+          "w": 3,
+          "h": 2
+        },
+        "data": {
+          "value": "8.5%",
+          "change": "-2.1pp 环比",
+          "trend": "up"
+        },
+        "dataIntent": {
+          "domain": "研发",
+          "metricKey": "w-failure-rate",
+          "sourcePreference": "template-first"
+        }
+      },
+      {
+        "id": "w-mttr",
+        "type": "metric",
+        "title": "服务恢复时间",
+        "position": {
+          "x": 9,
+          "y": 0,
+          "w": 3,
+          "h": 2
+        },
+        "data": {
+          "value": "36分钟",
+          "change": "-18分钟 环比",
+          "trend": "up"
+        },
+        "dataIntent": {
+          "domain": "研发",
+          "metricKey": "w-mttr",
+          "sourcePreference": "template-first"
+        }
+      },
+      {
+        "id": "w-dora-grade",
+        "type": "status",
+        "title": "DORA等级评估",
+        "position": {
+          "x": 0,
+          "y": 2,
+          "w": 4,
+          "h": 2
+        },
+        "data": {
+          "items": [
+            {
+              "label": "部署频率",
+              "status": "green",
+              "value": "高效能 >1次/天"
+            },
+            {
+              "label": "前置时间",
+              "status": "green",
+              "value": "高效能 <1天"
+            },
+            {
+              "label": "失败率",
+              "status": "yellow",
+              "value": "中等 8.5%"
+            },
+            {
+              "label": "恢复时间",
+              "status": "green",
+              "value": "高效能 <1小时"
+            }
+          ]
+        }
+      },
+      {
+        "id": "w-deploy-trend",
+        "type": "chart",
+        "title": "部署趋势（近4周）",
+        "position": {
+          "x": 4,
+          "y": 2,
+          "w": 4,
+          "h": 3
+        },
+        "data": {
+          "labels": [
+            "W1",
+            "W2",
+            "W3",
+            "W4"
+          ],
+          "values": [
+            8,
+            10,
+            11,
+            12
+          ],
+          "styleConfig": {
+            "variant": "bar",
+            "baseline": "zero",
+            "mode": "standard",
+            "guidance": "时间序列可用 bar；如改为 line，应保持 labels/values 对齐。"
+          }
+        },
+        "dataIntent": {
+          "domain": "研发",
+          "metricKey": "w-deploy-trend",
+          "sourcePreference": "template-first"
+        }
+      },
+      {
+        "id": "w-defect-trend",
+        "type": "chart",
+        "title": "缺陷趋势",
+        "position": {
+          "x": 8,
+          "y": 2,
+          "w": 4,
+          "h": 3
+        },
+        "data": {
+          "labels": [
+            "W1",
+            "W2",
+            "W3",
+            "W4"
+          ],
+          "values": [
+            45,
+            38,
+            32,
+            28
+          ],
+          "styleConfig": {
+            "variant": "bar",
+            "baseline": "zero",
+            "mode": "standard",
+            "guidance": "时间序列可用 bar；如改为 line，应保持 labels/values 对齐。"
+          }
+        },
+        "dataIntent": {
+          "domain": "研发",
+          "metricKey": "w-defect-trend",
+          "sourcePreference": "template-first"
+        }
+      },
+      {
+        "id": "w-code-quality",
+        "type": "table",
+        "title": "代码质量评分",
+        "position": {
+          "x": 0,
+          "y": 5,
+          "w": 6,
+          "h": 3
+        },
+        "data": {
+          "rows": [
+            [
+              "核心服务",
+              "A",
+              "覆盖率 85%",
+              "债务 12h"
+            ],
+            [
+              "支付网关",
+              "A",
+              "覆盖率 78%",
+              "债务 8h"
+            ],
+            [
+              "用户中心",
+              "B+",
+              "覆盖率 65%",
+              "债务 24h"
+            ],
+            [
+              "数据分析",
+              "B",
+              "覆盖率 52%",
+              "债务 36h"
+            ],
+            [
+              "消息推送",
+              "A-",
+              "覆盖率 72%",
+              "债务 15h"
+            ]
+          ]
+        }
+      },
+      {
+        "id": "w-sla",
+        "type": "metric",
+        "title": "系统可用性(SLA)",
+        "position": {
+          "x": 6,
+          "y": 5,
+          "w": 3,
+          "h": 2
+        },
+        "data": {
+          "value": "99.95%",
+          "change": "本月宕机 12分钟",
+          "trend": "up"
+        },
+        "dataIntent": {
+          "domain": "研发",
+          "metricKey": "w-sla",
+          "sourcePreference": "template-first"
+        }
+      },
+      {
+        "id": "w-auto-coverage",
+        "type": "bullet",
+        "title": "自动化测试覆盖率",
+        "position": {
+          "x": 9,
+          "y": 5,
+          "w": 3,
+          "h": 2
+        },
+        "data": {
+          "value": 72,
+          "target": 80,
+          "max": 100,
+          "label": "覆盖率",
+          "ranges": [
+            {
+              "value": 50,
+              "color": "#ef4444"
+            },
+            {
+              "value": 70,
+              "color": "#f59e0b"
+            },
+            {
+              "value": 100,
+              "color": "#22c55e"
+            }
+          ]
+        }
+      },
+      {
+        "id": "w-radar",
+        "type": "radar",
+        "title": "技术债多维评估",
+        "position": {
+          "x": 0,
+          "y": 9,
+          "w": 6,
+          "h": 4
+        },
+        "data": {
+          "labels": [
+            "代码复杂度",
+            "测试覆盖",
+            "文档完整",
+            "依赖健康",
+            "安全漏洞",
+            "性能基线"
+          ],
+          "values": [
+            65,
+            72,
+            55,
+            80,
+            90,
+            75
+          ]
+        }
+      },
+      {
+        "id": "w-heatmap",
+        "type": "heatmap",
+        "title": "代码提交热力",
+        "position": {
+          "x": 6,
+          "y": 9,
+          "w": 6,
+          "h": 4
+        },
+        "data": {
+          "rows": [
+            {
+              "x": "周一",
+              "y": "上午",
+              "value": 45
+            },
+            {
+              "x": "周一",
+              "y": "下午",
+              "value": 62
+            },
+            {
+              "x": "周二",
+              "y": "上午",
+              "value": 38
+            },
+            {
+              "x": "周二",
+              "y": "下午",
+              "value": 55
+            },
+            {
+              "x": "周三",
+              "y": "上午",
+              "value": 50
+            },
+            {
+              "x": "周三",
+              "y": "下午",
+              "value": 70
+            },
+            {
+              "x": "周四",
+              "y": "上午",
+              "value": 42
+            },
+            {
+              "x": "周四",
+              "y": "下午",
+              "value": 58
+            },
+            {
+              "x": "周五",
+              "y": "上午",
+              "value": 35
+            },
+            {
+              "x": "周五",
+              "y": "下午",
+              "value": 48
+            }
+          ]
+        }
+      },
+      {
+        "id": "w-p0",
+        "type": "metric",
+        "title": "本月P0/P1故障",
+        "position": {
+          "x": 6,
+          "y": 7,
+          "w": 3,
+          "h": 2
+        },
+        "data": {
+          "value": "2起",
+          "change": "-3起 环比",
+          "trend": "up"
+        },
+        "dataIntent": {
+          "domain": "研发",
+          "metricKey": "w-p0",
+          "sourcePreference": "template-first"
+        }
+      },
+      {
+        "id": "w-tech-debt",
+        "type": "list",
+        "title": "技术债务清单",
+        "position": {
+          "x": 9,
+          "y": 7,
+          "w": 3,
+          "h": 2
+        },
+        "data": {
+          "items": [
+            "用户中心：遗留认证模块待重构",
+            "数据分析：查询性能优化（慢查询>3s）",
+            "支付网关：依赖版本升级（安全漏洞）"
+          ]
+        }
+      }
+    ],
+    "initPrompt": "你是一个研发效能专家。请为「CTO研发效能驾驶舱」初始化研发数据：\n1. DORA四指标 — 部署频率、变更前置时间、变更失败率、MTTR\n2. DORA等级评估 — 各维度效能等级\n3. 部署趋势、缺陷趋势（发现/修复/存量）\n4. 代码质量评分 — 各仓库覆盖率、技术债务\n5. 系统可用性(SLA)、P0/P1故障数\n6. 自动化测试覆盖率\n7. 技术债务清单\n请使用软件研发真实合理的模拟数据。\n\n可视化适配要求：指标卡必须使用 data.value/change/trend/unit/target/compareLabel/description 等语义字段；含正负值、差额、盈亏、预算偏差的数据必须使用 bar 且配置 styleConfig.baseline=\"zero\"、styleConfig.mode=\"diverging\"；只有全为非负且 2-5 个分类占比时才使用 donut；不要把 chartType/styleConfig/value/change/trend 等配置字段作为报告正文或详情展示字段。",
+    "grouping": {
+      "enabled": true,
+      "mode": "tabs-flow",
+      "groups": [
+        {
+          "id": "dora-core",
+          "name": "DORA核心",
+          "widgetIds": [
+            "w-deploy-freq",
+            "w-lead-time",
+            "w-failure-rate",
+            "w-mttr",
+            "w-dora-grade"
+          ]
+        },
+        {
+          "id": "quality-trend",
+          "name": "质量趋势",
+          "widgetIds": [
+            "w-deploy-trend",
+            "w-defect-trend",
+            "w-code-quality",
+            "w-p0"
+          ]
+        },
+        {
+          "id": "system-health",
+          "name": "系统健康",
+          "widgetIds": [
+            "w-sla",
+            "w-auto-coverage"
+          ]
+        },
+        {
+          "id": "tech-debt",
+          "name": "技术债务",
+          "widgetIds": [
+            "w-radar",
+            "w-heatmap",
+            "w-tech-debt"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "human-capital",
+    "name": "HRD人力资本驾驶舱",
+    "domain": "人力资源",
+    "keywords": [
+      "HRD",
+      "人力",
+      "HR",
+      "人才",
+      "招聘",
+      "流失",
+      "绩效",
+      "组织",
+      "human capital",
+      "talent"
+    ],
+    "icon": "Users",
+    "color": "#be185d",
+    "agentIds": [
+      "hr-agent"
+    ],
+    "primaryAgentId": "hr-agent",
+    "description": "{{name}} — 组织健康度仪表盘，覆盖人才获取、保留、成本、效能、发展与组织健康",
+    "useDemoDataFallback": true,
+    "widgets": [
+      {
+        "id": "w-turnover",
+        "type": "metric",
+        "title": "关键人才流失率",
+        "position": {
+          "x": 0,
+          "y": 0,
+          "w": 3,
+          "h": 2
+        },
+        "data": {
+          "value": "5.2%",
+          "change": "-1.3pp 同比",
+          "trend": "up"
+        },
+        "dataIntent": {
+          "domain": "人力资源",
+          "metricKey": "w-turnover",
+          "sourcePreference": "template-first"
+        }
+      },
+      {
+        "id": "w-output",
+        "type": "metric",
+        "title": "人均产出",
+        "position": {
+          "x": 3,
+          "y": 0,
+          "w": 3,
+          "h": 2
+        },
+        "data": {
+          "value": "¥52.6万",
+          "change": "+5.3% 同比",
+          "trend": "up",
+          "unit": "万元/人",
+          "compareLabel": "同比",
+          "description": "用于衡量组织效率和人效提升趋势。",
+          "caption": "用于衡量组织效率和人效提升趋势。"
+        },
+        "dataIntent": {
+          "domain": "人力资源",
+          "metricKey": "w-output",
+          "sourcePreference": "template-first"
+        }
+      },
+      {
+        "id": "w-hire-rate",
+        "type": "metric",
+        "title": "招聘达成率",
+        "position": {
+          "x": 6,
+          "y": 0,
+          "w": 3,
+          "h": 2
+        },
+        "data": {
+          "value": "78%",
+          "change": "Q2目标 85%",
+          "trend": "down",
+          "unit": "%",
+          "target": "100%",
+          "compareLabel": "季度",
+          "description": "招聘计划完成情况。",
+          "caption": "招聘计划完成情况。"
+        },
+        "dataIntent": {
+          "domain": "人力资源",
+          "metricKey": "w-hire-rate",
+          "sourcePreference": "template-first"
+        }
+      },
+      {
+        "id": "w-hr-cost",
+        "type": "metric",
+        "title": "人力成本占比",
+        "position": {
+          "x": 9,
+          "y": 0,
+          "w": 3,
+          "h": 2
+        },
+        "data": {
+          "value": "28.4%",
+          "change": "+0.5pp 同比",
+          "trend": "down"
+        },
+        "dataIntent": {
+          "domain": "人力资源",
+          "metricKey": "w-hr-cost",
+          "sourcePreference": "template-first"
+        }
+      },
+      {
+        "id": "w-nine-box",
+        "type": "table",
+        "title": "人才九宫格",
+        "position": {
+          "x": 0,
+          "y": 2,
+          "w": 6,
+          "h": 4
+        },
+        "data": {
+          "rows": [
+            [
+              "",
+              "高绩效",
+              "中绩效",
+              "低绩效"
+            ],
+            [
+              "高潜力",
+              "★ 李明(技术总监)",
+              "张华(产品经理)",
+              "王芳(运营)"
+            ],
+            [
+              "中潜力",
+              "陈强(架构师)",
+              "—",
+              "—"
+            ],
+            [
+              "低潜力",
+              "赵敏(销售)",
+              "—",
+              "—"
+            ]
+          ]
+        }
+      },
+      {
+        "id": "w-hire-funnel",
+        "type": "kanban",
+        "title": "招聘漏斗",
+        "position": {
+          "x": 6,
+          "y": 2,
+          "w": 6,
+          "h": 3
+        },
+        "data": {
+          "stages": [
+            "简历 1,200",
+            "初筛 360 (30%)",
+            "面试 108 (30%)",
+            "Offer 32 (30%)",
+            "入职 25 (78%)"
+          ]
+        }
+      },
+      {
+        "id": "w-flow",
+        "type": "chart",
+        "title": "人员流转趋势",
+        "position": {
+          "x": 6,
+          "y": 5,
+          "w": 6,
+          "h": 3
+        },
+        "data": {
+          "labels": [
+            "1月",
+            "2月",
+            "3月",
+            "4月",
+            "5月",
+            "6月"
+          ],
+          "values": [
+            12,
+            8,
+            15,
+            10,
+            7,
+            9
+          ],
+          "styleConfig": {
+            "variant": "bar",
+            "baseline": "zero",
+            "mode": "standard",
+            "guidance": "时间序列可用 bar；如改为 line，应保持 labels/values 对齐。"
+          }
+        },
+        "dataIntent": {
+          "domain": "人力资源",
+          "metricKey": "w-flow",
+          "sourcePreference": "template-first"
+        }
+      },
+      {
+        "id": "w-churn-risk",
+        "type": "list",
+        "title": "流失预警（高风险）",
+        "position": {
+          "x": 0,
+          "y": 6,
+          "w": 6,
+          "h": 3
+        },
+        "data": {
+          "items": [
+            "🔴 王伟(高级架构师) — 风险分 87 | 3个月未晋升 | 薪酬低于市场20%",
+            "🟡 刘洋(产品经理) — 风险分 72 | 入职18个月 | 近期加班率↑",
+            "🟡 孙丽(UI设计师) — 风险分 68 | 绩效B | 团队变动"
+          ]
+        }
+      },
+      {
+        "id": "w-training",
+        "type": "progress",
+        "title": "培训覆盖率",
+        "position": {
+          "x": 0,
+          "y": 9,
+          "w": 3,
+          "h": 2
+        },
+        "data": {
+          "value": 65,
+          "max": 100,
+          "label": "65%",
+          "color": "amber",
+          "caption": "目标 90%"
+        }
+      },
+      {
+        "id": "w-engagement",
+        "type": "gauge",
+        "title": "员工敬业度指数",
+        "position": {
+          "x": 3,
+          "y": 9,
+          "w": 3,
+          "h": 3
+        },
+        "data": {
+          "value": 84,
+          "min": 0,
+          "max": 100,
+          "unit": "%",
+          "thresholds": [
+            {
+              "value": 60,
+              "color": "#ef4444",
+              "level": "critical"
+            },
+            {
+              "value": 75,
+              "color": "#f59e0b",
+              "level": "warning"
+            }
+          ]
+        }
+      },
+      {
+        "id": "w-radar",
+        "type": "radar",
+        "title": "组织能力雷达",
+        "position": {
+          "x": 0,
+          "y": 12,
+          "w": 6,
+          "h": 4
+        },
+        "data": {
+          "labels": [
+            "招聘效率",
+            "保留能力",
+            "发展速度",
+            "绩效产出",
+            "文化认同",
+            "领导力"
+          ],
+          "values": [
+            78,
+            72,
+            80,
+            85,
+            75,
+            70
+          ]
+        }
+      },
+      {
+        "id": "w-heatmap",
+        "type": "heatmap",
+        "title": "绩效分布热力",
+        "position": {
+          "x": 6,
+          "y": 11,
+          "w": 6,
+          "h": 4
+        },
+        "data": {
+          "rows": [
+            {
+              "x": "技术部",
+              "y": "A",
+              "value": 25
+            },
+            {
+              "x": "技术部",
+              "y": "B",
+              "value": 45
+            },
+            {
+              "x": "技术部",
+              "y": "C",
+              "value": 20
+            },
+            {
+              "x": "产品部",
+              "y": "A",
+              "value": 20
+            },
+            {
+              "x": "产品部",
+              "y": "B",
+              "value": 50
+            },
+            {
+              "x": "产品部",
+              "y": "C",
+              "value": 15
+            },
+            {
+              "x": "销售部",
+              "y": "A",
+              "value": 30
+            },
+            {
+              "x": "销售部",
+              "y": "B",
+              "value": 40
+            },
+            {
+              "x": "销售部",
+              "y": "C",
+              "value": 25
+            }
+          ]
+        }
+      },
+      {
+        "id": "w-hcroi",
+        "type": "metric",
+        "title": "人力资本回报率(HCROI)",
+        "position": {
+          "x": 6,
+          "y": 9,
+          "w": 3,
+          "h": 2
+        },
+        "data": {
+          "value": "2.8x",
+          "change": "+0.2 同比",
+          "trend": "up"
+        },
+        "dataIntent": {
+          "domain": "人力资源",
+          "metricKey": "w-hcroi",
+          "sourcePreference": "template-first"
+        }
+      },
+      {
+        "id": "w-succession",
+        "type": "progress",
+        "title": "继任覆盖率",
+        "position": {
+          "x": 9,
+          "y": 9,
+          "w": 3,
+          "h": 2
+        },
+        "data": {
+          "value": 45,
+          "max": 100,
+          "label": "45%",
+          "color": "indigo",
+          "caption": "关键岗位 20/45 已储备"
+        }
+      }
+    ],
+    "initPrompt": "你是一个组织发展专家。请为「HRD人力资本驾驶舱」初始化人力数据：\n1. 关键人才流失率、人均产出、招聘达成率、人力成本占比\n2. 人才九宫格 — 绩效×潜力矩阵及关键人才\n3. 招聘漏斗 — 简历→面试→Offer→入职转化率\n4. 人员流转趋势 — 入/转/出数据\n5. 流失预警清单 — 高风险员工及风险因子\n6. 培训覆盖率、员工敬业度、人力资本回报率(HCROI)、继任覆盖率\n请使用真实合理的模拟数据。\n\n可视化适配要求：指标卡必须使用 data.value/change/trend/unit/target/compareLabel/description 等语义字段；含正负值、差额、盈亏、预算偏差的数据必须使用 bar 且配置 styleConfig.baseline=\"zero\"、styleConfig.mode=\"diverging\"；只有全为非负且 2-5 个分类占比时才使用 donut；不要把 chartType/styleConfig/value/change/trend 等配置字段作为报告正文或详情展示字段。",
+    "grouping": {
+      "enabled": true,
+      "mode": "tabs-flow",
+      "groups": [
+        {
+          "id": "talent-overview",
+          "name": "人才概览",
+          "widgetIds": [
+            "w-turnover",
+            "w-output",
+            "w-hire-rate",
+            "w-nine-box"
+          ]
+        },
+        {
+          "id": "talent-pipeline",
+          "name": "人才梯队",
+          "widgetIds": [
+            "w-hire-funnel",
+            "w-training",
+            "w-succession",
+            "w-flow"
+          ]
+        },
+        {
+          "id": "org-health",
+          "name": "组织健康",
+          "widgetIds": [
+            "w-engagement",
+            "w-radar",
+            "w-heatmap",
+            "w-churn-risk"
+          ]
+        },
+        {
+          "id": "hr-efficiency",
+          "name": "人效与成本",
+          "widgetIds": [
+            "w-hcroi",
+            "w-hr-cost"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "supply-chain",
+    "name": "供应链协同驾驶舱",
+    "domain": "供应链",
+    "keywords": [
+      "供应链",
+      "采购",
+      "库存",
+      "供应商",
+      "物流",
+      "OTD",
+      "缺货",
+      "supply chain",
+      "procurement"
+    ],
+    "icon": "Truck",
+    "color": "#4338ca",
+    "agentIds": [
+      "supply-agent"
+    ],
+    "primaryAgentId": "supply-agent",
+    "description": "{{name}} — 供应链作战地图，覆盖采购、供应商、库存、物流与需求协同全链路",
+    "useDemoDataFallback": true,
+    "widgets": [
+      {
+        "id": "w-inventory-turn",
+        "type": "metric",
+        "title": "库存周转天数",
+        "position": {
+          "x": 0,
+          "y": 0,
+          "w": 3,
+          "h": 2
+        },
+        "data": {
+          "value": "28天",
+          "change": "-3天 环比",
+          "trend": "up",
+          "unit": "天",
+          "target": "持续下降",
+          "compareLabel": "环比",
+          "description": "库存周转速度，天数越低通常代表库存效率越好。",
+          "caption": "库存周转速度，天数越低通常代表库存效率越好。"
+        },
+        "dataIntent": {
+          "domain": "供应链",
+          "metricKey": "w-inventory-turn",
+          "sourcePreference": "template-first"
+        }
+      },
+      {
+        "id": "w-supplier-otr",
+        "type": "metric",
+        "title": "供应商准时交付率",
+        "position": {
+          "x": 3,
+          "y": 0,
+          "w": 3,
+          "h": 2
+        },
+        "data": {
+          "value": "94.5%",
+          "change": "+2.1pp 环比",
+          "trend": "up"
+        },
+        "dataIntent": {
+          "domain": "供应链",
+          "metricKey": "w-supplier-otr",
+          "sourcePreference": "template-first"
+        }
+      },
+      {
+        "id": "w-otd",
+        "type": "metric",
+        "title": "订单OTD",
+        "position": {
+          "x": 6,
+          "y": 0,
+          "w": 3,
+          "h": 2
+        },
+        "data": {
+          "value": "96.2%",
+          "change": "+1.5pp 环比",
+          "trend": "up"
+        },
+        "dataIntent": {
+          "domain": "供应链",
+          "metricKey": "w-otd",
+          "sourcePreference": "template-first"
+        }
+      },
+      {
+        "id": "w-stockout",
+        "type": "metric",
+        "title": "缺货率",
+        "position": {
+          "x": 9,
+          "y": 0,
+          "w": 3,
+          "h": 2
+        },
+        "data": {
+          "value": "1.2%",
+          "change": "-0.5pp 环比",
+          "trend": "up",
+          "unit": "%",
+          "target": "<2%",
+          "compareLabel": "环比",
+          "description": "需求无法被库存满足的比例，越低越好。",
+          "caption": "需求无法被库存满足的比例，越低越好。"
+        },
+        "dataIntent": {
+          "domain": "供应链",
+          "metricKey": "w-stockout",
+          "sourcePreference": "template-first"
+        }
+      },
+      {
+        "id": "w-inventory-dist",
+        "type": "chart",
+        "title": "库存分布（按仓库）",
+        "position": {
+          "x": 0,
+          "y": 2,
+          "w": 6,
+          "h": 3
+        },
+        "data": {
+          "labels": [
+            "华东仓",
+            "华北仓",
+            "华南仓",
+            "西南仓",
+            "海外仓"
+          ],
+          "values": [
+            4200,
+            3100,
+            2800,
+            1500,
+            800
+          ],
+          "styleConfig": {
+            "variant": "bar",
+            "baseline": "zero",
+            "mode": "standard",
+            "guidance": "分类对比优先 bar；如果 values 全为非负且表达占比结构，可改用 donut。"
+          }
+        },
+        "dataIntent": {
+          "domain": "供应链",
+          "metricKey": "w-inventory-dist",
+          "sourcePreference": "template-first"
+        }
+      },
+      {
+        "id": "w-supplier-score",
+        "type": "table",
+        "title": "供应商绩效评分卡",
+        "position": {
+          "x": 6,
+          "y": 2,
+          "w": 6,
+          "h": 3
+        },
+        "data": {
+          "rows": [
+            [
+              "供应商A-芯片",
+              "A",
+              "98%",
+              "99.5%",
+              "优"
+            ],
+            [
+              "供应商B-电池",
+              "A-",
+              "95%",
+              "98.2%",
+              "优"
+            ],
+            [
+              "供应商C-外壳",
+              "B+",
+              "92%",
+              "97.0%",
+              "良"
+            ],
+            [
+              "供应商D-屏幕",
+              "B",
+              "88%",
+              "96.5%",
+              "良"
+            ],
+            [
+              "供应商E-包装",
+              "A",
+              "97%",
+              "99.0%",
+              "优"
+            ]
+          ]
+        }
+      },
+      {
+        "id": "w-alert",
+        "type": "alert",
+        "title": "供应风险告警",
+        "position": {
+          "x": 0,
+          "y": 5,
+          "w": 6,
+          "h": 4
+        },
+        "data": {
+          "alerts": [
+            {
+              "level": "critical",
+              "message": "芯片SKU-001库存低于安全线（剩12天）",
+              "time": "10:30"
+            },
+            {
+              "level": "warning",
+              "message": "供应商C交货延迟2天",
+              "time": "09:15"
+            },
+            {
+              "level": "warning",
+              "message": "海外仓某批次效期<90天",
+              "time": "08:45"
+            },
+            {
+              "level": "info",
+              "message": "华北仓补货已完成",
+              "time": "08:00"
+            }
+          ]
+        }
+      },
+      {
+        "id": "w-map",
+        "type": "map",
+        "title": "供应商地理分布",
+        "position": {
+          "x": 6,
+          "y": 5,
+          "w": 6,
+          "h": 4
+        },
+        "data": {
+          "points": [
+            {
+              "name": "深圳",
+              "value": 420
+            },
+            {
+              "name": "苏州",
+              "value": 310
+            },
+            {
+              "name": "东莞",
+              "value": 280
+            },
+            {
+              "name": "上海",
+              "value": 250
+            },
+            {
+              "name": "海外",
+              "value": 120
+            }
+          ]
+        }
+      },
+      {
+        "id": "w-funnel",
+        "type": "funnel",
+        "title": "采购流程漏斗",
+        "position": {
+          "x": 0,
+          "y": 12,
+          "w": 6,
+          "h": 4
+        },
+        "data": {
+          "stages": [
+            {
+              "name": "询价比价",
+              "value": 120,
+              "rate": 100
+            },
+            {
+              "name": "样品测试",
+              "value": 85,
+              "rate": 71
+            },
+            {
+              "name": "商务谈判",
+              "value": 52,
+              "rate": 61
+            },
+            {
+              "name": "合同签订",
+              "value": 38,
+              "rate": 73
+            },
+            {
+              "name": "首批交付",
+              "value": 32,
+              "rate": 84
+            }
+          ]
+        }
+      },
+      {
+        "id": "w-purchase-trend",
+        "type": "chart",
+        "title": "采购成本趋势",
+        "position": {
+          "x": 0,
+          "y": 9,
+          "w": 6,
+          "h": 3
+        },
+        "data": {
+          "labels": [
+            "1月",
+            "2月",
+            "3月",
+            "4月",
+            "5月",
+            "6月"
+          ],
+          "values": [
+            5200,
+            5100,
+            4950,
+            4800,
+            4750,
+            4680
+          ],
+          "styleConfig": {
+            "variant": "bar",
+            "baseline": "zero",
+            "mode": "standard",
+            "guidance": "时间序列可用 bar；如改为 line，应保持 labels/values 对齐。"
+          }
+        },
+        "dataIntent": {
+          "domain": "供应链",
+          "metricKey": "w-purchase-trend",
+          "sourcePreference": "template-first"
+        }
+      },
+      {
+        "id": "w-forecast",
+        "type": "metric",
+        "title": "需求预测偏差",
+        "position": {
+          "x": 6,
+          "y": 9,
+          "w": 3,
+          "h": 2
+        },
+        "data": {
+          "value": "±5.2%",
+          "change": "准确度 94.8%",
+          "trend": "up"
+        },
+        "dataIntent": {
+          "domain": "供应链",
+          "metricKey": "w-forecast",
+          "sourcePreference": "template-first"
+        }
+      },
+      {
+        "id": "w-scm-cost",
+        "type": "metric",
+        "title": "供应链总成本占收比",
+        "position": {
+          "x": 9,
+          "y": 9,
+          "w": 3,
+          "h": 2
+        },
+        "data": {
+          "value": "32.4%",
+          "change": "-1.2pp 同比",
+          "trend": "up"
+        },
+        "dataIntent": {
+          "domain": "供应链",
+          "metricKey": "w-scm-cost",
+          "sourcePreference": "template-first"
+        }
+      }
+    ],
+    "initPrompt": "你是一个供应链专家。请为「供应链协同驾驶舱」初始化供应链数据：\n1. 库存周转天数、供应商准时交付率、订单OTD、缺货率\n2. 库存分布 — 各仓库/SKU库存金额\n3. 供应商绩效评分卡 — 交付/质量/价格/合作评级\n4. 预警面板 — 缺货/积压/延迟事件\n5. 物流在途 — 在途订单及状态\n6. 采购成本趋势、需求预测偏差、供应链总成本占收比\n请使用制造业/零售真实合理的模拟数据。\n\n可视化适配要求：指标卡必须使用 data.value/change/trend/unit/target/compareLabel/description 等语义字段；含正负值、差额、盈亏、预算偏差的数据必须使用 bar 且配置 styleConfig.baseline=\"zero\"、styleConfig.mode=\"diverging\"；只有全为非负且 2-5 个分类占比时才使用 donut；不要把 chartType/styleConfig/value/change/trend 等配置字段作为报告正文或详情展示字段。",
+    "grouping": {
+      "enabled": true,
+      "mode": "tabs-flow",
+      "groups": [
+        {
+          "id": "inventory",
+          "name": "库存管理",
+          "widgetIds": [
+            "w-inventory-turn",
+            "w-inventory-dist",
+            "w-map",
+            "w-stockout",
+            "w-forecast"
+          ]
+        },
+        {
+          "id": "supplier",
+          "name": "供应商",
+          "widgetIds": [
+            "w-supplier-otr",
+            "w-supplier-score",
+            "w-funnel"
+          ]
+        },
+        {
+          "id": "cost-risk",
+          "name": "成本与风险",
+          "widgetIds": [
+            "w-purchase-trend",
+            "w-scm-cost",
+            "w-alert",
+            "w-otd"
+          ]
+        }
+      ]
+    }
+  }
+]

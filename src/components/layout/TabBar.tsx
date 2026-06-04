@@ -80,7 +80,7 @@ export default function TabBar({ workspaces, openTabs, activeTabId, onSelect, on
                 className={`
                   p-0.5 rounded-full transition-all shrink-0
                   ${isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}
-                  hover:bg-red-500/20 hover:text-red-400
+                  hover:bg-primary/20 hover:text-primary
                 `}
                 title="删除驾驶舱"
               >

@@ -34,6 +34,12 @@ const store = createJsonFileStore<WorkspaceInitJobPayload>({
   filePath: STORE_FILE,
   defaultValue: { jobs: [] },
   label: 'WorkspaceInitJobs',
+  maxBackups: 5,
+  validate: (data) => {
+    if (!data || typeof data !== 'object') return false;
+    const record = data as Record<string, unknown>;
+    return Array.isArray(record.jobs);
+  },
 });
 
 function readJobs(): WorkspaceInitJob[] {
@@ -97,7 +103,8 @@ export function updateWorkspaceInitJob(id: string, patch: Partial<WorkspaceInitJ
 
 export function listRecoverableWorkspaceInitJobs(): WorkspaceInitJob[] {
   return readJobs().filter((job) => (
-    job.status === 'pending'
-    || (job.status === 'running' && job.attempts < job.maxAttempts)
+    (job.status === 'pending' || job.status === 'running')
+    && job.attempts < job.maxAttempts
+    && job.attempts <= job.maxAttempts * 2
   ));
 }

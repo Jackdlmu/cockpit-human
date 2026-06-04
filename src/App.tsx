@@ -79,8 +79,8 @@ function App() {
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  const { agents, loading: agentsLoading } = useAgents();
-  const { workspaces, loading: workspacesLoading, refresh: refreshWorkspaces } = useWorkspaces();
+  const { agents, loading: agentsLoading, error: agentsError, refresh: refreshAgents } = useAgents();
+  const { workspaces, loading: workspacesLoading, error: workspacesError, refresh: refreshWorkspaces } = useWorkspaces();
   const deleteConfirmName = workspaces.find((w) => w.id === deleteConfirmId)?.name || '';
   const { events, connected: wsConnected } = useEventStream();
 
@@ -571,6 +571,18 @@ function App() {
 
   const loading = agentsLoading || workspacesLoading;
 
+  // 加载超时保护：跟踪 loading 持续时间
+  const [loadingSince, setLoadingSince] = useState<number | null>(null);
+  const loadingTimedOut = loadingSince !== null && Date.now() - loadingSince > 10000;
+  useEffect(() => {
+    if (loading) {
+      if (loadingSince === null) setLoadingSince(Date.now());
+    } else {
+      setLoadingSince(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading]);
+
   // 管理页面路由
   if (location.pathname === '/admin/templates') {
     return (
@@ -671,7 +683,7 @@ function App() {
           <AlertDialogAction
             onClick={confirmDelete}
             disabled={deleting}
-            className="h-9 text-xs bg-red-500 hover:bg-red-400 text-white border-0"
+            className="h-9 text-xs bg-destructive hover:bg-destructive/90 text-destructive-foreground border-0"
           >
             {deleting ? '删除中...' : '确认删除'}
           </AlertDialogAction>
@@ -684,11 +696,43 @@ function App() {
   if (layoutMode === 'cards') {
     return (
       <div className="h-screen w-screen flex overflow-hidden bg-app-bg">
-        {loading && !selectedWorkspaceId && (
+        {(loading || agentsError || workspacesError) && !selectedWorkspaceId && (
           <div className="absolute inset-0 z-40 flex items-center justify-center bg-app-overlay/80 backdrop-blur-sm">
             <div className="flex flex-col items-center gap-3">
-              <Loader2 className="w-8 h-8 text-red-400 animate-spin" />
-              <span className="text-sm text-app-text-muted">加载中...</span>
+              {loading && <Loader2 className="w-8 h-8 text-primary animate-spin" />}
+              <span className="text-sm text-app-text-muted">
+                {loading ? '加载中...' : '加载失败'}
+              </span>
+              {(agentsError || workspacesError) && (
+                <div className="flex flex-col items-center gap-2 max-w-xs text-center">
+                  <span className="text-xs text-app-text-subtle">
+                    {agentsError || workspacesError}
+                  </span>
+                  <button
+                    onClick={() => {
+                      refreshAgents();
+                      refreshWorkspaces();
+                    }}
+                    className="rounded-lg border border-app-border-subtle bg-app-surface px-3 py-1.5 text-xs text-app-text-muted transition-colors hover:bg-app-surface-hover hover:text-app-text"
+                  >
+                    重试加载
+                  </button>
+                </div>
+              )}
+              {loading && loadingTimedOut && !agentsError && !workspacesError && (
+                <div className="flex flex-col items-center gap-2">
+                  <span className="text-xs text-app-text-subtle">加载时间较长，可能后端服务繁忙或无响应</span>
+                  <button
+                    onClick={() => {
+                      refreshAgents();
+                      refreshWorkspaces();
+                    }}
+                    className="rounded-lg border border-app-border-subtle bg-app-surface px-3 py-1.5 text-xs text-app-text-muted transition-colors hover:bg-app-surface-hover hover:text-app-text"
+                  >
+                    重试加载
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         )}

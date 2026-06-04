@@ -4,6 +4,7 @@ import type {
   Agent,
   WidgetType,
   Workspace,
+  WorkspaceGrouping,
   WidgetAdaptiveHeadline,
   WidgetAdaptiveSection,
   WidgetMetricItem,
@@ -11,14 +12,21 @@ import type {
 import DOMPurify from 'dompurify';
 import { useWorkspaceDetail } from '@/hooks/useApiData';
 import { useWidgetData } from '@/hooks/useWidgetData';
+import { useWidgetAIAnalysis } from '@/hooks/useWidgetAIAnalysis';
+import { WidgetAIAnalysis } from './WidgetAIAnalysis';
 import { getThresholdColor, extractThresholds } from '@/hooks/useThresholdColor';
 import { WidgetInteractionProvider, useWidgetInteraction } from '@/contexts/WidgetInteractionContext';
 import { WidgetDetailDrawer } from './WidgetDetailDrawer';
 import { CanvasGrid } from './CanvasGrid';
+import { GroupedCanvas } from './GroupedCanvas';
 import { WidgetLibraryPanel } from './WidgetLibraryPanel';
 import { BusinessWidgetRenderer } from './business/BusinessWidgetRenderer';
+import { WorkflowWidgetRenderer } from './workflow/WorkflowWidgetRenderer';
+import { ResultWidgetRenderer } from './workflow/ResultWidgetRenderer';
+import { ActionsWidgetRenderer } from './workflow/ActionsWidgetRenderer';
+import { ArtifactWidgetRenderer } from './workflow/ArtifactWidgetRenderer';
 import { inferWidgetType, isTypeMismatched } from '@/lib/widget-type-inferer';
-import { getDefaultWidgetSize, normalizeWidget, normalizeWidgets } from '@/lib/widget-normalizer';
+import { getDefaultWidgetSize, normalizeWidget, normalizeWidgets, compactGridLayout } from '@/lib/widget-normalizer';
 import { buildReportDisplayData } from '@/lib/report-widget';
 import { computeDivergingBars, getSignedValueSemanticClasses, getTrendSemanticClasses, shouldUseTrendSeriesChart } from '@/lib/visual-adapters';
 import { Switch } from '@/components/ui/switch';
@@ -28,14 +36,15 @@ import { toast } from 'sonner';
 import {
   Layers, BarChart3, UserPlus, CheckCircle, Monitor, Target,
   ArrowLeft, RefreshCw, Send, Sparkles,
-  ChevronDown, ChevronUp, Trash2,
+  ChevronDown, Trash2, Pencil, Save,
   ArrowRight, TrendingUp, TrendingDown, ArrowLeftIcon, Loader2, Check,
   FileText, AlertCircle, ExternalLink,
-  DollarSign, Code2, Users, Truck, Plus,
+  DollarSign, Code2, Users, Truck, Plus, LayoutGrid,
+  MessageCircle, X,
 } from 'lucide-react';
 
 /** Sparkline 微型趋势图组件（SVG 纯实现） */
-function Sparkline({ values, color = '#818cf8', height = 32 }: { values: number[]; color?: string; height?: number }) {
+function Sparkline({ values, color = 'hsl(var(--bi-chart-6))', height = 32 }: { values: number[]; color?: string; height?: number }) {
   if (!values || values.length < 2) return null;
   const min = Math.min(...values);
   const max = Math.max(...values);
@@ -245,6 +254,64 @@ export function WorkspaceDetail(props: WorkspaceDetailProps) {
   );
 }
 
+/** 处理组件点击：支持 link 的多种打开方式 */
+function handleWidgetClick(
+  widget: Widget,
+  deps: {
+    onSelectWorkspace?: (id: string) => void;
+    allWorkspaces?: Workspace[];
+    setDetailWidget: (w: Widget | null) => void;
+  }
+) {
+  const link = widget.link;
+  if (!link) {
+    deps.setDetailWidget(widget);
+    return;
+  }
+
+  const openMode = link.openMode || 'drawer';
+
+  // blank: 新标签页打开
+  if (openMode === 'blank') {
+    if (link.type === 'url' && link.url) {
+      window.open(link.url, '_blank');
+      return;
+    }
+    // workspace 在新标签页打开（尝试构造链接）
+    if (link.type === 'workspace' && link.targetId && deps.onSelectWorkspace) {
+      const url = `${window.location.origin}${window.location.pathname}?workspace=${encodeURIComponent(link.targetId)}`;
+      window.open(url, '_blank');
+      return;
+    }
+    // 其他类型 fallback 到 drawer
+  }
+
+  // self: 当前页跳转
+  if (openMode === 'self') {
+    if (link.type === 'url' && link.url) {
+      window.open(link.url, '_self');
+      return;
+    }
+    if (link.type === 'workspace' && deps.onSelectWorkspace) {
+      if (link.targetId) {
+        deps.onSelectWorkspace(link.targetId);
+        return;
+      }
+      if (link.targetTemplate && deps.allWorkspaces) {
+        const targetWs = deps.allWorkspaces.find((w) => w.id === link.targetTemplate || w.name === link.targetTemplate);
+        if (targetWs) {
+          deps.onSelectWorkspace(targetWs.id);
+          return;
+        }
+      }
+    }
+    // fallback 到 drawer
+  }
+
+  // drawer（默认）: 浮层面板
+  deps.setDetailWidget(widget);
+}
+
 function WorkspaceDetailInner({ workspaceId, agents, workspaces: allWorkspaces, onBack, onSelectWorkspace, layoutMode, onRequestDelete }: WorkspaceDetailProps) {
   const { workspace, loading, refresh: refreshWorkspace } = useWorkspaceDetail(workspaceId);
   const { activeFilters, setFilter } = useWidgetInteraction();
@@ -273,6 +340,9 @@ function WorkspaceDetailInner({ workspaceId, agents, workspaces: allWorkspaces, 
   const [isEditing, setIsEditing] = useState(false);
   const [widgetLibraryOpen, setWidgetLibraryOpen] = useState(false);
   const [localWidgets, setLocalWidgets] = useState<Widget[]>([]);
+  const [localGrouping, setLocalGrouping] = useState<WorkspaceGrouping | undefined>(undefined);
+  const [groupPanelOpen, setGroupPanelOpen] = useState(false);
+  const [newGroupName, setNewGroupName] = useState('');
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Title editing state
@@ -286,10 +356,11 @@ function WorkspaceDetailInner({ workspaceId, agents, workspaces: allWorkspaces, 
     }
   }, [workspace, isEditing]);
 
-  // 从 workspace 同步 widgets
+  // 从 workspace 同步 widgets 和 grouping
   useEffect(() => {
     if (workspace) {
       setLocalWidgets(normalizeWidgets(workspace.widgets));
+      setLocalGrouping(workspace.grouping);
     }
   }, [workspace]);
 
@@ -402,6 +473,115 @@ function WorkspaceDetailInner({ workspaceId, agents, workspaces: allWorkspaces, 
     setLocalWidgets(updated);
     saveWidgets(updated);
   };
+
+  // ── 智能排版 ──
+  const handleSmartLayout = () => {
+    if (localWidgets.length === 0) return;
+    let updated: Widget[];
+    if (localGrouping?.enabled && localGrouping.groups && localGrouping.groups.length > 0) {
+      // 分组模式：按组分别紧凑排版
+      const groupedIds = new Set(localGrouping.groups.flatMap((g) => g.widgetIds));
+      const result: Widget[] = [];
+      for (const group of localGrouping.groups) {
+        const groupWidgets = localWidgets.filter((w) => group.widgetIds.includes(w.id));
+        if (groupWidgets.length > 0) {
+          result.push(...compactGridLayout(groupWidgets));
+        }
+      }
+      // 未分组的组件也紧凑排版
+      const ungrouped = localWidgets.filter((w) => !groupedIds.has(w.id));
+      if (ungrouped.length > 0) {
+        result.push(...compactGridLayout(ungrouped));
+      }
+      updated = result;
+    } else {
+      // 非分组模式：全部紧凑排版
+      updated = compactGridLayout(localWidgets);
+    }
+    setLocalWidgets(updated);
+    saveWidgets(updated);
+    toast.success('已智能排版');
+  };
+
+  // ── Group management ──
+  const saveGrouping = useCallback((grouping: WorkspaceGrouping | undefined) => {
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    saveTimeoutRef.current = setTimeout(() => {
+      updateWorkspace(workspaceId, { grouping }).catch((err: unknown) => {
+        toast.error('保存分组失败', { description: err instanceof Error ? err.message : String(err) });
+      });
+    }, 500);
+  }, [workspaceId]);
+
+  const addGroup = () => {
+    const name = newGroupName.trim();
+    if (!name) return;
+    const current = localGrouping || { enabled: true, groups: [] };
+    if (current.groups?.some((g) => g.name === name)) return;
+    const newGroup = { id: `group-${Date.now()}`, name, widgetIds: [] };
+    const next: WorkspaceGrouping = {
+      ...current,
+      enabled: true,
+      groups: [...(current.groups || []), newGroup],
+    };
+    setLocalGrouping(next);
+    saveGrouping(next);
+    setNewGroupName('');
+  };
+
+  const renameGroup = (groupId: string, newName: string) => {
+    const trimmed = newName.trim();
+    if (!trimmed) return;
+    if (!localGrouping?.groups) return;
+    const next: WorkspaceGrouping = {
+      ...localGrouping,
+      groups: localGrouping.groups.map((g) =>
+        g.id === groupId ? { ...g, name: trimmed, id: trimmed } : g
+      ),
+    };
+    setLocalGrouping(next);
+    saveGrouping(next);
+  };
+
+  const deleteGroup = (groupId: string) => {
+    if (!localGrouping?.groups) return;
+    const next: WorkspaceGrouping = {
+      ...localGrouping,
+      groups: localGrouping.groups.filter((g) => g.id !== groupId),
+    };
+    if (!next.groups || next.groups.length < 2) {
+      // 少于2个组，禁用分组
+      setLocalGrouping({ enabled: false, groups: next.groups });
+      saveGrouping({ enabled: false, groups: next.groups });
+    } else {
+      setLocalGrouping(next);
+      saveGrouping(next);
+    }
+  };
+
+  const moveWidgetToGroup = (widgetId: string, groupId: string | null) => {
+    // 更新 widget.group 字段
+    const updatedWidgets = localWidgets.map((w) =>
+      w.id === widgetId ? { ...w, group: groupId || undefined } : w
+    );
+    setLocalWidgets(updatedWidgets);
+    saveWidgets(updatedWidgets);
+
+    // 更新 grouping.groups 中的 widgetIds
+    if (!localGrouping?.groups) return;
+    const nextGroups = localGrouping.groups.map((g) => {
+      const hasWidget = g.widgetIds.includes(widgetId);
+      if (g.id === groupId) {
+        return hasWidget ? g : { ...g, widgetIds: [...g.widgetIds, widgetId] };
+      }
+      return hasWidget ? { ...g, widgetIds: g.widgetIds.filter((id) => id !== widgetId) } : g;
+    });
+    const next: WorkspaceGrouping = { ...localGrouping, groups: nextGroups };
+    setLocalGrouping(next);
+    saveGrouping(next);
+  };
+
+  // groupOptions 已内联到 GroupedCanvas 的分组选择器中
 
   // 组件卸载时清理 saveTimeoutRef
   useEffect(() => {
@@ -520,7 +700,7 @@ function WorkspaceDetailInner({ workspaceId, agents, workspaces: allWorkspaces, 
   if (loading) {
     return (
       <div className="flex-1 flex items-center justify-center bg-app-bg">
-        <Loader2 className="w-8 h-8 text-red-500 animate-spin" />
+        <Loader2 className="w-8 h-8 text-primary animate-spin" />
       </div>
     );
   }
@@ -594,7 +774,7 @@ function WorkspaceDetailInner({ workspaceId, agents, workspaces: allWorkspaces, 
                         onChange={(e) => setEditName(e.target.value)}
                         onBlur={handleSaveTitle}
                         onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
-                        className="min-w-[120px] max-w-[320px] rounded-lg border border-app-border-subtle bg-app-surface px-2 py-1 text-lg font-semibold text-app-text outline-none focus:border-red-400"
+                        className="min-w-[120px] max-w-[320px] rounded-lg border border-app-border-subtle bg-app-surface px-2 py-1 text-lg font-semibold text-app-text outline-none focus:border-primary/45"
                       />
                     ) : (
                       <h1 className="truncate text-xl font-semibold text-app-text">{workspace.name}</h1>
@@ -632,7 +812,7 @@ function WorkspaceDetailInner({ workspaceId, agents, workspaces: allWorkspaces, 
                       onChange={(e) => setEditDescription(e.target.value)}
                       onBlur={handleSaveTitle}
                       onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
-                      className="mt-2 w-full rounded-lg border border-app-border-subtle bg-app-surface px-2 py-1 text-sm text-app-text-muted outline-none focus:border-red-400"
+                      className="mt-2 w-full rounded-lg border border-app-border-subtle bg-app-surface px-2 py-1 text-sm text-app-text-muted outline-none focus:border-primary/45"
                       placeholder="添加描述..."
                     />
                   ) : (
@@ -682,38 +862,69 @@ function WorkspaceDetailInner({ workspaceId, agents, workspaces: allWorkspaces, 
                 </div>
               )}
               {isEditing && (
-                <button
-                  onClick={() => setWidgetLibraryOpen(true)}
-                  className="inline-flex items-center gap-1 rounded-xl border border-primary/15 bg-primary/8 px-3 py-2 text-xs text-primary transition-colors hover:bg-primary/15"
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                  添加组件
-                </button>
+                <>
+                  <button
+                    onClick={() => setWidgetLibraryOpen(true)}
+                    className="inline-flex items-center gap-1 rounded-xl border border-primary/15 bg-primary/8 px-3 py-2 text-xs text-primary transition-colors hover:bg-primary/15"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    添加组件
+                  </button>
+                  <button
+                    onClick={handleSmartLayout}
+                    className="inline-flex items-center gap-1 rounded-xl border border-app-border-subtle bg-app-surface px-3 py-2 text-xs text-app-text-muted transition-colors hover:bg-app-surface-hover hover:text-app-text-secondary"
+                  >
+                    <LayoutGrid className="h-3.5 w-3.5" />
+                    智能排版
+                  </button>
+                </>
               )}
-              <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-app-border-subtle bg-app-surface-subtle px-3 py-2">
-                <span className="text-[11px] text-app-text-subtle">编辑模式</span>
-                <Switch checked={isEditing} onCheckedChange={setIsEditing} />
-              </label>
               <button
                 onClick={() => {
-                  refreshWorkspace();
-                  setDetailWidget(null);
-                  setDrillState(null);
+                  if (!isEditing) setIsEditing(true);
                 }}
-                className="inline-flex items-center gap-1 rounded-xl border border-app-border-subtle px-3 py-2 text-xs text-app-text-muted transition-colors hover:bg-app-surface-hover hover:text-app-text-secondary"
+                disabled={isEditing}
+                className={`inline-flex h-8 w-8 items-center justify-center rounded-lg border transition-colors ${
+                  isEditing
+                    ? 'border-primary/30 bg-primary/10 text-primary cursor-default'
+                    : 'border-app-border-subtle bg-app-surface-subtle text-app-text-subtle hover:bg-app-surface-hover hover:text-app-text-secondary'
+                }`}
+                title={isEditing ? '编辑中' : '进入编辑'}
               >
-                <RefreshCw className="h-3.5 w-3.5" />
-                刷新
+                <Pencil className="h-3.5 w-3.5" />
               </button>
-              {onRequestDelete && (
+              {isEditing && (
                 <button
-                  onClick={() => onRequestDelete(workspaceId)}
-                  className="inline-flex items-center gap-1 rounded-xl border border-red-500/15 bg-red-500/8 px-3 py-2 text-xs text-red-500 transition-colors hover:bg-red-500/12"
-                  title="删除驾驶舱"
+                  onClick={() => setIsEditing(false)}
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-primary/30 bg-primary/10 text-primary transition-colors hover:bg-primary/20"
+                  title="保存"
                 >
-                  <Trash2 className="h-3.5 w-3.5" />
-                  删除
+                  <Save className="h-3.5 w-3.5" />
                 </button>
+              )}
+              {!isEditing && (
+                <>
+                  <button
+                    onClick={() => {
+                      refreshWorkspace();
+                      setDetailWidget(null);
+                      setDrillState(null);
+                    }}
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-app-border-subtle text-app-text-subtle transition-colors hover:bg-app-surface-hover hover:text-app-text-secondary"
+                    title="刷新"
+                  >
+                    <RefreshCw className="h-3.5 w-3.5" />
+                  </button>
+                  {onRequestDelete && (
+                    <button
+                      onClick={() => onRequestDelete(workspaceId)}
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-primary/15 bg-primary/8 text-primary transition-colors hover:bg-primary/12"
+                      title="删除驾驶舱"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </>
               )}
             </div>
           </div>
@@ -721,7 +932,7 @@ function WorkspaceDetailInner({ workspaceId, agents, workspaces: allWorkspaces, 
       </div>
 
       {activeAgentId && (
-        <div className="mx-6 mt-3 rounded-2xl border border-app-border-subtle bg-app-surface px-4 py-3 shadow-[0_8px_24px_rgba(0,0,0,0.08)] animate-in slide-in-from-top-2">
+        <div className="mx-6 mt-3 rounded-2xl border border-app-border-subtle bg-app-surface px-4 py-3 shadow-[0_8px_24px_hsl(var(--app-overlay)/0.08)] animate-in slide-in-from-top-2">
           {(() => {
             const agent = agents.find((a) => a.id === activeAgentId) || (activeAgentId === 'cockpit-self' ? cockpitAgentVirtual : null);
             if (!agent) return null;
@@ -743,7 +954,7 @@ function WorkspaceDetailInner({ workspaceId, agents, workspaces: allWorkspaces, 
                       {agent.status === 'active' ? '运行中' : agent.status === 'error' ? '异常' : '空闲'}
                     </span>
                     {isPrimary && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-500/10 text-red-500 border border-red-500/20">
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20">
                         主
                       </span>
                     )}
@@ -771,18 +982,89 @@ function WorkspaceDetailInner({ workspaceId, agents, workspaces: allWorkspaces, 
         </div>
       )}
 
+      {/* 编辑模式：组管理面板 */}
+      {isEditing && (
+        <div className="mx-6 mt-3 rounded-xl border border-app-border-subtle bg-app-surface-subtle/30">
+          <button
+            type="button"
+            onClick={() => setGroupPanelOpen((p) => !p)}
+            className="flex w-full items-center justify-between px-4 py-2.5 text-left"
+          >
+            <div className="flex items-center gap-2">
+              <Layers className="h-4 w-4 text-app-text-subtle" />
+              <span className="text-sm font-medium text-app-text">组件分组</span>
+              <span className={`rounded-full px-2 py-0.5 text-[10px] ${
+                localGrouping?.enabled
+                  ? 'border border-emerald-500/20 bg-emerald-500/10 text-emerald-500'
+                  : 'border border-app-border-subtle bg-app-surface text-app-text-subtle'
+              }`}>
+                {localGrouping?.enabled ? `${localGrouping.groups?.length || 0} 个组` : '未启用'}
+              </span>
+            </div>
+            {groupPanelOpen ? <ChevronDown className="h-4 w-4 text-app-text-subtle" /> : <ChevronDown className="h-4 w-4 -rotate-90 text-app-text-subtle" />}
+          </button>
+          {groupPanelOpen && (
+            <div className="border-t border-app-border-subtle/50 px-4 pb-4 pt-3 space-y-3">
+              <div className="flex flex-wrap items-center gap-2">
+                {(localGrouping?.groups || []).map((g) => (
+                  <div key={g.id} className="flex items-center gap-1 rounded-lg border border-app-border-subtle bg-app-surface px-2 py-1">
+                    <input
+                      value={g.name}
+                      onChange={(e) => renameGroup(g.id, e.target.value)}
+                      onBlur={(e) => renameGroup(g.id, e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
+                      className="w-20 bg-transparent text-xs text-app-text outline-none"
+                    />
+                    <span className="text-[10px] text-app-text-subtle">{g.widgetIds.length}</span>
+                    <button
+                      onClick={() => deleteGroup(g.id)}
+                      className="text-app-text-subtle hover:text-primary"
+                      title="删除组"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
+                <div className="flex items-center gap-1">
+                  <input
+                    value={newGroupName}
+                    onChange={(e) => setNewGroupName(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && addGroup()}
+                    placeholder="新组名"
+                    className="w-20 rounded border border-app-border-subtle bg-app-surface px-2 py-1 text-xs text-app-text outline-none focus:border-primary/50"
+                  />
+                  <button
+                    onClick={addGroup}
+                    disabled={!newGroupName.trim()}
+                    className="rounded border border-app-border-subtle px-2 py-1 text-xs text-app-text-subtle hover:bg-app-surface-hover disabled:opacity-50"
+                  >
+                    <Plus className="h-3 w-3" />
+                  </button>
+                </div>
+              </div>
+              <div className="text-[11px] text-app-text-subtle">
+                提示：在组件拖拽手柄处可快速调整所属分组。删除组不会删除组件，组件将变为未分组状态。
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Dashboard Grid — 画布模式 */}
-      <div className={`flex-1 overflow-y-auto sidebar-scroll p-5 pb-28 ${isEditing ? 'bg-app-surface-subtle/40' : ''}`}>
-        <CanvasGrid
+      {localGrouping?.enabled ? (
+        <GroupedCanvas
           widgets={localWidgets}
+          grouping={localGrouping}
           isEditing={isEditing}
           onLayoutChange={handleLayoutChange}
           onDeleteWidget={handleDeleteWidget}
+          onMoveWidgetToGroup={moveWidgetToGroup}
           renderWidget={(widget) => (
             <WidgetRenderer
               workspaceId={workspace.id}
               widget={widget}
               useDemoDataFallback={workspace.useDemoDataFallback}
+              workspace={workspace}
               isEditing={isEditing}
               onRename={(title) => handleRenameWidget(widget.id, title)}
               onRuntimeDataChange={(snapshot) => {
@@ -807,35 +1089,14 @@ function WorkspaceDetailInner({ workspaceId, agents, workspaces: allWorkspaces, 
               onClick={() => {
                 if (isEditing) return;
                 const safeWidget = normalizeWidget(widget, localWidgets.findIndex((item) => item.id === widget.id)) || widget;
-                if (safeWidget.link) {
-                  const link = safeWidget.link;
-                  if (link.type === 'workspace' && onSelectWorkspace) {
-                    if (link.targetId) {
-                      onSelectWorkspace(link.targetId);
-                    } else if (link.targetTemplate && allWorkspaces) {
-                      const targetWs = allWorkspaces.find((w) => w.id === link.targetTemplate || w.name === link.targetTemplate);
-                      if (targetWs) {
-                        onSelectWorkspace(targetWs.id);
-                      } else {
-                        setDetailWidget(safeWidget);
-                      }
-                    } else {
-                      setDetailWidget(safeWidget);
-                    }
-                  } else if (link.type === 'url' && link.url) {
-                    window.open(link.url, '_blank');
-                  } else if (link.type === 'widget' && link.targetId) {
-                    setDetailWidget(safeWidget);
-                  } else {
-                    setDetailWidget(safeWidget);
-                  }
-                } else {
-                  setDetailWidget(safeWidget);
-                }
+                handleWidgetClick(safeWidget, {
+                  onSelectWorkspace,
+                  allWorkspaces,
+                  setDetailWidget,
+                });
               }}
               onDrillDown={(context, dimension) => {
                 setDrillState({ widget: normalizeWidget(widget, localWidgets.findIndex((item) => item.id === widget.id)) || widget, context, dimension });
-                // 同时设置全局联动过滤
                 Object.entries(context).forEach(([key, value]) => {
                   if (typeof value === 'string' || typeof value === 'number') {
                     setFilter(key, value);
@@ -846,7 +1107,63 @@ function WorkspaceDetailInner({ workspaceId, agents, workspaces: allWorkspaces, 
             />
           )}
         />
-      </div>
+      ) : (
+        <div className={`flex-1 overflow-y-auto sidebar-scroll p-5 pb-28 ${isEditing ? 'bg-app-surface-subtle/40' : ''}`}>
+          <CanvasGrid
+            widgets={localWidgets}
+            isEditing={isEditing}
+            onLayoutChange={handleLayoutChange}
+            onDeleteWidget={handleDeleteWidget}
+            renderWidget={(widget) => (
+              <WidgetRenderer
+                workspaceId={workspace.id}
+                widget={widget}
+                useDemoDataFallback={workspace.useDemoDataFallback}
+                workspace={workspace}
+                isEditing={isEditing}
+                onRename={(title) => handleRenameWidget(widget.id, title)}
+                onRuntimeDataChange={(snapshot) => {
+                  setRuntimeWidgetSnapshots((prev) => {
+                    const current = prev[widget.id];
+                    const next = { ...prev };
+                    if (!snapshot || !snapshot.data || Object.keys(snapshot.data).length === 0) {
+                      if (!current) return prev;
+                      delete next[widget.id];
+                      return next;
+                    }
+                    const sameData = current
+                      && current.title === snapshot.title
+                      && JSON.stringify(current.data) === JSON.stringify(snapshot.data);
+                    if (sameData) {
+                      return prev;
+                    }
+                    next[widget.id] = snapshot;
+                    return next;
+                  });
+                }}
+                onClick={() => {
+                  if (isEditing) return;
+                  const safeWidget = normalizeWidget(widget, localWidgets.findIndex((item) => item.id === widget.id)) || widget;
+                  handleWidgetClick(safeWidget, {
+                    onSelectWorkspace,
+                    allWorkspaces,
+                    setDetailWidget,
+                  });
+                }}
+                onDrillDown={(context, dimension) => {
+                  setDrillState({ widget: normalizeWidget(widget, localWidgets.findIndex((item) => item.id === widget.id)) || widget, context, dimension });
+                  Object.entries(context).forEach(([key, value]) => {
+                    if (typeof value === 'string' || typeof value === 'number') {
+                      setFilter(key, value);
+                    }
+                  });
+                }}
+                filterContext={activeFilters}
+              />
+            )}
+          />
+        </div>
+      )}
 
       {/* Widget Detail Drawer */}
       <WidgetDetailDrawer
@@ -871,57 +1188,87 @@ function WorkspaceDetailInner({ workspaceId, agents, workspaces: allWorkspaces, 
         onAdd={handleAddWidget}
       />
 
-      {/* Chat Panel — 底部固定区域 */}
-      <div className="shrink-0 border-t border-app-border-subtle">
-        {/* Chat Messages — 在 Panel 内部向上展开 */}
-        {hasMessages && chatExpanded && (
-          <div className="px-6 pt-3">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] text-app-text-subtle uppercase tracking-wider">
-                会话历史 · {messages.length} 条
-              </span>
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={handleClear}
-                  className="p-1 rounded hover:bg-app-surface-hover text-app-text-subtle hover:text-red-500 transition-colors"
-                  title="清空会话"
-                >
-                  <Trash2 className="w-3 h-3" />
-                </button>
-                <button
-                  onClick={() => setChatExpanded(false)}
-                  className="p-1 rounded hover:bg-app-surface-hover text-app-text-subtle hover:text-app-text-muted transition-colors"
-                  title="折叠"
-                >
-                  <ChevronDown className="w-3.5 h-3.5" />
-                </button>
+      {/* ── Floating Chat ── */}
+      {/* FAB: 收起时显示右下角悬浮按钮 */}
+      {!chatExpanded && (
+        <button
+          onClick={() => setChatExpanded(true)}
+          className="fixed bottom-5 right-5 z-50 flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-primary to-primary-300 text-primary-foreground shadow-lg shadow-primary/25 transition-all hover:scale-110 hover:shadow-xl hover:shadow-primary/30 active:scale-95"
+          title="打开智能会话"
+        >
+          <MessageCircle className="h-5 w-5" />
+          {hasMessages && messages.length > 0 && (
+            <span className="absolute -right-0.5 -top-0.5 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground shadow-sm">
+              {messages.length}
+            </span>
+          )}
+        </button>
+      )}
+
+      {/* Floating Chat Panel */}
+      {chatExpanded && (
+        <div className="fixed bottom-5 right-5 z-50 flex h-[min(640px,calc(100vh-120px))] w-[min(420px,calc(100vw-32px))] flex-col rounded-2xl border border-app-border-subtle bg-app-surface shadow-2xl shadow-black/20">
+          {/* Panel Header */}
+          <div className="flex items-center justify-between border-b border-app-border-subtle px-4 py-3">
+            <div className="flex items-center gap-2.5">
+              {displayPrimaryAgent ? (
+                displayPrimaryAgent.id === 'cockpit-self' ? (
+                  <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white">
+                    <Sparkles className="h-3.5 w-3.5" />
+                  </div>
+                ) : (
+                  <AgentAvatar agent={displayPrimaryAgent} size="sm" showStatus={false} />
+                )
+              ) : (
+                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white">
+                  <Sparkles className="h-3.5 w-3.5" />
+                </div>
+              )}
+              <div>
+                <div className="text-sm font-medium text-app-text">
+                  {displayPrimaryAgent ? displayPrimaryAgent.name : '智能会话'}
+                </div>
+                <div className="text-[10px] text-app-text-subtle">
+                  {isLoading ? '思考中...' : hasMessages ? `${messages.length} 条会话` : '基于当前驾驶舱上下文'}
+                </div>
               </div>
             </div>
-            <div className="max-h-[200px] overflow-y-auto sidebar-scroll space-y-3 pb-3">
-              {messages.map((msg, i) => (
-                <div key={i} className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : ''}`}>
-                  {msg.role === 'agent' && (
-                    <div className="shrink-0 mt-0.5">
-                      {primaryAgent ? (
-                        <AgentAvatar agent={primaryAgent} size="sm" showStatus={false} />
-                      ) : workspace.orchestration?.mode === 'cockpit-led' || workspace.orchestration?.mode === 'llm-direct' ? (
-                        <div className="w-6 h-6 rounded-full flex items-center justify-center bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white">
-                          <Sparkles className="w-3 h-3" />
-                        </div>
-                      ) : null}
-                    </div>
-                  )}
-                  <div className={`max-w-[80%] px-4 py-2.5 rounded-xl text-sm leading-relaxed ${
-                    msg.role === 'user'
-                      ? 'bg-red-500/15 text-app-text-secondary border border-red-500/10'
-                      : 'bg-app-surface text-app-text-muted border border-app-border-subtle'
-                  }`}>
-                    {msg.content}
-                  </div>
+            <div className="flex items-center gap-1">
+              {hasMessages && (
+                <button
+                  onClick={handleClear}
+                  className="rounded-lg p-1.5 text-app-text-subtle transition-colors hover:bg-app-surface-hover hover:text-primary"
+                  title="清空会话"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              )}
+              <button
+                onClick={() => setChatExpanded(false)}
+                className="rounded-lg p-1.5 text-app-text-subtle transition-colors hover:bg-app-surface-hover hover:text-app-text-muted"
+                title="收起"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </div>
+
+          {/* Messages */}
+          <div className="flex-1 min-h-0 overflow-y-auto sidebar-scroll space-y-3 p-4">
+            {messages.length === 0 && !isLoading && (
+              <div className="flex flex-col items-center justify-center h-full gap-3 text-app-text-subtle">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-app-surface-subtle border border-app-border-subtle">
+                  <Sparkles className="h-5 w-5" />
                 </div>
-              ))}
-              {isLoading && streaming && (
-                <div className="flex gap-3">
+                <div className="text-xs text-center">
+                  <p className="text-app-text-secondary font-medium mb-1">智能会话助手</p>
+                  <p className="text-app-text-muted">输入自然语言指令，与智能体交互</p>
+                </div>
+              </div>
+            )}
+            {messages.map((msg, i) => (
+              <div key={i} className={`flex gap-2.5 ${msg.role === 'user' ? 'justify-end' : ''}`}>
+                {msg.role === 'agent' && (
                   <div className="shrink-0 mt-0.5">
                     {primaryAgent ? (
                       <AgentAvatar agent={primaryAgent} size="sm" showStatus={false} />
@@ -931,185 +1278,174 @@ function WorkspaceDetailInner({ workspaceId, agents, workspaces: allWorkspaces, 
                       </div>
                     ) : null}
                   </div>
-                  <div className="max-w-[80%] px-4 py-2.5 rounded-xl text-sm leading-relaxed bg-app-surface text-app-text-muted border border-app-border-subtle">
-                    {streaming}
-                    <span className="inline-block w-1.5 h-4 ml-0.5 bg-red-500/60 animate-pulse align-middle" />
-                  </div>
+                )}
+                <div className={`max-w-[85%] px-3.5 py-2 rounded-xl text-sm leading-relaxed ${
+                  msg.role === 'user'
+                    ? 'bg-primary/15 text-app-text-secondary border border-primary/10'
+                    : 'bg-app-surface-subtle text-app-text-muted border border-app-border-subtle'
+                }`}>
+                  {msg.content}
                 </div>
-              )}
-              {isLoading && !streaming && (
-                <div className="flex gap-3">
-                  <div className="w-7 h-7 rounded-full bg-gradient-to-br from-red-500/20 to-orange-500/20 flex items-center justify-center shrink-0 mt-0.5">
-                    <Loader2 className="w-3.5 h-3.5 text-red-500 animate-spin" />
-                  </div>
-                  <div className="text-sm text-app-text-muted">思考中...</div>
+              </div>
+            ))}
+            {isLoading && streaming && (
+              <div className="flex gap-2.5">
+                <div className="shrink-0 mt-0.5">
+                  {primaryAgent ? (
+                    <AgentAvatar agent={primaryAgent} size="sm" showStatus={false} />
+                  ) : workspace.orchestration?.mode === 'cockpit-led' || workspace.orchestration?.mode === 'llm-direct' ? (
+                    <div className="w-6 h-6 rounded-full flex items-center justify-center bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white">
+                      <Sparkles className="w-3 h-3" />
+                    </div>
+                  ) : null}
                 </div>
-              )}
-              <div ref={chatEndRef} />
-            </div>
-          </div>
-        )}
-
-        {/* Collapsed hint */}
-        {hasMessages && !chatExpanded && (
-          <div className="px-6 pt-3 flex items-center justify-between">
-            <button
-              onClick={() => setChatExpanded(true)}
-              className="flex items-center gap-1.5 text-[10px] text-app-text-subtle hover:text-app-text-muted transition-colors"
-            >
-              <ChevronUp className="w-3 h-3" />
-              <span>展开会话历史 · {messages.length} 条</span>
-            </button>
-            <button
-              onClick={handleClear}
-              className="p-1 rounded hover:bg-app-surface-hover text-app-text-subtle hover:text-red-500 transition-colors"
-              title="清空会话"
-            >
-              <Trash2 className="w-3 h-3" />
-            </button>
-          </div>
-        )}
-
-        {/* Chat Input Bar */}
-        <div className="px-6 py-4">
-          <div className="flex items-center gap-3 bg-app-surface border border-app-border-subtle shadow-[0_1px_3px_rgba(0,0,0,0.15)] rounded-xl px-4 py-3 focus-within:border-app-border focus-within:bg-app-surface-hover transition-all">
-            {/* Agent Selector */}
-            <div className="relative shrink-0" ref={agentPickerRef}>
-              {(() => {
-                // 根据 orchestration 判断谁是主智能体、谁是协作智能体
-                const chatPrimaryAgentId = workspace.orchestration?.mode === 'platform-led'
-                  ? workspace.orchestration.primaryAgent?.id
-                  : (isCockpitLed ? 'cockpit-self' : workspace.primaryAgentId);
-                const chatCollaborators = displayAgents.filter((a) => a.id !== chatPrimaryAgentId && a.id !== 'cockpit-self');
-                const chatPrimary = displayPrimaryAgent;
-                const hasCollaborators = chatCollaborators.length > 0;
-                const currentAgent = displayAgents.find((a) => a.id === (selectedAgentId || chatPrimaryAgentId || 'cockpit-self'));
-
-                return (
-                  <>
-                    <button
-                      onClick={() => hasCollaborators && setAgentPickerOpen(!agentPickerOpen)}
-                      disabled={!hasCollaborators}
-                      className={`flex items-center gap-1 p-1 rounded-lg transition-colors ${
-                        hasCollaborators
-                          ? 'hover:bg-app-surface-hover cursor-pointer'
-                          : 'opacity-50 cursor-not-allowed'
-                      }`}
-                      title={hasCollaborators ? '切换会话智能体' : '当前只有主智能体'}
-                    >
-                      {currentAgent ? (
-                        currentAgent.id === 'cockpit-self' ? (
-                          <div className="w-5 h-5 rounded-full flex items-center justify-center bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white">
-                            <Sparkles className="w-2.5 h-2.5" />
-                          </div>
-                        ) : (
-                          <AgentAvatar agent={currentAgent} size="sm" showStatus={false} />
-                        )
-                      ) : (
-                        <Sparkles className="w-4 h-4 text-app-text-subtle" />
-                      )}
-                      {hasCollaborators && (
-                        <ChevronDown className={`w-3 h-3 text-app-text-subtle transition-transform ${agentPickerOpen ? 'rotate-180' : ''}`} />
-                      )}
-                    </button>
-
-                    {agentPickerOpen && hasCollaborators && (
-                      <div className="absolute bottom-full left-0 mb-2 w-56 rounded-xl bg-app-surface-elevated border border-app-border shadow-xl shadow-black/40 py-2 z-50">
-                        <div className="px-3 py-1.5 text-[10px] text-app-text-subtle uppercase tracking-wider">主智能体</div>
-                        {chatPrimary && (() => {
-                          const isSelected = (selectedAgentId || chatPrimaryAgentId || 'cockpit-self') === chatPrimary.id;
-                          return (
-                            <button
-                              onClick={() => { setSelectedAgentId(chatPrimary.id); setAgentPickerOpen(false); }}
-                              className={`w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors ${isSelected ? 'bg-app-surface-hover' : 'hover:bg-app-surface-hover/60'}`}
-                            >
-                              {chatPrimary.id === 'cockpit-self' ? (
-                                <div className="w-5 h-5 rounded-full flex items-center justify-center bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white shrink-0">
-                                  <Sparkles className="w-2.5 h-2.5" />
-                                </div>
-                              ) : (
-                                <AgentAvatar agent={chatPrimary} size="sm" showStatus={false} />
-                              )}
-                              <div className="flex-1 min-w-0">
-                                <div className="text-xs text-app-text-secondary">{chatPrimary.name}</div>
-                                <div className="text-[10px] text-app-text-muted truncate">{chatPrimary.description}</div>
-                              </div>
-                              {isSelected && <Check className="w-3.5 h-3.5 text-primary shrink-0" />}
-                            </button>
-                          );
-                        })()}
-
-                        {chatCollaborators.length > 0 && (
-                          <>
-                            <div className="mx-3 my-1.5 border-t border-app-border-subtle" />
-                            <div className="px-3 py-1.5 text-[10px] text-app-text-subtle uppercase tracking-wider">协作智能体</div>
-                            {chatCollaborators.map((agent) => {
-                              const isSelected = selectedAgentId === agent.id;
-                              return (
-                                <button
-                                  key={agent.id}
-                                  onClick={() => { setSelectedAgentId(agent.id); setAgentPickerOpen(false); }}
-                                  className={`w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors ${isSelected ? 'bg-app-surface-hover' : 'hover:bg-app-surface-hover/60'}`}
-                                >
-                                  <AgentAvatar agent={agent} size="sm" showStatus={false} />
-                                  <div className="flex-1 min-w-0">
-                                    <div className="text-xs text-app-text-secondary">{agent.name}</div>
-                                    <div className="text-[10px] text-app-text-muted truncate">{agent.description}</div>
-                                  </div>
-                                  {isSelected && <Check className="w-3.5 h-3.5 text-primary shrink-0" />}
-                                </button>
-                              );
-                            })}
-                          </>
-                        )}
-                      </div>
-                    )}
-                  </>
-                );
-              })()}
-            </div>
-
-            <input
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  handleSend();
-                }
-              }}
-              placeholder={(() => {
-                const agent = agents.find((a) => a.id === (selectedAgentId || workspace.primaryAgentId));
-                if (agent) return `与 ${agent.name} 会话，基于「${workspace.name}」上下文...`;
-                if (workspace.orchestration?.mode === 'cockpit-led' || workspace.orchestration?.mode === 'llm-direct') {
-                  return '与驾驶舱智能体会话，输入自然语言指令...';
-                }
-                return '输入指令...';
-              })()}
-              className="flex-1 bg-transparent text-app-text-secondary text-sm outline-none placeholder:text-app-text-muted"
-              disabled={isLoading}
-            />
-            <button
-              onClick={handleSend}
-              disabled={!input.trim() || isLoading}
-              className="p-2 rounded-lg bg-gradient-to-r from-red-500 to-orange-500 text-white hover:opacity-90 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
-            >
-              <Send className="w-3.5 h-3.5" />
-            </button>
-          </div>
-          <div className="flex items-center justify-between mt-2">
-            <span className="text-[10px] text-app-text-subtle">
-              {displayPrimaryAgent ? `${displayPrimaryAgent.name} · 基于当前驾驶舱上下文` : '自然语言指令'}
-            </span>
-            {hasMessages && (
-              <span className="text-[10px] text-app-text-subtle">
-                已保存 · 刷新保留
-              </span>
+                <div className="max-w-[85%] px-3.5 py-2 rounded-xl text-sm leading-relaxed bg-app-surface-subtle text-app-text-muted border border-app-border-subtle">
+                  {streaming}
+                  <span className="inline-block w-1.5 h-4 ml-0.5 bg-primary/60 animate-pulse align-middle" />
+                </div>
+              </div>
             )}
+            {isLoading && !streaming && (
+              <div className="flex gap-2.5">
+                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-primary/20 to-primary-300/20 flex items-center justify-center shrink-0 mt-0.5">
+                  <Loader2 className="w-3.5 h-3.5 text-primary animate-spin" />
+                </div>
+                <div className="text-sm text-app-text-muted">思考中...</div>
+              </div>
+            )}
+            <div ref={chatEndRef} />
+          </div>
+
+          {/* Input Bar */}
+          <div className="border-t border-app-border-subtle p-3">
+            <div className="flex items-center gap-2.5 bg-app-bg border border-app-border-subtle rounded-xl px-3 py-2.5 focus-within:border-app-border focus-within:bg-app-surface-hover transition-all">
+              {/* Agent Selector */}
+              <div className="relative shrink-0" ref={agentPickerRef}>
+                {(() => {
+                  const chatPrimaryAgentId = workspace.orchestration?.mode === 'platform-led'
+                    ? workspace.orchestration.primaryAgent?.id
+                    : (isCockpitLed ? 'cockpit-self' : workspace.primaryAgentId);
+                  const chatCollaborators = displayAgents.filter((a) => a.id !== chatPrimaryAgentId && a.id !== 'cockpit-self');
+                  const chatPrimary = displayPrimaryAgent;
+                  const hasCollaborators = chatCollaborators.length > 0;
+                  const currentAgent = displayAgents.find((a) => a.id === (selectedAgentId || chatPrimaryAgentId || 'cockpit-self'));
+
+                  return (
+                    <>
+                      <button
+                        onClick={() => hasCollaborators && setAgentPickerOpen(!agentPickerOpen)}
+                        disabled={!hasCollaborators}
+                        className={`flex items-center gap-1 p-1 rounded-lg transition-colors ${
+                          hasCollaborators
+                            ? 'hover:bg-app-surface-hover cursor-pointer'
+                            : 'opacity-50 cursor-not-allowed'
+                        }`}
+                        title={hasCollaborators ? '切换会话智能体' : '当前只有主智能体'}
+                      >
+                        {currentAgent ? (
+                          currentAgent.id === 'cockpit-self' ? (
+                            <div className="w-5 h-5 rounded-full flex items-center justify-center bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white">
+                              <Sparkles className="w-2.5 h-2.5" />
+                            </div>
+                          ) : (
+                            <AgentAvatar agent={currentAgent} size="sm" showStatus={false} />
+                          )
+                        ) : (
+                          <Sparkles className="w-4 h-4 text-app-text-subtle" />
+                        )}
+                        {hasCollaborators && (
+                          <ChevronDown className={`w-3 h-3 text-app-text-subtle transition-transform ${agentPickerOpen ? 'rotate-180' : ''}`} />
+                        )}
+                      </button>
+
+                      {agentPickerOpen && hasCollaborators && (
+                        <div className="absolute bottom-full left-0 mb-2 w-56 rounded-xl bg-app-surface-elevated border border-app-border shadow-xl shadow-black/40 py-2 z-50">
+                          <div className="px-3 py-1.5 text-[10px] text-app-text-subtle uppercase tracking-wider">主智能体</div>
+                          {chatPrimary && (() => {
+                            const isSelected = (selectedAgentId || chatPrimaryAgentId || 'cockpit-self') === chatPrimary.id;
+                            return (
+                              <button
+                                onClick={() => { setSelectedAgentId(chatPrimary.id); setAgentPickerOpen(false); }}
+                                className={`w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors ${isSelected ? 'bg-app-surface-hover' : 'hover:bg-app-surface-hover/60'}`}
+                              >
+                                {chatPrimary.id === 'cockpit-self' ? (
+                                  <div className="w-5 h-5 rounded-full flex items-center justify-center bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white shrink-0">
+                                    <Sparkles className="w-2.5 h-2.5" />
+                                  </div>
+                                ) : (
+                                  <AgentAvatar agent={chatPrimary} size="sm" showStatus={false} />
+                                )}
+                                <div className="flex-1 min-w-0">
+                                  <div className="text-xs text-app-text-secondary">{chatPrimary.name}</div>
+                                  <div className="text-[10px] text-app-text-muted truncate">{chatPrimary.description}</div>
+                                </div>
+                                {isSelected && <Check className="w-3.5 h-3.5 text-primary shrink-0" />}
+                              </button>
+                            );
+                          })()}
+
+                          {chatCollaborators.length > 0 && (
+                            <>
+                              <div className="mx-3 my-1.5 border-t border-app-border-subtle" />
+                              <div className="px-3 py-1.5 text-[10px] text-app-text-subtle uppercase tracking-wider">协作智能体</div>
+                              {chatCollaborators.map((agent) => {
+                                const isSelected = selectedAgentId === agent.id;
+                                return (
+                                  <button
+                                    key={agent.id}
+                                    onClick={() => { setSelectedAgentId(agent.id); setAgentPickerOpen(false); }}
+                                    className={`w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors ${isSelected ? 'bg-app-surface-hover' : 'hover:bg-app-surface-hover/60'}`}
+                                  >
+                                    <AgentAvatar agent={agent} size="sm" showStatus={false} />
+                                    <div className="flex-1 min-w-0">
+                                      <div className="text-xs text-app-text-secondary">{agent.name}</div>
+                                      <div className="text-[10px] text-app-text-muted truncate">{agent.description}</div>
+                                    </div>
+                                    {isSelected && <Check className="w-3.5 h-3.5 text-primary shrink-0" />}
+                                  </button>
+                                );
+                              })}
+                            </>
+                          )}
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
+              </div>
+
+              <input
+                type="text"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSend();
+                  }
+                }}
+                placeholder={(() => {
+                  const agent = agents.find((a) => a.id === (selectedAgentId || workspace.primaryAgentId));
+                  if (agent) return `与 ${agent.name} 会话...`;
+                  if (workspace.orchestration?.mode === 'cockpit-led' || workspace.orchestration?.mode === 'llm-direct') {
+                    return '与驾驶舱智能体会话...';
+                  }
+                  return '输入指令...';
+                })()}
+                className="flex-1 bg-transparent text-app-text-secondary text-sm outline-none placeholder:text-app-text-muted min-w-0"
+                disabled={isLoading}
+              />
+              <button
+                onClick={handleSend}
+                disabled={!input.trim() || isLoading}
+                className="p-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-all disabled:opacity-30 disabled:cursor-not-allowed shrink-0"
+              >
+                <Send className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
@@ -1137,10 +1473,42 @@ const TYPE_GRADIENTS: Record<string, string> = {
   alert:    'from-red-500/70 via-orange-400/50 to-transparent',
   map:      'from-emerald-500/70 via-teal-400/50 to-transparent',
   sparkline:'from-indigo-500/70 via-blue-400/50 to-transparent',
+  workflow: 'from-violet-500/70 via-purple-400/50 to-transparent',
+  result:   'from-amber-500/70 via-orange-400/50 to-transparent',
+  actions:  'from-emerald-500/70 via-teal-400/50 to-transparent',
+  artifact: 'from-sky-500/70 via-cyan-400/50 to-transparent',
   business: 'from-fuchsia-500/70 via-violet-400/50 to-transparent',
 };
 
-export function WidgetRenderer({ workspaceId, widget, useDemoDataFallback, isEditing, onClick, onRename, onDrillDown, filterContext, onRuntimeDataChange, previewMode = false }: { workspaceId: string; widget: Widget; useDemoDataFallback?: boolean; isEditing?: boolean; onClick?: () => void; onRename?: (title: string) => void; onDrillDown?: (context: Record<string, unknown>, dimension: string) => void; filterContext?: Record<string, unknown>; onRuntimeDataChange?: (snapshot: RuntimeWidgetSnapshot | null) => void; previewMode?: boolean }) {
+const TYPE_SECTION_LABELS: Record<string, string> = {
+  metric: 'METRIC',
+  chart: 'CHART',
+  table: 'TABLE',
+  list: 'LIST',
+  kanban: 'KANBAN',
+  timeline: 'TIMELINE',
+  report: 'REPORT',
+  html: 'HTML',
+  progress: 'PROGRESS',
+  status: 'STATUS',
+  universal: 'WIDGET',
+  adaptive: 'ADAPTIVE',
+  gauge: 'GAUGE',
+  funnel: 'FUNNEL',
+  radar: 'RADAR',
+  heatmap: 'HEATMAP',
+  bullet: 'BULLET',
+  alert: 'ALERT',
+  map: 'MAP',
+  sparkline: 'SPARKLINE',
+  workflow: 'WORKFLOW',
+  result: 'RESULT',
+  actions: 'ACTIONS',
+  artifact: 'ARTIFACT',
+  business: 'BUSINESS',
+};
+
+export function WidgetRenderer({ workspaceId, widget, useDemoDataFallback, isEditing, onClick, onRename, onDrillDown, filterContext, onRuntimeDataChange, previewMode = false, workspace }: { workspaceId: string; widget: Widget; useDemoDataFallback?: boolean; isEditing?: boolean; onClick?: () => void; onRename?: (title: string) => void; onDrillDown?: (context: Record<string, unknown>, dimension: string) => void; filterContext?: Record<string, unknown>; onRuntimeDataChange?: (snapshot: RuntimeWidgetSnapshot | null) => void; previewMode?: boolean; workspace?: Workspace | null }) {
   const renderWidget = previewMode ? { ...widget, dataSource: undefined } : widget;
   const [titleDraft, setTitleDraft] = useState(renderWidget.title);
   const skipTitleCommitRef = useRef(false);
@@ -1150,6 +1518,11 @@ export function WidgetRenderer({ workspaceId, widget, useDemoDataFallback, isEdi
   const isClickable = !previewMode && !isEditing && (hasDetail || hasLink);
   const canRename = !!isEditing && !previewMode && !!onRename;
   const gradient = TYPE_GRADIENTS[renderWidget.type] || TYPE_GRADIENTS.universal;
+
+  // 统一拉取数据，同时供给 WidgetContent 和 AI 分析
+  const widgetDataResult = useWidgetData(workspaceId, renderWidget, useDemoDataFallback, filterContext);
+  const displayData = widgetDataResult.data || renderWidget.data || {};
+  const { enabled, analysis } = useWidgetAIAnalysis(renderWidget, displayData as Record<string, unknown>, workspace);
 
   useEffect(() => {
     setTitleDraft(renderWidget.title);
@@ -1207,14 +1580,22 @@ export function WidgetRenderer({ workspaceId, widget, useDemoDataFallback, isEdi
             <h4 className="truncate text-[13px] font-semibold text-app-text-secondary tracking-[0.01em]">{renderWidget.title}</h4>
           )}
         </div>
-        <div className="flex items-center gap-1 shrink-0">
+        <div className="flex items-center gap-1.5 shrink-0">
+          <span className="hidden lg:inline text-[9px] font-semibold text-app-text-subtle/35 uppercase tracking-[0.12em]">
+            {TYPE_SECTION_LABELS[renderWidget.type] || 'DATA'}
+          </span>
           {hasLink && <ExternalLink className="w-3.5 h-3.5 text-app-text-subtle/70 group-hover:text-primary/70 transition-colors" />}
           {hasDetail && <ArrowRight className="w-3.5 h-3.5 text-app-text-subtle/70 group-hover:text-primary/70 transition-colors" />}
         </div>
       </div>
-      {/* 内容区 */}
-      <div className="bi-widget-content relative z-10 flex-1">
-        <WidgetContent workspaceId={workspaceId} widget={renderWidget} useDemoDataFallback={useDemoDataFallback} gridSize={gridSize} onDrillDown={onDrillDown} filterContext={filterContext} onRuntimeDataChange={onRuntimeDataChange} />
+      {/* 内容区 + AI 分析建议 */}
+      <div className="relative z-10 flex min-h-0 flex-1 flex-col overflow-hidden">
+        <div className="bi-widget-content scrollbar-thin relative min-h-0 flex-1 overflow-auto">
+          <WidgetContent workspaceId={workspaceId} widget={renderWidget} useDemoDataFallback={useDemoDataFallback} gridSize={gridSize} onDrillDown={onDrillDown} filterContext={filterContext} onRuntimeDataChange={onRuntimeDataChange} preloadedData={widgetDataResult} />
+        </div>
+        {!isEditing && enabled && analysis && renderWidget.position.h >= 3 && (
+          <WidgetAIAnalysis analysis={analysis} widgetTitle={renderWidget.title} />
+        )}
       </div>
     </div>
   );
@@ -1262,10 +1643,19 @@ function toStringValue(value: unknown): string {
   return '';
 }
 
+// 清洗显示值：去除 LLM 常添加的波浪号前缀（避免与负号混淆）
+function sanitizeDisplayValue(value: unknown): string {
+  const str = String(value ?? '');
+  if (str.startsWith('~')) {
+    return str.slice(1).trimStart();
+  }
+  return str;
+}
+
 function parseNumericValue(value: unknown): number | null {
   if (typeof value === 'number' && Number.isFinite(value)) return value;
   if (typeof value !== 'string') return null;
-  const normalized = value.replace(/,/g, '');
+  const normalized = sanitizeDisplayValue(value).replace(/,/g, '');
   const match = normalized.match(/-?\d+(\.\d+)?/);
   if (!match) return null;
   const parsed = Number(match[0]);
@@ -1299,35 +1689,35 @@ const DATA_VIZ_PALETTE = [
   {
     hex: 'hsl(var(--primary))',
     dotClass: 'bg-primary',
-    gradientClass: 'from-primary to-red-400',
+    gradientClass: 'from-primary to-primary-300',
     badgeClass: 'bg-primary/8 border-primary/15 text-primary',
   },
   {
-    hex: '#0f766e',
+    hex: 'hsl(var(--bi-chart-2))',
     dotClass: 'bg-teal-600',
     gradientClass: 'from-teal-600 to-emerald-400',
     badgeClass: 'bg-teal-500/8 border-teal-500/15 text-teal-600',
   },
   {
-    hex: '#d97706',
+    hex: 'hsl(var(--bi-chart-3))',
     dotClass: 'bg-amber-500',
     gradientClass: 'from-amber-500 to-orange-400',
     badgeClass: 'bg-amber-500/8 border-amber-500/15 text-amber-600',
   },
   {
-    hex: '#4f46e5',
+    hex: 'hsl(var(--bi-chart-6))',
     dotClass: 'bg-indigo-500',
     gradientClass: 'from-indigo-600 to-indigo-400',
     badgeClass: 'bg-indigo-500/8 border-indigo-500/15 text-indigo-600',
   },
   {
-    hex: '#e11d48',
+    hex: 'hsl(var(--bi-chart-4))',
     dotClass: 'bg-rose-500',
     gradientClass: 'from-rose-600 to-rose-400',
     badgeClass: 'bg-rose-500/8 border-rose-500/15 text-rose-600',
   },
   {
-    hex: '#0284c7',
+    hex: 'hsl(var(--bi-chart-5))',
     dotClass: 'bg-sky-500',
     gradientClass: 'from-sky-600 to-cyan-400',
     badgeClass: 'bg-sky-500/8 border-sky-500/15 text-sky-600',
@@ -1557,7 +1947,7 @@ function renderMetricChip(metric: WidgetMetricItem, index: number) {
           </span>
         )}
       </div>
-      <div className={`bi-tabular mt-1.5 text-[15px] font-semibold ${tone.text}`}>{metric.value}</div>
+      <div className={`bi-tabular mt-1.5 text-[15px] font-semibold ${tone.text}`}>{sanitizeDisplayValue(metric.value)}</div>
       {trendText && <div className="mt-1 text-[11px] text-app-text-muted">{trendText}</div>}
       {metric.caption && <div className="mt-1 line-clamp-2 text-[11px] leading-relaxed text-app-text-subtle/85">{metric.caption}</div>}
     </div>
@@ -1571,7 +1961,7 @@ function renderAdaptiveSection(section: WidgetAdaptiveSection, gridSize: { w: nu
   const density = getDensityProfile(gridSize);
 
   return (
-    <div key={`${title}-${sectionIndex}`} className="rounded-2xl border border-app-border-subtle/75 bg-[linear-gradient(180deg,rgba(255,255,255,0.75),rgba(246,243,241,0.72))] p-3.5">
+    <div key={`${title}-${sectionIndex}`} className="rounded-xl border border-app-border-subtle/60 bg-app-surface p-3.5">
       {(section.title || section.description) && (
         <div className="mb-2.5">
           {section.title && <div className="text-[13px] font-semibold text-app-text-secondary">{section.title}</div>}
@@ -1665,8 +2055,9 @@ function renderAdaptiveSection(section: WidgetAdaptiveSection, gridSize: { w: nu
   );
 }
 
-function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onDrillDown, filterContext, onRuntimeDataChange }: { workspaceId: string; widget: Widget; useDemoDataFallback?: boolean; gridSize: { w: number; h: number }; onDrillDown?: (context: Record<string, unknown>, dimension: string) => void; filterContext?: Record<string, unknown>; onRuntimeDataChange?: (snapshot: RuntimeWidgetSnapshot | null) => void }) {
-  const { data: liveData, loading, error, source } = useWidgetData(workspaceId, widget, useDemoDataFallback, filterContext);
+function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onDrillDown, filterContext, onRuntimeDataChange, preloadedData }: { workspaceId: string; widget: Widget; useDemoDataFallback?: boolean; gridSize: { w: number; h: number }; onDrillDown?: (context: Record<string, unknown>, dimension: string) => void; filterContext?: Record<string, unknown>; onRuntimeDataChange?: (snapshot: RuntimeWidgetSnapshot | null) => void; preloadedData?: { data: Record<string, unknown> | null; loading: boolean; error: string | null; source: string | null } }) {
+  const hookResult = useWidgetData(workspaceId, widget, useDemoDataFallback, filterContext);
+  const { data: liveData, loading, error, source } = preloadedData ?? hookResult;
   const density = getDensityProfile(gridSize);
 
   // 使用动态数据（如果存在），否则回退到 widget.data
@@ -1729,6 +2120,22 @@ function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onD
       const d = (displayData || {}) as Record<string, unknown>;
       return <BusinessWidgetRenderer widget={widget} data={d} gridSize={gridSize} />;
     }
+    case 'workflow': {
+      const d = (displayData || {}) as Record<string, unknown>;
+      return <WorkflowWidgetRenderer data={d} />;
+    }
+    case 'result': {
+      const d = (displayData || {}) as Record<string, unknown>;
+      return <ResultWidgetRenderer data={d} />;
+    }
+    case 'actions': {
+      const d = (displayData || {}) as Record<string, unknown>;
+      return <ActionsWidgetRenderer data={d} />;
+    }
+    case 'artifact': {
+      const d = (displayData || {}) as Record<string, unknown>;
+      return <ArtifactWidgetRenderer data={d} />;
+    }
     case 'metric': {
       const d = (displayData || {}) as Record<string, unknown>;
       const metricItems = extractMetricItems(d);
@@ -1756,7 +2163,7 @@ function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onD
         return <EmptyWidgetState title={widget.title} source={dataSource} error={error} />;
       }
 
-      const valueStr = String(rawPrimaryValue ?? '');
+      const valueStr = sanitizeDisplayValue(rawPrimaryValue);
       const trend = String(rawPrimaryTrend || '');
       const changeStr = String(rawPrimaryChange || '');
       const caption = String(rawPrimaryCaption || '');
@@ -2481,7 +2888,7 @@ function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onD
       return (
         <div className="h-full flex flex-col gap-3">
           {showHeadline && (
-            <div className="rounded-2xl border border-app-border-subtle/70 bg-gradient-to-br from-app-surface-subtle/80 via-widget-bg to-widget-bg px-4 py-3.5">
+            <div className="rounded-xl border border-app-border-subtle/60 bg-app-surface px-4 py-3.5">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
                   {headline.eyebrow && (
@@ -2633,7 +3040,7 @@ function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onD
       const showLabel = gridSize.h > 2;
       return (
         <div
-          className="flex h-full cursor-pointer flex-col items-center justify-center rounded-2xl bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.82),rgba(246,243,241,0.55))] hover:opacity-80 transition-opacity"
+          className="flex h-full cursor-pointer flex-col items-center justify-center rounded-xl bg-app-surface-subtle/40 hover:bg-app-surface-subtle/60 transition-colors"
           onClick={(e) => {
             e.stopPropagation();
             onDrillDown?.({ gauge: widget.title, value, pct: Math.round(pct) }, `${widget.title}: ${value}${unit}`);
@@ -2678,7 +3085,7 @@ function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onD
             return (
               <div key={i} className="flex items-center gap-3">
                 <div className="flex-1 flex items-center">
-                  <div className="flex h-6 items-center justify-center rounded-md text-[11px] font-semibold text-white shadow-sm" style={{ width: `${Math.max(widthPct, 12)}%`, background: `linear-gradient(90deg, ${style.hex}, rgba(255,255,255,0.28))`, minWidth: '36px', transition: 'width 0.6s cubic-bezier(0.4,0,0.2,1)' }}>
+                  <div className="flex h-6 items-center justify-center rounded-md text-[11px] font-semibold text-app-text shadow-sm" style={{ width: `${Math.max(widthPct, 12)}%`, background: `linear-gradient(90deg, ${style.hex}, hsl(var(--app-border) / 0.28))`, minWidth: '36px', transition: 'width 0.6s cubic-bezier(0.4,0,0.2,1)' }}>
                     {stage.value}
                   </div>
                 </div>
@@ -2735,7 +3142,7 @@ function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onD
               return <line key={i} x1={cx} y1={cy} x2={cx + r * Math.cos(angle)} y2={cy + r * Math.sin(angle)} stroke="currentColor" strokeWidth="0.5" className="text-app-border-subtle" />;
             })}
             {/* 数据面 */}
-            <polygon points={points} fill="rgba(193, 18, 31, 0.12)" stroke="hsl(var(--primary))" strokeWidth="1.5" />
+            <polygon points={points} fill="hsl(var(--primary) / 0.12)" stroke="hsl(var(--primary))" strokeWidth="1.5" />
             {/* 数据点 */}
             {values.map((v, i) => {
               const angle = (Math.PI * 2 * i) / n - Math.PI / 2;
@@ -2795,7 +3202,7 @@ function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onD
                   const cell = rawRows.find((r) => (r.x || r.column || r.label) === x && (r.y || r.row || '') === y);
                   const v = cell ? Number(cell.value ?? 0) : 0;
                   return (
-                    <div key={xi} className="m-0.5 flex items-center justify-center rounded-md text-[10px] font-semibold shadow-[inset_0_0_0_1px_rgba(255,255,255,0.28)]" style={{ width: cellW - 4, height: cellH - 4, backgroundColor: cellColor(v), color: (v - minV) / range > 0.46 ? '#fff' : '#334155' }} title={`${x}${y ? ` / ${y}` : ''}: ${v}`}>
+                    <div key={xi} className="m-0.5 flex items-center justify-center rounded-md text-[10px] font-semibold shadow-[inset_0_0_0_1px_hsl(var(--app-border)/0.28)]" style={{ width: cellW - 4, height: cellH - 4, backgroundColor: cellColor(v), color: (v - minV) / range > 0.46 ? 'hsl(var(--app-text))' : 'hsl(var(--app-text-muted))' }} title={`${x}${y ? ` / ${y}` : ''}: ${v}`}>
                       {v}
                     </div>
                   );
@@ -2811,7 +3218,7 @@ function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onD
       const value = Number(d.value ?? 0);
       const target = Number(d.target ?? 0);
       const max = Number(d.max ?? Math.max(value, target) * 1.2);
-      const ranges = (d.ranges || [{ value: max * 0.6, color: '#ef4444' }, { value: max * 0.8, color: '#f59e0b' }, { value: max, color: '#22c55e' }]) as Array<{ value: number; color: string }>;
+      const ranges = (d.ranges || [{ value: max * 0.6, color: 'hsl(var(--destructive))' }, { value: max * 0.8, color: 'hsl(var(--warning))' }, { value: max, color: 'hsl(var(--success))' }]) as Array<{ value: number; color: string }>;
       const pct = max > 0 ? (value / max) * 100 : 0;
       const targetPct = max > 0 ? (target / max) * 100 : 0;
       const label = (d.label || '') as string;
@@ -2837,8 +3244,8 @@ function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onD
             {/* 目标线 */}
             {target > 0 && (
               <div className="absolute top-0 bottom-0 flex flex-col items-center" style={{ left: `${targetPct}%`, transform: 'translateX(-50%)' }}>
-                <div className="w-0.5 h-full bg-red-500/80" />
-                <span className="mt-0.5 text-[9px] font-medium text-red-500">目标</span>
+                <div className="w-0.5 h-full bg-primary/80" />
+                <span className="mt-0.5 text-[9px] font-medium text-primary">目标</span>
               </div>
             )}
           </div>

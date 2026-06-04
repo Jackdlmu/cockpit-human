@@ -16,6 +16,8 @@ const customStore = createJsonFileStore<any[]>({
   filePath: STORE_FILE,
   defaultValue: [],
   label: 'TemplateStore',
+  maxBackups: 5,
+  validate: (data) => Array.isArray(data),
 });
 
 function readStore(): any[] {

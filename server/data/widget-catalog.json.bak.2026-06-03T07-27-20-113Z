@@ -1,0 +1,41 @@
+[
+  {
+    "id": "custom-widget-mpxqtrgw",
+    "name": "人力测试",
+    "type": "metric",
+    "category": "人力",
+    "icon": "BarChart3",
+    "color": "#ef4444",
+    "description": "",
+    "agentDescription": "面向人",
+    "useCases": [],
+    "tags": [],
+    "schemaHint": {
+      "recommendedDataShape": {
+        "value": "string | number",
+        "change": "string",
+        "trend": "up | down | flat"
+      },
+      "layoutAdvice": ""
+    },
+    "template": {
+      "id": "widget-template",
+      "type": "metric",
+      "title": "核心指标",
+      "position": {
+        "x": 0,
+        "y": 0,
+        "w": 3,
+        "h": 2
+      },
+      "data": {
+        "value": "—",
+        "change": "+0%",
+        "trend": "flat"
+      }
+    },
+    "isBuiltin": false,
+    "createdAt": "2026-06-03T07:27:14.233Z",
+    "updatedAt": "2026-06-03T07:27:14.233Z"
+  }
+]

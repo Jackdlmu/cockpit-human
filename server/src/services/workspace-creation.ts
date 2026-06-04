@@ -88,6 +88,25 @@ export async function createWorkspaceWithLifecycle(
   });
 
   if (!options.skipLocalInitialization && initPrompt && Array.isArray(workspace.widgets) && workspace.widgets.length > 0) {
+    // 如果走 LLM 初始化且当前无可用大模型连接，直接跳过初始化（保留模板默认数据）
+    const llmUnavailable = initializationMode === 'llm'
+      && (!options.connectionManager || !options.connectionManager.getConnectorByCapability('llm-chat'));
+
+    if (llmUnavailable) {
+      console.log(`[WorkspaceCreation] Skipping LLM initialization for ${workspace.id}: no LLM connector available`);
+      workspace = await workspaceStore.updateWorkspace(workspace.id, {
+        initializing: false,
+        initializationMode,
+        initializationError: '当前无可用大模型连接，已使用模板默认数据',
+      }) || workspace;
+      await contextBuilder.build(workspace);
+      return {
+        workspace,
+        initializing: false,
+        initializationMode,
+      };
+    }
+
     const initState = startWorkspaceInitialization({
       workspaceId: workspace.id,
       workspaceName: workspace.name,

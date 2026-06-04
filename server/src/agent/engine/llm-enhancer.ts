@@ -96,10 +96,26 @@ export function buildGenerationPrompt(
 - metric: w=3 h=2 | gauge: w=3 h=3 | bullet: w=6 h=2
 - chart/table/kanban/timeline/list/funnel/radar/heatmap/alert/map: w=6 h=4
 - report: w=8 h=4 或 w=12 h=4 | universal/adaptive: w=6 h=4
-- 位置避免重叠，y 坐标优先放在最下方
+- 组件必须从左到右、从上到下紧密排列，每行尽可能填满 12 列，中间不要留空白
+- 位置避免重叠，x 坐标从 0 开始依次递增，当前行放满再换到下一行
+
+【分组规则（可选）】
+- 当组件数量超过 6 个时，建议将组件按主题分组
+- 每个组件可设置 "group" 字段标识所属分组，如 "group": "财务指标"
+- 分组名称应简洁明确，如：财务指标、人力资源、销售分析、运营管理、市场营销、战略总览、研发效能、供应链
+- 不超过 6 个分组，分组形态由系统自动决定，你只需提供 group 字段
 
 【关联/穿透配置（可选 link 字段）】
-- link = { type: "workspace|widget|url", targetId?: "...", targetTemplate?: "...", url?: "https://...", title?: "..." }
+- link = { type: "workspace|widget|url", targetId?: "...", targetTemplate?: "...", url?: "https://...", title?: "...", openMode?: "drawer|blank|self" }
+- openMode 说明：
+  - drawer（默认）：点击后从右侧滑出浮层面板，用于在同页面内查看详情、下钻数据。适合 html/report 类型的"摘要 → 详情"场景
+  - blank：点击后在新浏览器标签页中打开目标页面。适合跳转到外部系统、外部报告
+  - self：点击后在当前页面内直接跳转。适合 workspace 类型跳转到其他驾驶舱
+- 典型场景：
+  1. html 组件生成报告摘要：data.html 放摘要/概览，同时配置 link = { type: "widget", openMode: "drawer", title: "查看报告详情" }，用户点击后浮层显示完整报告详情
+  2. report 组件：data.summary 放摘要，配置 link = { type: "widget", openMode: "drawer", title: "查看完整报告" }
+  3. 跳转到其他驾驶舱：link = { type: "workspace", targetId: "ws-xxx", openMode: "self" }
+  4. 外部链接：link = { type: "url", url: "https://...", openMode: "blank" }
 
 【详情配置（可选 detail 字段）】
 - detail = { type: "slide-out", content?: "markdown或html详细内容", width?: "480px" }
@@ -113,6 +129,7 @@ export function buildGenerationPrompt(
       "type": "metric|chart|table|kanban|timeline|list|report|html|progress|status|universal|adaptive|gauge|funnel|radar|heatmap|bullet|alert|map",
       "title": "组件标题",
       "position": {"x":0,"y":0,"w":3,"h":2},
+      "group": "分组名称（可选）",
       "data": {...},
       "dataSource": { "type": "skill|query|static", ... }
     }
@@ -169,8 +186,16 @@ ${specJson}
 【新增widget类型布局尺寸】
 - gauge: w=3 h=3 | funnel/radar/heatmap/alert/map: w=6 h=4 | bullet: w=6 h=2
 
+【分组规则（可选）】
+- 当新增组件数量超过 3 个时，建议为组件设置 "group" 字段进行主题分组
+- 分组名称应简洁明确，如：财务指标、人力资源、销售分析、运营管理、市场营销、战略总览、研发效能、供应链
+- 不超过 6 个分组
+
 【关联/穿透与详情配置】
-- link: { type: "workspace|widget|url", targetId?: "...", targetTemplate?: "...", url?: "...", title?: "..." }
+- link: { type: "workspace|widget|url", targetId?: "...", targetTemplate?: "...", url?: "...", title?: "...", openMode?: "drawer|blank|self" }
+  - openMode = drawer（默认）：浮层面板，适合 html/report 摘要 → 详情穿透
+  - openMode = blank：新标签页，适合外部链接
+  - openMode = self：当前页跳转，适合 workspace 驾驶舱切换
 - detail: { type: "slide-out", content?: "详细内容", width?: "480px" }
 
 约束（绝对不可修改）：
