@@ -120,7 +120,7 @@ export function CanvasGrid({
                     e.stopPropagation();
                     onDeleteWidget(widget.id);
                   }}
-                  className="absolute -right-2 -top-2 z-20 flex h-6 w-6 items-center justify-center rounded-full bg-red-500 text-white opacity-0 shadow-md transition-opacity hover:bg-red-600 group-hover:opacity-100"
+                  className="absolute -right-2 -top-2 z-20 flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground opacity-0 shadow-md transition-opacity hover:bg-primary/90 group-hover:opacity-100"
                   title="删除 Widget"
                 >
                   <X className="w-3 h-3" />

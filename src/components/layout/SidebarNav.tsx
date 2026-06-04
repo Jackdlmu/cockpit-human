@@ -94,7 +94,7 @@ export default function SidebarNav({
                 className={`
                   w-full flex items-center gap-2.5 px-3 py-2 mx-0 text-left transition-colors relative
                   ${isActive
-                    ? 'bg-red-500/8 text-app-text'
+                    ? 'bg-primary/8 text-app-text'
                     : 'text-app-text-muted hover:bg-app-surface-hover hover:text-app-text-secondary'
                   }
                   ${collapsed ? 'justify-center px-0' : ''}
@@ -102,7 +102,7 @@ export default function SidebarNav({
               >
                 {/* Active indicator */}
                 {isActive && (
-                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-red-400 rounded-r-full" />
+                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-primary rounded-r-full" />
                 )}
                 <WsIcon icon={ws.icon} color={ws.color} />
                 {!collapsed && (
@@ -122,8 +122,8 @@ export default function SidebarNav({
             onClick={onCreate}
             className={`
               w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs
-              bg-gradient-to-r from-red-500 to-orange-500 text-white
-              hover:from-red-400 hover:to-orange-400 transition-all
+              bg-primary text-primary-foreground
+              hover:bg-primary/90 transition-all
               ${collapsed ? 'justify-center' : ''}
             `}
             title="新建驾驶舱"

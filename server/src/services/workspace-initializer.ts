@@ -143,10 +143,25 @@ async function mergeWidgetData(
     const nextType = isTypeMismatched(widget.type, nextData)
       ? inferWidgetType(nextData)
       : widget.type;
+
+    // 业务洞察组件：对 LLM 返回的数据进行字段级合并，保留模板中预置的
+    // cockpitSummary / persona / highlights / recommendations 等结构化字段
+    let mergedData = { ...nextData };
+    if (widget.type === 'business' && (widget.business?.businessType === 'insight-hub' || nextData.businessType === 'insight-hub')) {
+      const preserveFields = ['cockpitSummary', 'persona', 'highlights', 'recommendations'];
+      for (const field of preserveFields) {
+        const original = widget.data?.[field];
+        const next = nextData[field];
+        if (next === undefined && original !== undefined) {
+          mergedData[field] = original;
+        }
+      }
+    }
+
     return {
       ...widget,
       type: nextType,
-      data: { ...nextData },
+      data: mergedData,
     };
   });
 
@@ -389,7 +404,7 @@ ${widgetDesc}
 - business: 根据 businessType 决定数据结构，必须保留原始数据中的业务对象
   - message-center: { businessType: 'message-center', messages: [{ id, type: 'approval'|'alert'|'todo', priority: 'critical'|'high'|'medium'|'low', status: 'pending'|'processing'|'done', title, summary, source, dueAt?, intelligence?, actions: [{id,label,type,tone?}] }] }
   - calendar: { businessType: 'calendar', events: [{ id, type: 'meeting'|'approval'|'risk'|'deadline'|'reminder'|'milestone', start, end?, location?, participants?: string[], source, status?, actions: [{id,label,type}] }] }
-  - insight-hub: { businessType: 'insight-hub', insights: [{ id, type: 'risk'|'opportunity'|'anomaly'|'recommendation', severity: 'critical'|'high'|'medium'|'low', summary, evidence?: [{label,value}], recommendation?, confidence?: number, actions: [{id,label,type,tone?}] }] }
+  - insight-hub（业务洞察组件）: { businessType: 'insight-hub', cockpitSummary: { title: 'xx业务洞察', subtitle?, domain?, scope?, description: '一句话说明该组件的价值' }, persona: { role: '角色', focus: ['关注维度1', '关注维度2'], preferences?: string[] }, highlights: [{ id, label, value, change?, trend: 'up'|'down'|'neutral' }], insights: [{ id, type: 'risk'|'opportunity'|'anomaly'|'recommendation'|'summary', severity: 'critical'|'high'|'medium'|'low', title, summary, evidence?: [{label,value}], recommendation?, confidence?: number, actions: [{id,label,type,tone?}] }], recommendations: [{ id, text, priority: 'high'|'medium'|'low' }] }
 - workflow: { steps: [{ id, label, status: 'pending'|'running'|'done'|'error', detail? }], currentStep?: number, summary?: string }
 - result: { items: [{ type: 'finding'|'conclusion'|'warning'|'insight', content, evidence?: string[], confidence?: number }], generatedAt?: string }
 - actions: { actions: [{ id, label, status: 'queued'|'running'|'done', type?: 'sql'|'report'|'script'|'task', output?: string }] }

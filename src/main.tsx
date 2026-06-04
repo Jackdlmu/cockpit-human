@@ -14,7 +14,7 @@ if (!rootEl) {
     createRoot(rootEl).render(
       <StrictMode>
         <BrowserRouter>
-          <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
+          <ThemeProvider attribute="data-theme" defaultTheme="dark" themes={['light', 'dark', 'blue', 'green', 'purple']} enableSystem>
             <ErrorBoundary>
               <App />
             </ErrorBoundary>

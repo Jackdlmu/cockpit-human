@@ -683,7 +683,7 @@ function App() {
           <AlertDialogAction
             onClick={confirmDelete}
             disabled={deleting}
-            className="h-9 text-xs bg-red-500 hover:bg-red-400 text-white border-0"
+            className="h-9 text-xs bg-destructive hover:bg-destructive/90 text-destructive-foreground border-0"
           >
             {deleting ? '删除中...' : '确认删除'}
           </AlertDialogAction>
@@ -699,7 +699,7 @@ function App() {
         {(loading || agentsError || workspacesError) && !selectedWorkspaceId && (
           <div className="absolute inset-0 z-40 flex items-center justify-center bg-app-overlay/80 backdrop-blur-sm">
             <div className="flex flex-col items-center gap-3">
-              {loading && <Loader2 className="w-8 h-8 text-red-400 animate-spin" />}
+              {loading && <Loader2 className="w-8 h-8 text-primary animate-spin" />}
               <span className="text-sm text-app-text-muted">
                 {loading ? '加载中...' : '加载失败'}
               </span>

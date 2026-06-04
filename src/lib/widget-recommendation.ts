@@ -4,24 +4,24 @@ import { inferWidgetType, isTypeMismatched } from './widget-type-inferer';
 export type WidgetSize = { w: number; h: number };
 
 const BASE_SIZE: Record<WidgetType, WidgetSize> = {
-  metric: { w: 3, h: 2 },
+  metric: { w: 3, h: 3 },
   chart: { w: 6, h: 4 },
   table: { w: 6, h: 4 },
   kanban: { w: 6, h: 4 },
   timeline: { w: 8, h: 4 },
-  list: { w: 4, h: 3 },
+  list: { w: 4, h: 4 },
   report: { w: 8, h: 4 },
   html: { w: 8, h: 4 },
   universal: { w: 6, h: 4 },
   adaptive: { w: 6, h: 4 },
-  progress: { w: 4, h: 2 },
-  status: { w: 4, h: 3 },
-  gauge: { w: 4, h: 3 },
+  progress: { w: 4, h: 3 },
+  status: { w: 4, h: 4 },
+  gauge: { w: 4, h: 4 },
   funnel: { w: 6, h: 4 },
   radar: { w: 5, h: 4 },
   heatmap: { w: 6, h: 4 },
-  bullet: { w: 6, h: 2 },
-  alert: { w: 5, h: 3 },
+  bullet: { w: 6, h: 3 },
+  alert: { w: 5, h: 4 },
   map: { w: 6, h: 4 },
   business: { w: 6, h: 4 },
   workflow: { w: 5, h: 4 },
@@ -142,7 +142,7 @@ export function recommendWidgetSize(type: string, rawData?: unknown): WidgetSize
     const businessType = String(data.businessType || data.kind || '');
     if (businessType === 'message-center') return { w: 6, h: 5 };
     if (businessType === 'calendar') return { w: 5, h: 5 };
-    if (businessType === 'insight-hub') return { w: 6, h: 5 };
+    if (businessType === 'insight-hub') return { w: 12, h: 4 };
     return base;
   }
 

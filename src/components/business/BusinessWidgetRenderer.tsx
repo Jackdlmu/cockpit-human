@@ -5,12 +5,16 @@ import {
   Bell,
   Clock3,
   FileCheck2,
+  LayoutDashboard,
   Lightbulb,
   Plus,
   ShieldAlert,
   Sparkles,
   TrendingUp,
+  TrendingDown,
+  User,
   Users,
+  Zap,
 } from 'lucide-react';
 
 type GridSize = { w: number; h: number };
@@ -71,6 +75,34 @@ interface InsightItem {
   recommendation?: string;
   confidence?: number;
   actions?: BusinessAction[];
+}
+
+interface CockpitSummary {
+  title: string;
+  subtitle?: string;
+  domain?: string;
+  scope?: string;
+  description?: string;
+}
+
+interface Persona {
+  role: string;
+  focus: string[];
+  preferences?: string[];
+}
+
+interface HighlightItem {
+  id: string;
+  label: string;
+  value: string;
+  change?: string;
+  trend?: 'up' | 'down' | 'neutral';
+}
+
+interface RecommendationItem {
+  id: string;
+  text: string;
+  priority?: 'high' | 'medium' | 'low';
 }
 
 function toRecord(value: unknown): Record<string, unknown> | null {
@@ -195,6 +227,74 @@ function normalizeInsights(data: Record<string, unknown>): InsightItem[] {
       return insight;
     })
     .filter((item): item is InsightItem => item !== null);
+}
+
+function normalizeCockpitSummary(data: Record<string, unknown>): CockpitSummary {
+  const summary = toRecord(data.cockpitSummary) || toRecord(data.summary) || {};
+  return {
+    title: toString(summary.title || data.title, '业务洞察'),
+    subtitle: toString(summary.subtitle, ''),
+    domain: toString(summary.domain || summary.businessDomain, ''),
+    scope: toString(summary.scope || summary.businessScope, ''),
+    description: toString(summary.description || summary.overview || data.description, ''),
+  };
+}
+
+function normalizePersona(data: Record<string, unknown>): Persona | null {
+  const persona = toRecord(data.persona) || toRecord(data.user) || toRecord(data.viewer);
+  if (!persona) return null;
+  const focus = Array.isArray(persona.focus)
+    ? persona.focus.map(String)
+    : typeof persona.focus === 'string'
+      ? persona.focus.split(/[,，]/).map((s) => s.trim()).filter(Boolean)
+      : [];
+  const preferences = Array.isArray(persona.preferences)
+    ? persona.preferences.map(String)
+    : typeof persona.preferences === 'string'
+      ? persona.preferences.split(/[,，]/).map((s) => s.trim()).filter(Boolean)
+      : [];
+  return {
+    role: toString(persona.role || persona.title, '业务用户'),
+    focus,
+    preferences,
+  };
+}
+
+function normalizeHighlights(data: Record<string, unknown>): HighlightItem[] {
+  const source = data.highlights || data.metrics || data.kpis || [];
+  if (!Array.isArray(source)) return [];
+  return source
+    .map((item, index) => {
+      const record = toRecord(item);
+      if (!record) return null;
+      const trend = toString(record.trend, 'neutral') as HighlightItem['trend'];
+      const highlight: HighlightItem = {
+        id: toString(record.id, `highlight-${index}`),
+        label: toString(record.label || record.name || record.title, '指标'),
+        value: toString(record.value || record.amount || record.number, '—'),
+        change: toString(record.change || record.delta, ''),
+        trend: ['up', 'down', 'neutral'].includes(trend) ? trend : 'neutral',
+      };
+      return highlight;
+    })
+    .filter((item): item is HighlightItem => item !== null);
+}
+
+function normalizeRecommendations(data: Record<string, unknown>): RecommendationItem[] {
+  const source = data.recommendations || data.suggestions || data.advice || [];
+  if (!Array.isArray(source)) return [];
+  return source
+    .map((item, index) => {
+      const record = toRecord(item);
+      if (!record) return null;
+      const priority = toString(record.priority || record.level, 'medium') as RecommendationItem['priority'];
+      return {
+        id: toString(record.id, `rec-${index}`),
+        text: toString(record.text || record.content || record.suggestion || record.description, ''),
+        priority: ['high', 'medium', 'low'].includes(priority) ? priority : 'medium',
+      };
+    })
+    .filter((item): item is RecommendationItem => item !== null);
 }
 
 function priorityClasses(priority?: string) {
@@ -411,65 +511,160 @@ function CalendarWidget({ widget, data, gridSize }: BusinessWidgetRendererProps)
   );
 }
 
-function InsightHub({ widget, data, gridSize }: BusinessWidgetRendererProps) {
-  const insights = normalizeInsights(data);
-  const visible = insights.slice(0, gridSize.h <= 3 ? 3 : 5);
-  const highRisk = insights.filter((item) => item.severity === 'critical' || item.severity === 'high').length;
-  const opportunity = insights.filter((item) => item.type === 'opportunity' || item.type === 'recommendation').length;
-  const avgConfidence = insights.length > 0
-    ? Math.round(insights.reduce((sum, item) => sum + (item.confidence || 0), 0) / insights.length)
-    : 0;
+function trendClasses(trend?: HighlightItem['trend']) {
+  switch (trend) {
+    case 'up':
+      return 'text-emerald-500 bg-emerald-500/8';
+    case 'down':
+      return 'text-red-500 bg-red-500/8';
+    default:
+      return 'text-app-text-subtle bg-app-surface-subtle';
+  }
+}
 
-  if (insights.length === 0) return <BusinessEmptyState title={widget.title} />;
+function TrendPill({ trend, change }: { trend?: HighlightItem['trend']; change: string }) {
+  const Icon = trend === 'up' ? TrendingUp : trend === 'down' ? TrendingDown : null;
+  return (
+    <span className={`inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-[10px] ${trendClasses(trend)}`}>
+      {Icon && <Icon className="h-3 w-3" />}
+      {change}
+    </span>
+  );
+}
+
+function InsightHub({ widget, data, gridSize }: BusinessWidgetRendererProps) {
+  const summary = normalizeCockpitSummary(data);
+  const persona = normalizePersona(data);
+  const highlights = normalizeHighlights(data);
+  const insights = normalizeInsights(data);
+  const recommendations = normalizeRecommendations(data);
+
+  const hasContent = summary.title || highlights.length > 0 || insights.length > 0;
+  if (!hasContent) return <BusinessEmptyState title={widget.title} />;
+
+  const compact = gridSize.h <= 3;
+  const showPersona = !compact && persona;
+  const showRecommendations = !compact && recommendations.length > 0;
+  const visibleInsights = insights.slice(0, compact ? 2 : 3);
+  const visibleHighlights = highlights.slice(0, gridSize.w >= 8 ? 4 : gridSize.w >= 5 ? 3 : 2);
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-3">
-      <div className="grid grid-cols-3 gap-2">
-        <BusinessStat label="高风险" value={highRisk} tone="danger" icon={AlertTriangle} />
-        <BusinessStat label="机会" value={opportunity} tone="primary" icon={TrendingUp} />
-        <BusinessStat label="可信度" value={`${avgConfidence}%`} tone="info" icon={Sparkles} />
+    <div className="flex h-full min-h-0 flex-col gap-2">
+      {/* 驾驶舱身份 */}
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <LayoutDashboard className="h-4 w-4 text-primary" aria-hidden="true" />
+            <span className="text-sm font-semibold text-app-text">{summary.title}</span>
+            {summary.domain && (
+              <span className="shrink-0 rounded-full border border-primary/15 bg-primary/8 px-2 py-0.5 text-[10px] text-primary">
+                {summary.domain}
+              </span>
+            )}
+          </div>
+          {summary.description && (
+            <p className="mt-0.5 line-clamp-1 text-[11px] text-app-text-muted">{summary.description}</p>
+          )}
+        </div>
+        {summary.scope && (
+          <span className="shrink-0 rounded-md border border-app-border-subtle bg-app-surface-subtle/55 px-2 py-1 text-[10px] text-app-text-muted">
+            {summary.scope}
+          </span>
+        )}
       </div>
 
-      <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1 sidebar-scroll">
-        {visible.map((insight) => {
-          const cfg = priorityClasses(insight.severity);
-          return (
-            <div key={insight.id} className={`rounded-lg border ${cfg.border} bg-app-surface/80 px-3 py-2.5`}>
-              <div className="flex items-start gap-2.5">
-                <div className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md ${cfg.bg} ${cfg.text}`}>
-                  {insight.type === 'opportunity' ? <TrendingUp className="h-3.5 w-3.5" /> : insight.type === 'recommendation' ? <Lightbulb className="h-3.5 w-3.5" /> : <Sparkles className="h-3.5 w-3.5" />}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="truncate text-[13px] font-semibold text-app-text-secondary">{insight.title}</span>
-                    {insight.confidence ? <span className="shrink-0 text-[10px] text-app-text-subtle">{insight.confidence}%</span> : null}
+      {/* 用户画像 */}
+      {showPersona && (
+        <div className="flex flex-wrap items-center gap-2 text-[11px] text-app-text-muted">
+          <div className="flex items-center gap-1 rounded-md border border-app-border-subtle bg-app-surface-subtle/40 px-2 py-1">
+            <User className="h-3 w-3" aria-hidden="true" />
+            <span className="text-app-text-secondary">{persona.role}</span>
+          </div>
+          <span className="text-app-text-subtle">·</span>
+          <span>关注</span>
+          {persona.focus.slice(0, 4).map((f) => (
+            <span key={f} className="rounded-full border border-app-border-subtle bg-app-surface px-1.5 py-0.5 text-[10px]">
+              {f}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* 核心指标 */}
+      {visibleHighlights.length > 0 && (
+        <div className={`grid gap-2 ${gridSize.w >= 8 ? 'grid-cols-4' : gridSize.w >= 5 ? 'grid-cols-3' : 'grid-cols-2'}`}>
+          {visibleHighlights.map((h) => (
+            <div key={h.id} className="rounded-lg border border-app-border-subtle bg-app-surface-subtle/40 px-2.5 py-2">
+              <div className="text-[10px] text-app-text-subtle">{h.label}</div>
+              <div className="mt-0.5 flex items-end gap-1.5">
+                <span className="text-base font-semibold text-app-text-secondary">{h.value}</span>
+                {h.change && <TrendPill trend={h.trend} change={h.change} />}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* 关键洞察 */}
+      {visibleInsights.length > 0 && (
+        <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto pr-1 sidebar-scroll">
+          {visibleInsights.map((insight) => {
+            const cfg = priorityClasses(insight.severity);
+            const Icon =
+              insight.type === 'opportunity' ? TrendingUp
+                : insight.type === 'recommendation' ? Lightbulb
+                  : insight.type === 'risk' ? AlertTriangle
+                    : Sparkles;
+            return (
+              <div key={insight.id} className={`rounded-lg border ${cfg.border} bg-app-surface/80 px-2.5 py-2 transition-colors hover:bg-app-surface-hover`}>
+                <div className="flex items-start gap-2">
+                  <div className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md ${cfg.bg} ${cfg.text}`}>
+                    <Icon className="h-3 w-3" aria-hidden="true" />
                   </div>
-                  <p className="mt-1 line-clamp-2 text-[12px] leading-5 text-app-text-muted">{insight.summary}</p>
-                  {insight.evidence && insight.evidence.length > 0 && gridSize.h >= 4 && (
-                    <div className="mt-2 grid grid-cols-2 gap-1.5">
-                      {insight.evidence.slice(0, 2).map((item, index) => (
-                        <div key={`${item.label}-${index}`} className="rounded-md border border-app-border-subtle bg-app-surface-subtle/55 px-2 py-1.5">
-                          <div className="truncate text-[10px] text-app-text-subtle">{item.label}</div>
-                          <div className="mt-0.5 truncate text-[12px] font-semibold text-app-text-secondary">{item.value}</div>
-                        </div>
-                      ))}
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="truncate text-[12px] font-semibold text-app-text-secondary">{insight.title}</span>
+                      {insight.confidence ? (
+                        <span className="shrink-0 text-[10px] text-app-text-subtle">{insight.confidence}%</span>
+                      ) : null}
                     </div>
-                  )}
-                  {insight.recommendation && (
-                    <div className="mt-2 rounded-md border border-primary/15 bg-primary/8 px-2 py-1.5 text-[11px] leading-5 text-primary">
-                      {insight.recommendation}
-                    </div>
-                  )}
-                  <div className="mt-2 flex items-center justify-between">
-                    <span className="text-[10px] text-app-text-subtle">基于驾驶舱上下文生成</span>
-                    <ActionButtons actions={insight.actions} compact />
+                    <p className="mt-0.5 line-clamp-1 text-[11px] leading-4 text-app-text-muted">{insight.summary}</p>
+                    {!compact && insight.recommendation && (
+                      <div className="mt-1.5 rounded-md border border-primary/15 bg-primary/8 px-2 py-1 text-[11px] leading-4 text-primary">
+                        {insight.recommendation}
+                      </div>
+                    )}
+                    {insight.actions && insight.actions.length > 0 && gridSize.w >= 6 && (
+                      <div className="mt-1.5">
+                        <ActionButtons actions={insight.actions} compact />
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* 全局建议 */}
+      {showRecommendations && (
+        <div className="rounded-lg border border-primary/15 bg-primary/[0.04] px-2.5 py-2">
+          <div className="flex items-start gap-2">
+            <Zap className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" aria-hidden="true" />
+            <div className="min-w-0 flex-1 space-y-1">
+              {recommendations.slice(0, 2).map((rec) => (
+                <p key={rec.id} className="text-[11px] leading-4 text-app-text-secondary">
+                  <span className="font-medium text-primary">
+                    {rec.priority === 'high' ? '优先：' : rec.priority === 'low' ? '建议：' : '关注：'}
+                  </span>
+                  {rec.text}
+                </p>
+              ))}
             </div>
-          );
-        })}
-      </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -500,6 +695,24 @@ export function createDefaultBusinessData(type: BusinessWidgetType): Record<stri
   if (type === 'insight-hub') {
     return {
       businessType: 'insight-hub',
+      cockpitSummary: {
+        title: '销售运营业务洞察',
+        subtitle: '销售运营核心指标与风险监控',
+        domain: '销售管理',
+        scope: '集团 · 华东/华南/华北',
+        description: '聚焦月度业绩达成、区域贡献、客户转化与回款健康度，为销售管理层提供实时决策支持。',
+      },
+      persona: {
+        role: '销售副总裁',
+        focus: ['回款健康', '区域达成', '客户转化', '费用效率'],
+        preferences: ['风险前置', '行动导向'],
+      },
+      highlights: [
+        { id: 'h1', label: '本月签约', value: '1.28亿', change: '+12%', trend: 'up' },
+        { id: 'h2', label: '业绩达成率', value: '94.2%', change: '-1.8pp', trend: 'down' },
+        { id: 'h3', label: '逾期回款', value: '860万', change: '+15%', trend: 'down' },
+        { id: 'h4', label: '重点机会', value: '23个', change: '+4', trend: 'up' },
+      ],
       insights: [
         {
           id: 'insight-1',
@@ -522,6 +735,20 @@ export function createDefaultBusinessData(type: BusinessWidgetType): Record<stri
           evidence: [{ label: '销售费用率', value: '-1.2pp' }, { label: '高效区域', value: '华南' }],
           actions: [{ id: 'brief', label: '形成摘要', type: 'create' }],
         },
+        {
+          id: 'insight-3',
+          title: 'Top 客户转化率出现回落',
+          type: 'anomaly',
+          severity: 'medium',
+          summary: 'Top20 客户近 30 天转化率环比下降 4.3%，主要受华东区交付周期延长影响。',
+          confidence: 72,
+          recommendation: '建议联合交付团队评估华东项目排期，并针对高潜客户启动专项跟进。',
+          actions: [{ id: 'detail', label: '查看明细', type: 'open' }],
+        },
+      ],
+      recommendations: [
+        { id: 'r1', text: '优先处理华东逾期回款，避免本周现金流缺口扩大。', priority: 'high' },
+        { id: 'r2', text: '复用华南区域打法，推动销售费用率进一步优化。', priority: 'medium' },
       ],
     };
   }

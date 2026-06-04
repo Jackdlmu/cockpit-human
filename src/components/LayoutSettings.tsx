@@ -56,7 +56,7 @@ export default function LayoutSettings({ mode, onChange }: Props) {
               className={`
                 flex flex-col items-center gap-2 p-4 rounded-xl border transition-all
                 ${isActive
-                  ? 'border-red-400/50 bg-red-500/5 text-app-text'
+                  ? 'border-primary/50 bg-primary/5 text-app-text'
                   : 'border-app-border-subtle bg-app-surface text-app-text-muted hover:border-app-border hover:text-app-text-secondary'
                 }
               `}

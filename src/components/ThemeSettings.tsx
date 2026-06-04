@@ -3,7 +3,7 @@
 
 import { useTheme } from 'next-themes';
 import { useEffect, useState } from 'react';
-import { Sun, Moon, Monitor } from 'lucide-react';
+import { Sun, Moon, Monitor, Droplets, Leaf, Sparkles } from 'lucide-react';
 
 const themes = [
   {
@@ -17,6 +17,24 @@ const themes = [
     label: '深色',
     description: '经典的深色主题',
     icon: Moon,
+  },
+  {
+    value: 'blue' as const,
+    label: '蓝色',
+    description: '清新的科技蓝主题',
+    icon: Droplets,
+  },
+  {
+    value: 'green' as const,
+    label: '绿色',
+    description: '自然的生态绿主题',
+    icon: Leaf,
+  },
+  {
+    value: 'purple' as const,
+    label: '紫色',
+    description: '前沿的紫韵科技主题',
+    icon: Sparkles,
   },
   {
     value: 'system' as const,
@@ -79,7 +97,7 @@ export default function ThemeSettings() {
         <div className="flex items-center justify-between text-xs">
           <span className="text-app-text-muted">当前生效主题</span>
           <span className="text-app-text-secondary font-medium">
-            {resolvedTheme === 'dark' ? '深色' : '浅色'}
+            {resolvedTheme === 'dark' ? '深色' : resolvedTheme === 'blue' ? '蓝色' : resolvedTheme === 'green' ? '绿色' : resolvedTheme === 'purple' ? '紫色' : '浅色'}
           </span>
         </div>
       </div>

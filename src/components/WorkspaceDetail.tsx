@@ -12,6 +12,8 @@ import type {
 import DOMPurify from 'dompurify';
 import { useWorkspaceDetail } from '@/hooks/useApiData';
 import { useWidgetData } from '@/hooks/useWidgetData';
+import { useWidgetAIAnalysis } from '@/hooks/useWidgetAIAnalysis';
+import { WidgetAIAnalysis } from './WidgetAIAnalysis';
 import { getThresholdColor, extractThresholds } from '@/hooks/useThresholdColor';
 import { WidgetInteractionProvider, useWidgetInteraction } from '@/contexts/WidgetInteractionContext';
 import { WidgetDetailDrawer } from './WidgetDetailDrawer';
@@ -698,7 +700,7 @@ function WorkspaceDetailInner({ workspaceId, agents, workspaces: allWorkspaces, 
   if (loading) {
     return (
       <div className="flex-1 flex items-center justify-center bg-app-bg">
-        <Loader2 className="w-8 h-8 text-red-500 animate-spin" />
+        <Loader2 className="w-8 h-8 text-primary animate-spin" />
       </div>
     );
   }
@@ -772,7 +774,7 @@ function WorkspaceDetailInner({ workspaceId, agents, workspaces: allWorkspaces, 
                         onChange={(e) => setEditName(e.target.value)}
                         onBlur={handleSaveTitle}
                         onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
-                        className="min-w-[120px] max-w-[320px] rounded-lg border border-app-border-subtle bg-app-surface px-2 py-1 text-lg font-semibold text-app-text outline-none focus:border-red-400"
+                        className="min-w-[120px] max-w-[320px] rounded-lg border border-app-border-subtle bg-app-surface px-2 py-1 text-lg font-semibold text-app-text outline-none focus:border-primary/45"
                       />
                     ) : (
                       <h1 className="truncate text-xl font-semibold text-app-text">{workspace.name}</h1>
@@ -810,7 +812,7 @@ function WorkspaceDetailInner({ workspaceId, agents, workspaces: allWorkspaces, 
                       onChange={(e) => setEditDescription(e.target.value)}
                       onBlur={handleSaveTitle}
                       onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
-                      className="mt-2 w-full rounded-lg border border-app-border-subtle bg-app-surface px-2 py-1 text-sm text-app-text-muted outline-none focus:border-red-400"
+                      className="mt-2 w-full rounded-lg border border-app-border-subtle bg-app-surface px-2 py-1 text-sm text-app-text-muted outline-none focus:border-primary/45"
                       placeholder="添加描述..."
                     />
                   ) : (
@@ -916,7 +918,7 @@ function WorkspaceDetailInner({ workspaceId, agents, workspaces: allWorkspaces, 
                   {onRequestDelete && (
                     <button
                       onClick={() => onRequestDelete(workspaceId)}
-                      className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-red-500/15 bg-red-500/8 text-red-500 transition-colors hover:bg-red-500/12"
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-primary/15 bg-primary/8 text-primary transition-colors hover:bg-primary/12"
                       title="删除驾驶舱"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
@@ -952,7 +954,7 @@ function WorkspaceDetailInner({ workspaceId, agents, workspaces: allWorkspaces, 
                       {agent.status === 'active' ? '运行中' : agent.status === 'error' ? '异常' : '空闲'}
                     </span>
                     {isPrimary && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-500/10 text-red-500 border border-red-500/20">
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20">
                         主
                       </span>
                     )}
@@ -1016,7 +1018,7 @@ function WorkspaceDetailInner({ workspaceId, agents, workspaces: allWorkspaces, 
                     <span className="text-[10px] text-app-text-subtle">{g.widgetIds.length}</span>
                     <button
                       onClick={() => deleteGroup(g.id)}
-                      className="text-app-text-subtle hover:text-red-500"
+                      className="text-app-text-subtle hover:text-primary"
                       title="删除组"
                     >
                       <X className="h-3 w-3" />
@@ -1062,6 +1064,7 @@ function WorkspaceDetailInner({ workspaceId, agents, workspaces: allWorkspaces, 
               workspaceId={workspace.id}
               widget={widget}
               useDemoDataFallback={workspace.useDemoDataFallback}
+              workspace={workspace}
               isEditing={isEditing}
               onRename={(title) => handleRenameWidget(widget.id, title)}
               onRuntimeDataChange={(snapshot) => {
@@ -1116,6 +1119,7 @@ function WorkspaceDetailInner({ workspaceId, agents, workspaces: allWorkspaces, 
                 workspaceId={workspace.id}
                 widget={widget}
                 useDemoDataFallback={workspace.useDemoDataFallback}
+                workspace={workspace}
                 isEditing={isEditing}
                 onRename={(title) => handleRenameWidget(widget.id, title)}
                 onRuntimeDataChange={(snapshot) => {
@@ -1189,12 +1193,12 @@ function WorkspaceDetailInner({ workspaceId, agents, workspaces: allWorkspaces, 
       {!chatExpanded && (
         <button
           onClick={() => setChatExpanded(true)}
-          className="fixed bottom-5 right-5 z-50 flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-red-500 to-orange-500 text-white shadow-lg shadow-red-500/25 transition-all hover:scale-110 hover:shadow-xl hover:shadow-red-500/30 active:scale-95"
+          className="fixed bottom-5 right-5 z-50 flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-primary to-primary-300 text-primary-foreground shadow-lg shadow-primary/25 transition-all hover:scale-110 hover:shadow-xl hover:shadow-primary/30 active:scale-95"
           title="打开智能会话"
         >
           <MessageCircle className="h-5 w-5" />
           {hasMessages && messages.length > 0 && (
-            <span className="absolute -right-0.5 -top-0.5 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-bold text-white shadow-sm">
+            <span className="absolute -right-0.5 -top-0.5 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground shadow-sm">
               {messages.length}
             </span>
           )}
@@ -1233,7 +1237,7 @@ function WorkspaceDetailInner({ workspaceId, agents, workspaces: allWorkspaces, 
               {hasMessages && (
                 <button
                   onClick={handleClear}
-                  className="rounded-lg p-1.5 text-app-text-subtle transition-colors hover:bg-app-surface-hover hover:text-red-500"
+                  className="rounded-lg p-1.5 text-app-text-subtle transition-colors hover:bg-app-surface-hover hover:text-primary"
                   title="清空会话"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
@@ -1277,7 +1281,7 @@ function WorkspaceDetailInner({ workspaceId, agents, workspaces: allWorkspaces, 
                 )}
                 <div className={`max-w-[85%] px-3.5 py-2 rounded-xl text-sm leading-relaxed ${
                   msg.role === 'user'
-                    ? 'bg-red-500/15 text-app-text-secondary border border-red-500/10'
+                    ? 'bg-primary/15 text-app-text-secondary border border-primary/10'
                     : 'bg-app-surface-subtle text-app-text-muted border border-app-border-subtle'
                 }`}>
                   {msg.content}
@@ -1297,14 +1301,14 @@ function WorkspaceDetailInner({ workspaceId, agents, workspaces: allWorkspaces, 
                 </div>
                 <div className="max-w-[85%] px-3.5 py-2 rounded-xl text-sm leading-relaxed bg-app-surface-subtle text-app-text-muted border border-app-border-subtle">
                   {streaming}
-                  <span className="inline-block w-1.5 h-4 ml-0.5 bg-red-500/60 animate-pulse align-middle" />
+                  <span className="inline-block w-1.5 h-4 ml-0.5 bg-primary/60 animate-pulse align-middle" />
                 </div>
               </div>
             )}
             {isLoading && !streaming && (
               <div className="flex gap-2.5">
-                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-red-500/20 to-orange-500/20 flex items-center justify-center shrink-0 mt-0.5">
-                  <Loader2 className="w-3.5 h-3.5 text-red-500 animate-spin" />
+                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-primary/20 to-primary-300/20 flex items-center justify-center shrink-0 mt-0.5">
+                  <Loader2 className="w-3.5 h-3.5 text-primary animate-spin" />
                 </div>
                 <div className="text-sm text-app-text-muted">思考中...</div>
               </div>
@@ -1434,7 +1438,7 @@ function WorkspaceDetailInner({ workspaceId, agents, workspaces: allWorkspaces, 
               <button
                 onClick={handleSend}
                 disabled={!input.trim() || isLoading}
-                className="p-2 rounded-lg bg-gradient-to-r from-red-500 to-orange-500 text-white hover:opacity-90 transition-all disabled:opacity-30 disabled:cursor-not-allowed shrink-0"
+                className="p-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-all disabled:opacity-30 disabled:cursor-not-allowed shrink-0"
               >
                 <Send className="w-3.5 h-3.5" />
               </button>
@@ -1504,7 +1508,7 @@ const TYPE_SECTION_LABELS: Record<string, string> = {
   business: 'BUSINESS',
 };
 
-export function WidgetRenderer({ workspaceId, widget, useDemoDataFallback, isEditing, onClick, onRename, onDrillDown, filterContext, onRuntimeDataChange, previewMode = false }: { workspaceId: string; widget: Widget; useDemoDataFallback?: boolean; isEditing?: boolean; onClick?: () => void; onRename?: (title: string) => void; onDrillDown?: (context: Record<string, unknown>, dimension: string) => void; filterContext?: Record<string, unknown>; onRuntimeDataChange?: (snapshot: RuntimeWidgetSnapshot | null) => void; previewMode?: boolean }) {
+export function WidgetRenderer({ workspaceId, widget, useDemoDataFallback, isEditing, onClick, onRename, onDrillDown, filterContext, onRuntimeDataChange, previewMode = false, workspace }: { workspaceId: string; widget: Widget; useDemoDataFallback?: boolean; isEditing?: boolean; onClick?: () => void; onRename?: (title: string) => void; onDrillDown?: (context: Record<string, unknown>, dimension: string) => void; filterContext?: Record<string, unknown>; onRuntimeDataChange?: (snapshot: RuntimeWidgetSnapshot | null) => void; previewMode?: boolean; workspace?: Workspace | null }) {
   const renderWidget = previewMode ? { ...widget, dataSource: undefined } : widget;
   const [titleDraft, setTitleDraft] = useState(renderWidget.title);
   const skipTitleCommitRef = useRef(false);
@@ -1514,6 +1518,11 @@ export function WidgetRenderer({ workspaceId, widget, useDemoDataFallback, isEdi
   const isClickable = !previewMode && !isEditing && (hasDetail || hasLink);
   const canRename = !!isEditing && !previewMode && !!onRename;
   const gradient = TYPE_GRADIENTS[renderWidget.type] || TYPE_GRADIENTS.universal;
+
+  // 统一拉取数据，同时供给 WidgetContent 和 AI 分析
+  const widgetDataResult = useWidgetData(workspaceId, renderWidget, useDemoDataFallback, filterContext);
+  const displayData = widgetDataResult.data || renderWidget.data || {};
+  const { enabled, analysis } = useWidgetAIAnalysis(renderWidget, displayData as Record<string, unknown>, workspace);
 
   useEffect(() => {
     setTitleDraft(renderWidget.title);
@@ -1579,9 +1588,14 @@ export function WidgetRenderer({ workspaceId, widget, useDemoDataFallback, isEdi
           {hasDetail && <ArrowRight className="w-3.5 h-3.5 text-app-text-subtle/70 group-hover:text-primary/70 transition-colors" />}
         </div>
       </div>
-      {/* 内容区 */}
-      <div className="bi-widget-content relative z-10 flex-1">
-        <WidgetContent workspaceId={workspaceId} widget={renderWidget} useDemoDataFallback={useDemoDataFallback} gridSize={gridSize} onDrillDown={onDrillDown} filterContext={filterContext} onRuntimeDataChange={onRuntimeDataChange} />
+      {/* 内容区 + AI 分析建议 */}
+      <div className="relative z-10 flex min-h-0 flex-1 flex-col overflow-hidden">
+        <div className="bi-widget-content scrollbar-thin relative min-h-0 flex-1 overflow-auto">
+          <WidgetContent workspaceId={workspaceId} widget={renderWidget} useDemoDataFallback={useDemoDataFallback} gridSize={gridSize} onDrillDown={onDrillDown} filterContext={filterContext} onRuntimeDataChange={onRuntimeDataChange} preloadedData={widgetDataResult} />
+        </div>
+        {!isEditing && enabled && analysis && renderWidget.position.h >= 3 && (
+          <WidgetAIAnalysis analysis={analysis} widgetTitle={renderWidget.title} />
+        )}
       </div>
     </div>
   );
@@ -1675,7 +1689,7 @@ const DATA_VIZ_PALETTE = [
   {
     hex: 'hsl(var(--primary))',
     dotClass: 'bg-primary',
-    gradientClass: 'from-primary to-red-400',
+    gradientClass: 'from-primary to-primary-300',
     badgeClass: 'bg-primary/8 border-primary/15 text-primary',
   },
   {
@@ -2041,8 +2055,9 @@ function renderAdaptiveSection(section: WidgetAdaptiveSection, gridSize: { w: nu
   );
 }
 
-function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onDrillDown, filterContext, onRuntimeDataChange }: { workspaceId: string; widget: Widget; useDemoDataFallback?: boolean; gridSize: { w: number; h: number }; onDrillDown?: (context: Record<string, unknown>, dimension: string) => void; filterContext?: Record<string, unknown>; onRuntimeDataChange?: (snapshot: RuntimeWidgetSnapshot | null) => void }) {
-  const { data: liveData, loading, error, source } = useWidgetData(workspaceId, widget, useDemoDataFallback, filterContext);
+function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onDrillDown, filterContext, onRuntimeDataChange, preloadedData }: { workspaceId: string; widget: Widget; useDemoDataFallback?: boolean; gridSize: { w: number; h: number }; onDrillDown?: (context: Record<string, unknown>, dimension: string) => void; filterContext?: Record<string, unknown>; onRuntimeDataChange?: (snapshot: RuntimeWidgetSnapshot | null) => void; preloadedData?: { data: Record<string, unknown> | null; loading: boolean; error: string | null; source: string | null } }) {
+  const hookResult = useWidgetData(workspaceId, widget, useDemoDataFallback, filterContext);
+  const { data: liveData, loading, error, source } = preloadedData ?? hookResult;
   const density = getDensityProfile(gridSize);
 
   // 使用动态数据（如果存在），否则回退到 widget.data
@@ -3229,8 +3244,8 @@ function WidgetContent({ workspaceId, widget, useDemoDataFallback, gridSize, onD
             {/* 目标线 */}
             {target > 0 && (
               <div className="absolute top-0 bottom-0 flex flex-col items-center" style={{ left: `${targetPct}%`, transform: 'translateX(-50%)' }}>
-                <div className="w-0.5 h-full bg-red-500/80" />
-                <span className="mt-0.5 text-[9px] font-medium text-red-500">目标</span>
+                <div className="w-0.5 h-full bg-primary/80" />
+                <span className="mt-0.5 text-[9px] font-medium text-primary">目标</span>
               </div>
             )}
           </div>

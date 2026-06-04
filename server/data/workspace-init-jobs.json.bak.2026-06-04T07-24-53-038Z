@@ -20526,7 +20526,7 @@
       "workspaceId": "ws-1780457399353-47610",
       "workspaceName": "金融市场工作流驾驶舱",
       "initializationMode": "llm",
-      "status": "running",
+      "status": "succeeded",
       "attempts": 1,
       "maxAttempts": 2,
       "request": {
@@ -20616,8 +20616,707 @@
         "sourceType": "template"
       },
       "createdAt": "2026-06-03T03:29:59.366Z",
-      "updatedAt": "2026-06-03T03:29:59.374Z",
-      "startedAt": "2026-06-03T03:29:59.374Z"
+      "updatedAt": "2026-06-03T03:30:23.492Z",
+      "startedAt": "2026-06-03T03:29:59.374Z",
+      "result": {
+        "success": true,
+        "updated": 4,
+        "total": 4,
+        "mode": "llm",
+        "updatedWidgetIds": [
+          "w-1780457399352-1",
+          "w-1780457399352-2",
+          "w-1780457399352-3",
+          "w-1780457399352-4"
+        ],
+        "failedWidgetIds": [],
+        "message": "已完成 4/4 个组件的模板初始化"
+      },
+      "finishedAt": "2026-06-03T03:30:23.492Z"
+    },
+    {
+      "id": "ws-init-1780557752206-gibumk",
+      "workspaceId": "ws-1780557752183-6c917",
+      "workspaceName": "供应链协同驾驶舱",
+      "initializationMode": "real-data",
+      "status": "running",
+      "attempts": 2,
+      "maxAttempts": 2,
+      "request": {
+        "workspaceId": "ws-1780557752183-6c917",
+        "workspaceName": "供应链协同驾驶舱",
+        "templateName": "供应链协同驾驶舱",
+        "initPrompt": "你是一个供应链专家。请为「供应链协同驾驶舱」初始化供应链数据。\n驾驶舱顶部应包含一个「业务洞察」组件（businessType=insight-hub），该组件是驾驶舱的智能摘要面板，不是驾驶舱本身。它需要聚合当前驾驶舱的核心数据、用户角色与关注重点，以「业务洞察」的视角进行综合呈现，具体包括：\n1. cockpitSummary：组件身份与定位，例如 title=\"供应链业务洞察\"，domain=\"供应链\"，scope=\"集团 · 5仓 · 30+供应商\"，description=一句话说明该组件覆盖的范围与价值；\n2. persona：用户角色画像，例如 role=\"供应链总监\"，focus=[\"库存健康\",\"供应商履约\",\"交付OTD\",\"成本优化\"]；\n3. highlights：3-4 个核心 KPI 指标，如库存周转天数、供应商准时交付率、订单OTD、缺货率，每个指标应包含 value、change、趋势（up/down/neutral，注意下降趋势中变好指标的语义）；\n4. insights：2-4 条基于当前驾驶舱数据生成的关键洞察，类型包括 risk/opportunity/anomaly/summary，每条应包含 title、summary、severity、confidence（0-100）、evidence（证据标签与数值）、recommendation（ actionable 建议）、actions（可执行操作按钮）；\n5. recommendations：1-3 条面向用户的综合行动建议，带 priority（high/medium/low）。\n同时初始化以下常规组件数据：\n6. 库存周转天数、供应商准时交付率、订单OTD、缺货率四个核心指标；\n7. 库存分布（按仓库/SKU）、供应商绩效评分卡、供应风险告警、供应商地理分布、采购流程漏斗、采购成本趋势、需求预测偏差、供应链总成本占收比。\n请使用制造业/零售真实合理的模拟数据，确保业务洞察的数据与下方常规组件数据保持一致性和可推导关系。",
+        "widgets": [
+          {
+            "id": "w-1780557752179-1",
+            "type": "business",
+            "title": "供应链业务洞察",
+            "position": {
+              "x": 0,
+              "y": 0,
+              "w": 12,
+              "h": 4
+            },
+            "business": {
+              "businessType": "insight-hub",
+              "category": "business"
+            },
+            "data": {
+              "businessType": "insight-hub",
+              "cockpitSummary": {
+                "title": "供应链业务洞察",
+                "subtitle": "库存、供应商与物流全链路监控",
+                "domain": "供应链",
+                "scope": "集团 · 5仓 · 30+供应商",
+                "description": "覆盖采购、库存、供应商履约与物流在途，为供应链团队提供实时风险预警与协同决策支持。"
+              },
+              "persona": {
+                "role": "供应链总监",
+                "focus": [
+                  "库存健康",
+                  "供应商履约",
+                  "交付OTD",
+                  "成本优化"
+                ],
+                "preferences": [
+                  "风险前置",
+                  "全链路可视"
+                ]
+              },
+              "highlights": [
+                {
+                  "label": "库存周转天数",
+                  "value": "28天"
+                },
+                {
+                  "label": "供应商准时交付率",
+                  "value": "94.5%"
+                },
+                {
+                  "label": "订单OTD",
+                  "value": "96.2%"
+                },
+                {
+                  "label": "缺货率",
+                  "value": "1.2%"
+                },
+                {
+                  "label": "businessType",
+                  "value": "insight-hub"
+                }
+              ],
+              "insights": [
+                {
+                  "id": "insight-1",
+                  "title": "芯片SKU-001库存触及安全线",
+                  "type": "risk",
+                  "severity": "high",
+                  "summary": "当前库存仅够12天，且供应商A交付周期存在波动，需启动紧急补货或替代供应商评估。",
+                  "confidence": 86,
+                  "evidence": [
+                    {
+                      "label": "剩余库存天数",
+                      "value": "12天"
+                    },
+                    {
+                      "label": "安全库存天数",
+                      "value": "15天"
+                    },
+                    {
+                      "label": "供应商A交付周期",
+                      "value": "14-18天"
+                    }
+                  ],
+                  "recommendation": "建议立即向供应商A追加50%订单，并激活备选供应商B的样品验证流程。",
+                  "actions": [
+                    {
+                      "id": "urgent-po",
+                      "label": "紧急采购",
+                      "type": "create",
+                      "tone": "primary"
+                    },
+                    {
+                      "id": "alt-supplier",
+                      "label": "备选供应商",
+                      "type": "open"
+                    }
+                  ]
+                },
+                {
+                  "id": "insight-2",
+                  "title": "供应商C交货延迟模式显现",
+                  "type": "anomaly",
+                  "severity": "medium",
+                  "summary": "近30天供应商C平均延迟2.1天，主要受原材料短缺的波动影响，已波及华南仓3个SKU。",
+                  "confidence": 78,
+                  "evidence": [
+                    {
+                      "label": "平均延迟",
+                      "value": "2.1天"
+                    },
+                    {
+                      "label": "影响SKU",
+                      "value": "3个"
+                    },
+                    {
+                      "label": "涉及仓库",
+                      "value": "华南仓"
+                    }
+                  ],
+                  "recommendation": "建议与供应商C召开交付对齐会议，并要求提供4周滚动产能计划。",
+                  "actions": [
+                    {
+                      "id": "meeting",
+                      "label": "预约会议",
+                      "type": "create"
+                    },
+                    {
+                      "id": "track",
+                      "label": "跟踪交付",
+                      "type": "open"
+                    }
+                  ]
+                },
+                {
+                  "id": "insight-3",
+                  "title": "海外仓某批次效期存在积压风险",
+                  "type": "risk",
+                  "severity": "medium",
+                  "summary": "海外仓检测到一批原材料效期低于90天，若未在30天内消耗完毕，将面临报废损失约18万。",
+                  "confidence": 82,
+                  "evidence": [
+                    {
+                      "label": "效期低于90天",
+                      "value": "1批"
+                    },
+                    {
+                      "label": "预估损失",
+                      "value": "18万"
+                    },
+                    {
+                      "label": "剩余消耗天数",
+                      "value": "45天"
+                    }
+                  ],
+                  "recommendation": "建议协调生产计划优先消耗该批次，或启动跨仓调拨至需求较高的华东仓。",
+                  "actions": [
+                    {
+                      "id": "transfer",
+                      "label": "跨仓调拨",
+                      "type": "create",
+                      "tone": "primary"
+                    }
+                  ]
+                },
+                {
+                  "id": "insight-4",
+                  "title": "采购成本连续6个月下降",
+                  "type": "opportunity",
+                  "severity": "low",
+                  "summary": "通过集中采购议价与替代料导入，采购成本累计下降10%，下半年可进一步扩大降本范围。",
+                  "confidence": 75,
+                  "evidence": [
+                    {
+                      "label": "累计降幅",
+                      "value": "10%"
+                    },
+                    {
+                      "label": "主要贡献",
+                      "value": "替代料导入"
+                    },
+                    {
+                      "label": "下半年目标",
+                      "value": "再降3%"
+                    }
+                  ],
+                  "recommendation": "建议将芯片、电池两大品类纳入下一轮集采谈判，锁定Q4价格。",
+                  "actions": [
+                    {
+                      "id": "negotiate",
+                      "label": "集采谈判",
+                      "type": "create"
+                    }
+                  ]
+                }
+              ],
+              "recommendations": [
+                {
+                  "id": "r1",
+                  "text": "立即启动芯片SKU-001紧急补货，避免产线断供风险。",
+                  "priority": "high"
+                },
+                {
+                  "id": "r2",
+                  "text": "与供应商C召开交付对齐会议，要求提供4周滚动产能计划。",
+                  "priority": "high"
+                },
+                {
+                  "id": "r3",
+                  "text": "海外仓效期物料优先消耗或调拨，减少潜在报废损失。",
+                  "priority": "medium"
+                }
+              ]
+            },
+            "dataIntent": {
+              "domain": "供应链",
+              "metricKey": "w-insight-hub",
+              "sourcePreference": "template-first",
+              "priority": "medium",
+              "required": false
+            }
+          },
+          {
+            "id": "w-1780557752179-2",
+            "type": "metric",
+            "title": "库存周转天数",
+            "position": {
+              "x": 0,
+              "y": 4,
+              "w": 3,
+              "h": 2
+            },
+            "data": {
+              "value": "28天",
+              "change": "-3天 环比",
+              "trend": "up",
+              "unit": "天",
+              "target": "持续下降",
+              "compareLabel": "环比",
+              "description": "库存周转速度，天数越低通常代表库存效率越好。",
+              "caption": "库存周转速度，天数越低通常代表库存效率越好。"
+            },
+            "dataIntent": {
+              "domain": "供应链",
+              "metricKey": "w-inventory-turn",
+              "sourcePreference": "template-first",
+              "priority": "medium",
+              "required": false
+            }
+          },
+          {
+            "id": "w-1780557752179-3",
+            "type": "metric",
+            "title": "供应商准时交付率",
+            "position": {
+              "x": 3,
+              "y": 4,
+              "w": 3,
+              "h": 2
+            },
+            "data": {
+              "value": "94.5%",
+              "change": "+2.1pp 环比",
+              "trend": "up"
+            },
+            "dataIntent": {
+              "domain": "供应链",
+              "metricKey": "w-supplier-otr",
+              "sourcePreference": "template-first",
+              "priority": "medium",
+              "required": false
+            }
+          },
+          {
+            "id": "w-1780557752179-4",
+            "type": "metric",
+            "title": "订单OTD",
+            "position": {
+              "x": 6,
+              "y": 4,
+              "w": 3,
+              "h": 2
+            },
+            "data": {
+              "value": "96.2%",
+              "change": "+1.5pp 环比",
+              "trend": "up"
+            },
+            "dataIntent": {
+              "domain": "供应链",
+              "metricKey": "w-otd",
+              "sourcePreference": "template-first",
+              "priority": "medium",
+              "required": false
+            }
+          },
+          {
+            "id": "w-1780557752179-5",
+            "type": "metric",
+            "title": "缺货率",
+            "position": {
+              "x": 9,
+              "y": 4,
+              "w": 3,
+              "h": 2
+            },
+            "data": {
+              "value": "1.2%",
+              "change": "-0.5pp 环比",
+              "trend": "up",
+              "unit": "%",
+              "target": "<2%",
+              "compareLabel": "环比",
+              "description": "需求无法被库存满足的比例，越低越好。",
+              "caption": "需求无法被库存满足的比例，越低越好。"
+            },
+            "dataIntent": {
+              "domain": "供应链",
+              "metricKey": "w-stockout",
+              "sourcePreference": "template-first",
+              "priority": "medium",
+              "required": false
+            }
+          },
+          {
+            "id": "w-1780557752179-6",
+            "type": "chart",
+            "title": "库存分布（按仓库）",
+            "position": {
+              "x": 0,
+              "y": 6,
+              "w": 6,
+              "h": 3
+            },
+            "data": {
+              "labels": [
+                "华东仓",
+                "华北仓",
+                "华南仓",
+                "西南仓",
+                "海外仓"
+              ],
+              "values": [
+                4200,
+                3100,
+                2800,
+                1500,
+                800
+              ],
+              "styleConfig": {
+                "variant": "bar",
+                "baseline": "zero",
+                "mode": "standard",
+                "guidance": "分类对比优先 bar；如果 values 全为非负且表达占比结构，可改用 donut。"
+              }
+            },
+            "dataIntent": {
+              "domain": "供应链",
+              "metricKey": "w-inventory-dist",
+              "sourcePreference": "template-first",
+              "priority": "medium",
+              "required": false
+            }
+          },
+          {
+            "id": "w-1780557752179-7",
+            "type": "table",
+            "title": "供应商绩效评分卡",
+            "position": {
+              "x": 6,
+              "y": 6,
+              "w": 6,
+              "h": 3
+            },
+            "data": {
+              "rows": [
+                [
+                  "供应商A-芯片",
+                  "A",
+                  "98%",
+                  "99.5%",
+                  "优"
+                ],
+                [
+                  "供应商B-电池",
+                  "A-",
+                  "95%",
+                  "98.2%",
+                  "优"
+                ],
+                [
+                  "供应商C-外壳",
+                  "B+",
+                  "92%",
+                  "97.0%",
+                  "良"
+                ],
+                [
+                  "供应商D-屏幕",
+                  "B",
+                  "88%",
+                  "96.5%",
+                  "良"
+                ],
+                [
+                  "供应商E-包装",
+                  "A",
+                  "97%",
+                  "99.0%",
+                  "优"
+                ]
+              ]
+            },
+            "dataIntent": {
+              "domain": "general",
+              "metricKey": "供应商绩效评分卡",
+              "sourcePreference": "template-first",
+              "priority": "medium",
+              "required": false
+            }
+          },
+          {
+            "id": "w-1780557752179-8",
+            "type": "alert",
+            "title": "供应风险告警",
+            "position": {
+              "x": 0,
+              "y": 9,
+              "w": 6,
+              "h": 4
+            },
+            "data": {
+              "alerts": [
+                {
+                  "level": "critical",
+                  "message": "芯片SKU-001库存低于安全线（剩12天）",
+                  "time": "10:30"
+                },
+                {
+                  "level": "warning",
+                  "message": "供应商C交货延迟2天",
+                  "time": "09:15"
+                },
+                {
+                  "level": "warning",
+                  "message": "海外仓某批次效期<90天",
+                  "time": "08:45"
+                },
+                {
+                  "level": "info",
+                  "message": "华北仓补货已完成",
+                  "time": "08:00"
+                }
+              ]
+            },
+            "dataIntent": {
+              "domain": "general",
+              "metricKey": "供应风险告警",
+              "sourcePreference": "template-first",
+              "priority": "medium",
+              "required": false
+            }
+          },
+          {
+            "id": "w-1780557752179-9",
+            "type": "map",
+            "title": "供应商地理分布",
+            "position": {
+              "x": 6,
+              "y": 9,
+              "w": 6,
+              "h": 4
+            },
+            "data": {
+              "points": [
+                {
+                  "name": "深圳",
+                  "value": 420
+                },
+                {
+                  "name": "苏州",
+                  "value": 310
+                },
+                {
+                  "name": "东莞",
+                  "value": 280
+                },
+                {
+                  "name": "上海",
+                  "value": 250
+                },
+                {
+                  "name": "海外",
+                  "value": 120
+                }
+              ]
+            },
+            "dataIntent": {
+              "domain": "general",
+              "metricKey": "供应商地理分布",
+              "sourcePreference": "template-first",
+              "priority": "medium",
+              "required": false
+            }
+          },
+          {
+            "id": "w-1780557752179-10",
+            "type": "funnel",
+            "title": "采购流程漏斗",
+            "position": {
+              "x": 0,
+              "y": 13,
+              "w": 6,
+              "h": 4
+            },
+            "data": {
+              "stages": [
+                {
+                  "name": "询价比价",
+                  "value": 120,
+                  "rate": 100
+                },
+                {
+                  "name": "样品测试",
+                  "value": 85,
+                  "rate": 71
+                },
+                {
+                  "name": "商务谈判",
+                  "value": 52,
+                  "rate": 61
+                },
+                {
+                  "name": "合同签订",
+                  "value": 38,
+                  "rate": 73
+                },
+                {
+                  "name": "首批交付",
+                  "value": 32,
+                  "rate": 84
+                }
+              ]
+            },
+            "dataIntent": {
+              "domain": "general",
+              "metricKey": "采购流程漏斗",
+              "sourcePreference": "template-first",
+              "priority": "medium",
+              "required": false
+            }
+          },
+          {
+            "id": "w-1780557752179-11",
+            "type": "chart",
+            "title": "采购成本趋势",
+            "position": {
+              "x": 6,
+              "y": 13,
+              "w": 6,
+              "h": 3
+            },
+            "data": {
+              "labels": [
+                "1月",
+                "2月",
+                "3月",
+                "4月",
+                "5月",
+                "6月"
+              ],
+              "values": [
+                5200,
+                5100,
+                4950,
+                4800,
+                4750,
+                4680
+              ],
+              "styleConfig": {
+                "variant": "bar",
+                "baseline": "zero",
+                "mode": "standard",
+                "guidance": "时间序列可用 bar；如改为 line，应保持 labels/values 对齐。"
+              }
+            },
+            "dataIntent": {
+              "domain": "供应链",
+              "metricKey": "w-purchase-trend",
+              "sourcePreference": "template-first",
+              "priority": "medium",
+              "required": false
+            }
+          },
+          {
+            "id": "w-1780557752179-12",
+            "type": "metric",
+            "title": "需求预测偏差",
+            "position": {
+              "x": 0,
+              "y": 17,
+              "w": 3,
+              "h": 2
+            },
+            "data": {
+              "value": "±5.2%",
+              "change": "准确度 94.8%",
+              "trend": "up"
+            },
+            "dataIntent": {
+              "domain": "供应链",
+              "metricKey": "w-forecast",
+              "sourcePreference": "template-first",
+              "priority": "medium",
+              "required": false
+            }
+          },
+          {
+            "id": "w-1780557752179-13",
+            "type": "metric",
+            "title": "供应链总成本占收比",
+            "position": {
+              "x": 3,
+              "y": 17,
+              "w": 3,
+              "h": 2
+            },
+            "data": {
+              "value": "32.4%",
+              "change": "-1.2pp 同比",
+              "trend": "up"
+            },
+            "dataIntent": {
+              "domain": "供应链",
+              "metricKey": "w-scm-cost",
+              "sourcePreference": "template-first",
+              "priority": "medium",
+              "required": false
+            }
+          }
+        ],
+        "useDemoDataFallback": true,
+        "sourceType": "template"
+      },
+      "createdAt": "2026-06-04T07:22:32.206Z",
+      "updatedAt": "2026-06-04T07:23:47.494Z",
+      "startedAt": "2026-06-04T07:22:32.215Z",
+      "result": {
+        "success": false,
+        "updated": 9,
+        "total": 13,
+        "mode": "real-data",
+        "updatedWidgetIds": [
+          "w-1780557752179-5",
+          "w-1780557752179-6",
+          "w-1780557752179-7",
+          "w-1780557752179-8",
+          "w-1780557752179-9",
+          "w-1780557752179-10",
+          "w-1780557752179-11",
+          "w-1780557752179-12",
+          "w-1780557752179-13"
+        ],
+        "failedWidgetIds": [
+          "w-1780557752179-1",
+          "w-1780557752179-2",
+          "w-1780557752179-3",
+          "w-1780557752179-4"
+        ],
+        "error": "模板未配置可刷新的真实数据源；Request timeout",
+        "message": "仅完成 9/13 个组件的真实数据初始化，已回退显示模板演示数据",
+        "fallbackApplied": true
+      }
     }
   ]
 }

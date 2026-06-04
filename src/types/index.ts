@@ -243,6 +243,8 @@ export interface Widget {
   link?: WidgetLinkConfig;
   /** 组件所属分组标识 */
   group?: string;
+  /** 是否启用 AI 分析建议（默认：数据类组件开启，容器类关闭） */
+  enableAIAnalysis?: boolean;
 }
 
 export interface WidgetCatalogItem {

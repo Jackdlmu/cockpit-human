@@ -92,7 +92,7 @@ function CardShell({
               size="sm"
               className={`text-xs h-8 ${
                 action.variant === 'primary'
-                  ? 'bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-400 hover:to-orange-400 border-0'
+                  ? 'bg-primary hover:bg-primary/90 border-0 text-primary-foreground'
                   : action.variant === 'secondary'
                     ? 'bg-app-surface-subtle/50 hover:bg-app-surface-subtle/80 border-app-border-subtle/70 text-app-text-subtle'
                     : action.variant === 'danger'
@@ -374,7 +374,7 @@ function WorkflowCard({ card }: { card: CardData }) {
                   step.status === 'completed'
                     ? 'bg-emerald-500 text-app-text'
                     : step.status === 'active'
-                      ? 'bg-red-500 text-app-text ring-4 ring-red-500/10'
+                      ? 'bg-primary text-app-text ring-4 ring-primary/10'
                       : 'bg-app-surface-subtle/50 text-app-text-muted'
                 }`}
               >
@@ -404,7 +404,7 @@ function WorkflowCard({ card }: { card: CardData }) {
                   {step.label}
                 </span>
                 {step.status === 'active' && (
-                  <Badge className="text-[10px] bg-red-500/10 text-red-400 border-red-500/20">
+                  <Badge className="text-[10px] bg-primary/10 text-primary border-primary/20">
                     进行中
                   </Badge>
                 )}
@@ -491,7 +491,7 @@ function InsightCard({ card }: { card: CardData }) {
               key={key}
               className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-app-surface-subtle/30 transition-colors cursor-pointer group"
             >
-              <div className="w-7 h-7 rounded-lg bg-red-500/10 text-red-400 flex items-center justify-center shrink-0 group-hover:bg-red-500/15 transition-colors">
+              <div className="w-7 h-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0 group-hover:bg-primary/15 transition-colors">
                 <BarChart3 className="w-3.5 h-3.5" />
               </div>
               <span className="text-sm text-app-text-muted">{value}</span>

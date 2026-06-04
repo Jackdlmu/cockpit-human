@@ -88,7 +88,7 @@ const WIDGET_TYPE_LABELS: Record<WidgetType, string> = {
 const BUSINESS_SUBTYPE_LABELS: Record<BusinessWidgetType, string> = {
   'message-center': '消息中心',
   'calendar': '日程日历',
-  'insight-hub': '洞察中心',
+  'insight-hub': '业务洞察',
 };
 
 const BUSINESS_SUBTYPES: BusinessWidgetType[] = ['message-center', 'calendar', 'insight-hub'];
@@ -546,12 +546,12 @@ export function TemplateManager() {
               value={inputKey}
               onChange={(e) => setInputKey(e.target.value)}
               placeholder="Admin Key"
-              className="flex-1 rounded-lg border border-app-border-subtle bg-app-surface-subtle px-3 py-2 text-sm text-app-text placeholder:text-app-text-subtle focus:border-red-400/50 focus:outline-none"
+              className="flex-1 rounded-lg border border-app-border-subtle bg-app-surface-subtle px-3 py-2 text-sm text-app-text placeholder:text-app-text-subtle focus:border-primary/50 focus:outline-none"
               onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
             />
             <button
               onClick={handleLogin}
-              className="rounded-lg bg-red-500 px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-red-600"
+              className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
             >
               进入
             </button>
@@ -569,7 +569,7 @@ export function TemplateManager() {
             <h1 className="text-base font-semibold text-app-text">模板与组件管理</h1>
             <p className="text-xs text-app-text-subtle">模板维护、组件定义、智能体说明与扩展开发入口</p>
           </div>
-          <span className="rounded-full border border-red-500/20 bg-red-500/10 px-2 py-0.5 text-[10px] text-red-400">Admin</span>
+          <span className="rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-[10px] text-primary">Admin</span>
         </div>
 
         <div className="flex items-center gap-2">
@@ -585,7 +585,7 @@ export function TemplateManager() {
           </button>
           <button
             onClick={activeTab === 'templates' ? openCreateTemplate : openCreateWidget}
-            className="flex items-center gap-1.5 rounded-lg bg-red-500 px-3 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-red-600"
+            className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
             <Plus className="h-3.5 w-3.5" />
             {activeTab === 'templates' ? '新建模板' : '新建组件'}
@@ -716,7 +716,7 @@ export function TemplateManager() {
                   value={createName}
                   onChange={(e) => setCreateName(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleCreateCockpit()}
-                  className="w-full rounded-lg border border-app-border-subtle bg-app-surface-subtle px-3 py-2 text-sm text-app-text focus:border-red-400/50 focus:outline-none"
+                  className="w-full rounded-lg border border-app-border-subtle bg-app-surface-subtle px-3 py-2 text-sm text-app-text focus:border-primary/50 focus:outline-none"
                   placeholder={createTarget.name}
                   autoFocus
                 />
@@ -740,7 +740,7 @@ export function TemplateManager() {
               <button
                 onClick={handleCreateCockpit}
                 disabled={creatingCockpit}
-                className="flex items-center gap-1.5 rounded-lg bg-red-500 px-3 py-1.5 text-xs text-primary-foreground transition-colors hover:bg-red-600 disabled:opacity-50"
+                className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
               >
                 {creatingCockpit ? <Loader2 className="h-3 w-3 animate-spin" /> : <Rocket className="h-3 w-3" />}
                 创建驾驶舱
@@ -780,7 +780,7 @@ export function TemplateManager() {
             <AlertDialogCancel className="border-app-border-subtle bg-app-surface-subtle text-app-text hover:bg-app-surface-hover">
               取消
             </AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-red-500 text-white hover:bg-red-600">
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               确认删除
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -804,7 +804,7 @@ export function TemplateManager() {
             <AlertDialogCancel className="border-app-border-subtle bg-app-surface-subtle text-app-text hover:bg-app-surface-hover">
               取消
             </AlertDialogCancel>
-            <AlertDialogAction onClick={handleRestore} className="bg-red-500 text-white hover:bg-red-600">
+            <AlertDialogAction onClick={handleRestore} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               确认恢复
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -992,7 +992,7 @@ function GuidePanel({
             <ul className="mt-3 space-y-2">
               {bullets.map((item) => (
                 <li key={item} className="flex gap-2 text-xs leading-5 text-app-text-muted">
-                  <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-red-400" />
+                  <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
                   <span>{item}</span>
                 </li>
               ))}
@@ -1268,7 +1268,7 @@ function GroupingPolicyPanel({
                   onChange={(e) => setNewGroupName(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && addManualGroup()}
                   placeholder="输入新标签名称"
-                  className="flex-1 rounded border border-app-border-subtle bg-app-surface px-2 py-1 text-xs text-app-text focus:border-red-400/50 focus:outline-none"
+                  className="flex-1 rounded border border-app-border-subtle bg-app-surface px-2 py-1 text-xs text-app-text focus:border-primary/50 focus:outline-none"
                 />
                 <button
                   type="button"
@@ -1375,13 +1375,13 @@ function TemplateCard({
               onChange={(e) => setNameInput(e.target.value)}
               onBlur={commitRename}
               onKeyDown={(e) => e.key === 'Enter' && commitRename()}
-              className="w-full rounded bg-app-surface-subtle px-2 py-1 text-sm text-app-text focus:border-red-400/50 focus:outline-none"
+              className="w-full rounded bg-app-surface-subtle px-2 py-1 text-sm text-app-text focus:border-primary/50 focus:outline-none"
               autoFocus
             />
           ) : (
             <div className="group flex min-w-0 items-start gap-2">
               <h3
-                className="min-w-0 flex-1 truncate cursor-pointer text-[18px] font-semibold leading-[1.35] text-app-text transition-colors hover:text-red-400"
+                className="min-w-0 flex-1 truncate cursor-pointer text-[18px] font-semibold leading-[1.35] text-app-text transition-colors hover:text-primary"
                 onClick={() => setIsEditingName(true)}
               >
                 {template.name}
@@ -1613,7 +1613,7 @@ function TemplatePreviewModal({
             <button onClick={onEdit} className="rounded-lg border border-app-border-subtle px-3 py-1.5 text-xs text-app-text-muted transition-colors hover:bg-app-surface-subtle hover:text-app-text">
               编辑模板
             </button>
-            <button onClick={onCreateCockpit} className="rounded-lg bg-red-500 px-3 py-1.5 text-xs text-primary-foreground transition-colors hover:bg-red-600">
+            <button onClick={onCreateCockpit} className="rounded-lg bg-primary px-3 py-1.5 text-xs text-primary-foreground transition-colors hover:bg-primary/90">
               用此模板创建驾驶舱
             </button>
             <button onClick={onClose} className="text-app-text-subtle transition-colors hover:text-app-text-muted"><X className="h-4 w-4" /></button>
@@ -1650,7 +1650,7 @@ function IconButton({
   accent?: 'red' | 'emerald';
 }) {
   const base = accent === 'red'
-    ? 'hover:bg-red-500/10 hover:text-red-400'
+    ? 'hover:bg-primary/10 hover:text-primary'
     : accent === 'emerald'
       ? 'hover:bg-emerald-500/10 hover:text-emerald-400'
       : 'hover:bg-app-surface-subtle hover:text-app-text-muted';
@@ -1791,28 +1791,28 @@ function TemplateEditor({
                       value={data.id}
                       onChange={(e) => updateField('id', e.target.value)}
                       disabled={mode === 'edit'}
-                      className="w-full rounded-lg border border-app-border-subtle bg-app-surface-subtle px-3 py-2 text-sm text-app-text focus:border-red-400/50 focus:outline-none disabled:opacity-50"
+                      className="w-full rounded-lg border border-app-border-subtle bg-app-surface-subtle px-3 py-2 text-sm text-app-text focus:border-primary/50 focus:outline-none disabled:opacity-50"
                     />
                   </Field>
                   <Field label="显示名称">
                     <input
                       value={data.name}
                       onChange={(e) => updateField('name', e.target.value)}
-                      className="w-full rounded-lg border border-app-border-subtle bg-app-surface-subtle px-3 py-2 text-sm text-app-text focus:border-red-400/50 focus:outline-none"
+                      className="w-full rounded-lg border border-app-border-subtle bg-app-surface-subtle px-3 py-2 text-sm text-app-text focus:border-primary/50 focus:outline-none"
                     />
                   </Field>
                   <Field label="领域">
                     <input
                       value={data.domain}
                       onChange={(e) => updateField('domain', e.target.value)}
-                      className="w-full rounded-lg border border-app-border-subtle bg-app-surface-subtle px-3 py-2 text-sm text-app-text focus:border-red-400/50 focus:outline-none"
+                      className="w-full rounded-lg border border-app-border-subtle bg-app-surface-subtle px-3 py-2 text-sm text-app-text focus:border-primary/50 focus:outline-none"
                     />
                   </Field>
                   <Field label="图标">
                     <select
                       value={data.icon}
                       onChange={(e) => updateField('icon', e.target.value)}
-                      className="w-full rounded-lg border border-app-border-subtle bg-app-surface-subtle px-3 py-2 text-sm text-app-text focus:border-red-400/50 focus:outline-none"
+                      className="w-full rounded-lg border border-app-border-subtle bg-app-surface-subtle px-3 py-2 text-sm text-app-text focus:border-primary/50 focus:outline-none"
                     >
                       {ICON_OPTIONS.map((icon) => (
                         <option key={icon} value={icon}>{icon}</option>
@@ -1825,7 +1825,7 @@ function TemplateEditor({
                       <input
                         value={data.color}
                         onChange={(e) => updateField('color', e.target.value)}
-                        className="flex-1 rounded-lg border border-app-border-subtle bg-app-surface-subtle px-3 py-2 text-sm text-app-text focus:border-red-400/50 focus:outline-none"
+                        className="flex-1 rounded-lg border border-app-border-subtle bg-app-surface-subtle px-3 py-2 text-sm text-app-text focus:border-primary/50 focus:outline-none"
                       />
                     </div>
                   </Field>
@@ -1833,7 +1833,7 @@ function TemplateEditor({
                     <input
                       value={data.description}
                       onChange={(e) => updateField('description', e.target.value)}
-                      className="w-full rounded-lg border border-app-border-subtle bg-app-surface-subtle px-3 py-2 text-sm text-app-text focus:border-red-400/50 focus:outline-none"
+                      className="w-full rounded-lg border border-app-border-subtle bg-app-surface-subtle px-3 py-2 text-sm text-app-text focus:border-primary/50 focus:outline-none"
                     />
                   </Field>
                 </div>
@@ -1846,7 +1846,7 @@ function TemplateEditor({
                 <textarea
                   value={data.initPrompt || ''}
                   onChange={(e) => updateField('initPrompt', e.target.value)}
-                  className="h-24 w-full rounded-lg border border-app-border-subtle bg-app-surface-subtle px-3 py-2 text-sm text-app-text focus:border-red-400/50 focus:outline-none"
+                  className="h-24 w-full rounded-lg border border-app-border-subtle bg-app-surface-subtle px-3 py-2 text-sm text-app-text focus:border-primary/50 focus:outline-none"
                   spellCheck={false}
                 />
                 <p className="mt-1 text-[10px] text-app-text-subtle">创建驾驶舱后将自动执行，用于初始化数据和组件配置。</p>
@@ -1947,7 +1947,7 @@ function TemplateEditor({
                           setJsonError(err.message);
                         }
                       }}
-                      className="h-48 w-full rounded-lg border border-app-border-subtle bg-app-surface-subtle p-3 font-mono text-[11px] text-app-text focus:border-red-400/50 focus:outline-none"
+                      className="h-48 w-full rounded-lg border border-app-border-subtle bg-app-surface-subtle p-3 font-mono text-[11px] text-app-text focus:border-primary/50 focus:outline-none"
                       spellCheck={false}
                     />
                     {jsonError && <p className="mt-1 text-[10px] text-red-400">{jsonError}</p>}
@@ -1992,13 +1992,13 @@ function TemplateEditor({
           {mode === 'edit' && onRestoreDefault && (
             <button
               onClick={onRestoreDefault}
-              className="mr-auto rounded-lg border border-app-border-subtle px-4 py-2 text-sm text-app-text-muted transition-colors hover:bg-app-surface-subtle hover:text-red-500"
+              className="mr-auto rounded-lg border border-app-border-subtle px-4 py-2 text-sm text-app-text-muted transition-colors hover:bg-app-surface-subtle hover:text-primary"
             >
               恢复默认
             </button>
           )}
           <button onClick={onClose} className="rounded-lg px-4 py-2 text-sm text-app-text-muted transition-colors hover:bg-app-surface-subtle">取消</button>
-          <button onClick={handleSave} className="rounded-lg bg-red-500 px-4 py-2 text-sm text-primary-foreground transition-colors hover:bg-red-600">
+          <button onClick={handleSave} className="rounded-lg bg-primary px-4 py-2 text-sm text-primary-foreground transition-colors hover:bg-primary/90">
             {mode === 'edit' ? '保存' : mode === 'duplicate' ? '创建副本' : '创建模板'}
           </button>
         </div>
@@ -2064,14 +2064,14 @@ function WidgetCatalogEditor({
                   value={data.id}
                   onChange={(e) => setData((prev) => ({ ...prev, id: e.target.value }))}
                   disabled={mode === 'edit'}
-                  className="w-full rounded-lg border border-app-border-subtle bg-app-surface-subtle px-3 py-2 text-sm text-app-text focus:border-red-400/50 focus:outline-none disabled:opacity-50"
+                  className="w-full rounded-lg border border-app-border-subtle bg-app-surface-subtle px-3 py-2 text-sm text-app-text focus:border-primary/50 focus:outline-none disabled:opacity-50"
                 />
               </Field>
               <Field label="显示名称">
                 <input
                   value={data.name}
                   onChange={(e) => setData((prev) => ({ ...prev, name: e.target.value }))}
-                  className="w-full rounded-lg border border-app-border-subtle bg-app-surface-subtle px-3 py-2 text-sm text-app-text focus:border-red-400/50 focus:outline-none"
+                  className="w-full rounded-lg border border-app-border-subtle bg-app-surface-subtle px-3 py-2 text-sm text-app-text focus:border-primary/50 focus:outline-none"
                 />
               </Field>
               <Field label="组件类型">
@@ -2082,7 +2082,7 @@ function WidgetCatalogEditor({
                     const isBusiness = ['business', 'workflow', 'result', 'actions', 'artifact'].includes(nextType);
                     setData((prev) => ({ ...prev, type: nextType, category: isBusiness ? '业务组件' : (prev.category || '通用') }));
                   }}
-                  className="w-full rounded-lg border border-app-border-subtle bg-app-surface-subtle px-3 py-2 text-sm text-app-text focus:border-red-400/50 focus:outline-none"
+                  className="w-full rounded-lg border border-app-border-subtle bg-app-surface-subtle px-3 py-2 text-sm text-app-text focus:border-primary/50 focus:outline-none"
                 >
                   {WIDGET_TYPES.map((type) => (
                     <option key={type} value={type}>{WIDGET_TYPE_LABELS[type]}</option>
@@ -2093,14 +2093,14 @@ function WidgetCatalogEditor({
                 <input
                   value={data.category}
                   onChange={(e) => setData((prev) => ({ ...prev, category: e.target.value }))}
-                  className="w-full rounded-lg border border-app-border-subtle bg-app-surface-subtle px-3 py-2 text-sm text-app-text focus:border-red-400/50 focus:outline-none"
+                  className="w-full rounded-lg border border-app-border-subtle bg-app-surface-subtle px-3 py-2 text-sm text-app-text focus:border-primary/50 focus:outline-none"
                 />
               </Field>
               <Field label="图标">
                 <select
                   value={data.icon}
                   onChange={(e) => setData((prev) => ({ ...prev, icon: e.target.value }))}
-                  className="w-full rounded-lg border border-app-border-subtle bg-app-surface-subtle px-3 py-2 text-sm text-app-text focus:border-red-400/50 focus:outline-none"
+                  className="w-full rounded-lg border border-app-border-subtle bg-app-surface-subtle px-3 py-2 text-sm text-app-text focus:border-primary/50 focus:outline-none"
                 >
                   {ICON_OPTIONS.map((icon) => (
                     <option key={icon} value={icon}>{icon}</option>
@@ -2113,7 +2113,7 @@ function WidgetCatalogEditor({
                   <input
                     value={data.color}
                     onChange={(e) => setData((prev) => ({ ...prev, color: e.target.value }))}
-                    className="flex-1 rounded-lg border border-app-border-subtle bg-app-surface-subtle px-3 py-2 text-sm text-app-text focus:border-red-400/50 focus:outline-none"
+                    className="flex-1 rounded-lg border border-app-border-subtle bg-app-surface-subtle px-3 py-2 text-sm text-app-text focus:border-primary/50 focus:outline-none"
                   />
                 </div>
               </Field>
@@ -2129,14 +2129,14 @@ function WidgetCatalogEditor({
                 <textarea
                   value={data.description}
                   onChange={(e) => setData((prev) => ({ ...prev, description: e.target.value }))}
-                  className="h-20 w-full rounded-lg border border-app-border-subtle bg-app-surface-subtle px-3 py-2 text-sm text-app-text focus:border-red-400/50 focus:outline-none"
+                  className="h-20 w-full rounded-lg border border-app-border-subtle bg-app-surface-subtle px-3 py-2 text-sm text-app-text focus:border-primary/50 focus:outline-none"
                 />
               </Field>
               <Field label="面向智能体如何描述">
                 <textarea
                   value={data.agentDescription}
                   onChange={(e) => setData((prev) => ({ ...prev, agentDescription: e.target.value }))}
-                  className="h-28 w-full rounded-lg border border-app-border-subtle bg-app-surface-subtle px-3 py-2 text-sm text-app-text focus:border-red-400/50 focus:outline-none"
+                  className="h-28 w-full rounded-lg border border-app-border-subtle bg-app-surface-subtle px-3 py-2 text-sm text-app-text focus:border-primary/50 focus:outline-none"
                 />
               </Field>
             </div>
@@ -2188,7 +2188,7 @@ function WidgetCatalogEditor({
                     // ignore
                   }
                 }}
-                className="h-28 w-full rounded-lg border border-app-border-subtle bg-app-surface-subtle p-3 font-mono text-[11px] text-app-text focus:border-red-400/50 focus:outline-none"
+                className="h-28 w-full rounded-lg border border-app-border-subtle bg-app-surface-subtle p-3 font-mono text-[11px] text-app-text focus:border-primary/50 focus:outline-none"
                 spellCheck={false}
               />
             </Field>
@@ -2199,7 +2199,7 @@ function WidgetCatalogEditor({
                   ...prev,
                   schemaHint: { ...prev.schemaHint, layoutAdvice: e.target.value },
                 }))}
-                className="mt-3 h-20 w-full rounded-lg border border-app-border-subtle bg-app-surface-subtle px-3 py-2 text-sm text-app-text focus:border-red-400/50 focus:outline-none"
+                className="mt-3 h-20 w-full rounded-lg border border-app-border-subtle bg-app-surface-subtle px-3 py-2 text-sm text-app-text focus:border-primary/50 focus:outline-none"
               />
             </Field>
           </section>
@@ -2226,7 +2226,7 @@ function WidgetCatalogEditor({
                           setJsonError(err.message);
                     }
                   }}
-                  className="h-56 w-full rounded-lg border border-app-border-subtle bg-app-surface-subtle p-3 font-mono text-[11px] text-app-text focus:border-red-400/50 focus:outline-none"
+                  className="h-56 w-full rounded-lg border border-app-border-subtle bg-app-surface-subtle p-3 font-mono text-[11px] text-app-text focus:border-primary/50 focus:outline-none"
                   spellCheck={false}
                 />
                 {jsonError && <p className="mt-1 text-[10px] text-red-400">{jsonError}</p>}
@@ -2239,13 +2239,13 @@ function WidgetCatalogEditor({
           {mode === 'edit' && onRestoreDefault && (
             <button
               onClick={onRestoreDefault}
-              className="mr-auto rounded-lg border border-app-border-subtle px-4 py-2 text-sm text-app-text-muted transition-colors hover:bg-app-surface-subtle hover:text-red-500"
+              className="mr-auto rounded-lg border border-app-border-subtle px-4 py-2 text-sm text-app-text-muted transition-colors hover:bg-app-surface-subtle hover:text-primary"
             >
               恢复默认
             </button>
           )}
           <button onClick={onClose} className="rounded-lg px-4 py-2 text-sm text-app-text-muted transition-colors hover:bg-app-surface-subtle">取消</button>
-          <button onClick={handleSave} className="rounded-lg bg-red-500 px-4 py-2 text-sm text-primary-foreground transition-colors hover:bg-red-600">
+          <button onClick={handleSave} className="rounded-lg bg-primary px-4 py-2 text-sm text-primary-foreground transition-colors hover:bg-primary/90">
             {mode === 'edit' ? '保存' : mode === 'duplicate' ? '创建副本' : '创建组件'}
           </button>
         </div>
@@ -2282,7 +2282,7 @@ function KeywordsInput({ keywords, onChange }: { keywords: string[]; onChange: (
         {keywords.map((keyword, i) => (
           <span key={`${keyword}-${i}`} className="inline-flex items-center gap-1 rounded-md border border-app-border-subtle bg-app-surface-subtle px-2 py-1 text-xs text-app-text-muted">
             {keyword}
-            <button onClick={() => onChange(keywords.filter((_, idx) => idx !== i))} className="hover:text-red-400"><X className="h-3 w-3" /></button>
+            <button onClick={() => onChange(keywords.filter((_, idx) => idx !== i))} className="hover:text-primary"><X className="h-3 w-3" /></button>
           </span>
         ))}
       </div>
@@ -2291,7 +2291,7 @@ function KeywordsInput({ keywords, onChange }: { keywords: string[]; onChange: (
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && add()}
-          className="flex-1 rounded-lg border border-app-border-subtle bg-app-surface-subtle px-3 py-2 text-sm text-app-text placeholder:text-app-text-subtle focus:border-red-400/50 focus:outline-none"
+          className="flex-1 rounded-lg border border-app-border-subtle bg-app-surface-subtle px-3 py-2 text-sm text-app-text placeholder:text-app-text-subtle focus:border-primary/50 focus:outline-none"
           placeholder="输入后回车"
         />
         <button onClick={add} className="rounded-lg border border-app-border-subtle bg-app-surface-subtle px-3 py-2 text-sm text-app-text-muted transition-colors hover:bg-app-surface-hover">添加</button>
@@ -2318,7 +2318,7 @@ function TagListEditor({ label, values, onChange }: { label: string; values: str
         {values.map((value, index) => (
           <span key={`${value}-${index}`} className="inline-flex items-center gap-1 rounded-md border border-app-border-subtle bg-app-surface px-2 py-1 text-xs text-app-text-muted">
             {value}
-            <button onClick={() => onChange(values.filter((_, idx) => idx !== index))} className="hover:text-red-400"><X className="h-3 w-3" /></button>
+            <button onClick={() => onChange(values.filter((_, idx) => idx !== index))} className="hover:text-primary"><X className="h-3 w-3" /></button>
           </span>
         ))}
       </div>
@@ -2327,7 +2327,7 @@ function TagListEditor({ label, values, onChange }: { label: string; values: str
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && add()}
-          className="flex-1 rounded-lg border border-app-border-subtle bg-app-surface-subtle px-3 py-2 text-sm text-app-text placeholder:text-app-text-subtle focus:border-red-400/50 focus:outline-none"
+          className="flex-1 rounded-lg border border-app-border-subtle bg-app-surface-subtle px-3 py-2 text-sm text-app-text placeholder:text-app-text-subtle focus:border-primary/50 focus:outline-none"
           placeholder="输入后回车"
         />
         <button onClick={add} className="rounded-lg border border-app-border-subtle bg-app-surface-subtle px-3 py-2 text-sm text-app-text-muted transition-colors hover:bg-app-surface-hover">添加</button>
@@ -2367,11 +2367,11 @@ function AgentInput({
             onClick={() => onPrimaryChange(id)}
             className={`inline-flex items-center gap-1 rounded-md border px-2.5 py-1 text-xs transition-colors ${
               id === primaryAgentId
-                ? 'border-red-500/30 bg-red-500/10 text-red-400'
+                ? 'border-primary/30 bg-primary/10 text-primary'
                 : 'border-app-border-subtle bg-app-surface-subtle text-app-text-muted hover:border-app-border'
             }`}
           >
-            {id === primaryAgentId && <span className="h-1.5 w-1.5 rounded-full bg-red-400" />}
+            {id === primaryAgentId && <span className="h-1.5 w-1.5 rounded-full bg-primary" />}
             {id}
             <span
               onClick={(e) => {
@@ -2379,7 +2379,7 @@ function AgentInput({
                 onAgentIdsChange(agentIds.filter((agentId) => agentId !== id));
                 if (primaryAgentId === id) onPrimaryChange(agentIds.find((agentId) => agentId !== id) || '');
               }}
-              className="ml-0.5 hover:text-red-400"
+              className="ml-0.5 hover:text-primary"
             >
               <X className="h-3 w-3" />
             </span>
@@ -2392,7 +2392,7 @@ function AgentInput({
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && add()}
           placeholder="如: finance-agent"
-          className="flex-1 rounded-lg border border-app-border-subtle bg-app-surface-subtle px-3 py-2 text-sm text-app-text placeholder:text-app-text-subtle focus:border-red-400/50 focus:outline-none"
+          className="flex-1 rounded-lg border border-app-border-subtle bg-app-surface-subtle px-3 py-2 text-sm text-app-text placeholder:text-app-text-subtle focus:border-primary/50 focus:outline-none"
         />
         <button onClick={add} className="rounded-lg border border-app-border-subtle bg-app-surface-subtle px-3 py-2 text-sm text-app-text-muted transition-colors hover:bg-app-surface-hover">添加</button>
       </div>
@@ -2550,7 +2550,7 @@ function WidgetEditorItem({
               e.stopPropagation();
               onRemove();
             }}
-            className="rounded p-1 text-app-text-subtle transition-colors hover:bg-red-500/10 hover:text-red-400"
+            className="rounded p-1 text-app-text-subtle transition-colors hover:bg-primary/10 hover:text-primary"
           >
             <Trash2 className="h-3 w-3" />
           </button>
@@ -2564,14 +2564,14 @@ function WidgetEditorItem({
               <input
                 value={widget.id}
                 onChange={(e) => onChange({ id: e.target.value })}
-                className="w-full rounded border border-app-border-subtle bg-app-surface px-2 py-1.5 text-xs text-app-text focus:border-red-400/50 focus:outline-none"
+                className="w-full rounded border border-app-border-subtle bg-app-surface px-2 py-1.5 text-xs text-app-text focus:border-primary/50 focus:outline-none"
               />
             </Field>
             <Field label="标题">
               <input
                 value={widget.title}
                 onChange={(e) => onChange({ title: e.target.value })}
-                className="w-full rounded border border-app-border-subtle bg-app-surface px-2 py-1.5 text-xs text-app-text focus:border-red-400/50 focus:outline-none"
+                className="w-full rounded border border-app-border-subtle bg-app-surface px-2 py-1.5 text-xs text-app-text focus:border-primary/50 focus:outline-none"
               />
             </Field>
             <Field label="类型">
@@ -2589,7 +2589,7 @@ function WidgetEditorItem({
                   }
                   onChange(patch);
                 }}
-                className="w-full rounded border border-app-border-subtle bg-app-surface px-2 py-1.5 text-xs text-app-text focus:border-red-400/50 focus:outline-none"
+                className="w-full rounded border border-app-border-subtle bg-app-surface px-2 py-1.5 text-xs text-app-text focus:border-primary/50 focus:outline-none"
               >
                 {WIDGET_TYPES.map((type) => (
                   <option key={type} value={type}>{WIDGET_TYPE_LABELS[type]}</option>
@@ -2608,7 +2608,7 @@ function WidgetEditorItem({
                         data: createDefaultBusinessData(subtype),
                       });
                     }}
-                    className="w-full rounded border border-app-border-subtle bg-app-surface px-2 py-1.5 text-xs text-app-text focus:border-red-400/50 focus:outline-none"
+                    className="w-full rounded border border-app-border-subtle bg-app-surface px-2 py-1.5 text-xs text-app-text focus:border-primary/50 focus:outline-none"
                   >
                     {BUSINESS_SUBTYPES.map((type) => (
                       <option key={type} value={type}>{BUSINESS_SUBTYPE_LABELS[type]}</option>
@@ -2624,7 +2624,7 @@ function WidgetEditorItem({
                         value={(widget.business?.dataContract as string) || ''}
                         onChange={(e) => onChange({ business: { ...widget.business, dataContract: e.target.value || undefined } })}
                         placeholder="如 message-center.v1"
-                        className="w-full rounded border border-app-border-subtle bg-app-surface px-2 py-1 text-xs text-app-text placeholder:text-app-text-subtle/50 focus:border-red-400/50 focus:outline-none"
+                        className="w-full rounded border border-app-border-subtle bg-app-surface px-2 py-1 text-xs text-app-text placeholder:text-app-text-subtle/50 focus:border-primary/50 focus:outline-none"
                       />
                     </div>
                     <div>
@@ -2633,7 +2633,7 @@ function WidgetEditorItem({
                         value={(widget.business?.actionContract as string) || ''}
                         onChange={(e) => onChange({ business: { ...widget.business, actionContract: e.target.value || undefined } })}
                         placeholder="如 message-actions.v1"
-                        className="w-full rounded border border-app-border-subtle bg-app-surface px-2 py-1 text-xs text-app-text placeholder:text-app-text-subtle/50 focus:border-red-400/50 focus:outline-none"
+                        className="w-full rounded border border-app-border-subtle bg-app-surface px-2 py-1 text-xs text-app-text placeholder:text-app-text-subtle/50 focus:border-primary/50 focus:outline-none"
                       />
                     </div>
                   </div>
@@ -2643,7 +2643,7 @@ function WidgetEditorItem({
                       <select
                         value={(widget.business?.interactionMode as string) || 'actionable'}
                         onChange={(e) => onChange({ business: { ...widget.business, interactionMode: e.target.value } })}
-                        className="w-full rounded border border-app-border-subtle bg-app-surface px-2 py-1 text-xs text-app-text focus:border-red-400/50 focus:outline-none"
+                        className="w-full rounded border border-app-border-subtle bg-app-surface px-2 py-1 text-xs text-app-text focus:border-primary/50 focus:outline-none"
                       >
                         <option value="readonly">只读展示 — 仅查看，不能操作</option>
                         <option value="actionable">直接操作 — 可执行业务动作（审批、加入会议等）</option>
@@ -2658,7 +2658,7 @@ function WidgetEditorItem({
                           min={5}
                           value={Math.floor(((widget.business?.refreshInterval as number) || 30000) / 1000)}
                           onChange={(e) => onChange({ business: { ...widget.business, refreshInterval: Number(e.target.value) * 1000 } })}
-                          className="w-16 rounded border border-app-border-subtle bg-app-surface px-2 py-1 text-center text-xs text-app-text focus:border-red-400/50 focus:outline-none"
+                          className="w-16 rounded border border-app-border-subtle bg-app-surface px-2 py-1 text-center text-xs text-app-text focus:border-primary/50 focus:outline-none"
                         />
                         <span className="text-[10px] text-app-text-muted">秒</span>
                       </div>
@@ -2673,7 +2673,7 @@ function WidgetEditorItem({
                           const fallback = ((widget.business?.connectorPolicy as Record<string, unknown>)?.fallback as string[]) || [];
                           onChange({ business: { ...widget.business, connectorPolicy: { preferred: e.target.value, fallback } } });
                         }}
-                        className="flex-1 rounded border border-app-border-subtle bg-app-surface px-2 py-1 text-xs text-app-text focus:border-red-400/50 focus:outline-none"
+                        className="flex-1 rounded border border-app-border-subtle bg-app-surface px-2 py-1 text-xs text-app-text focus:border-primary/50 focus:outline-none"
                       >
                         <option value="yonclaw">YonClaw Skill（用友生态技能直连）</option>
                         <option value="openapi">OpenAPI（HTTP 开放接口）</option>
@@ -2688,7 +2688,7 @@ function WidgetEditorItem({
                           onChange({ business: { ...widget.business, connectorPolicy: { preferred, fallback } } });
                         }}
                         placeholder="降级：openapi, local"
-                        className="flex-1 rounded border border-app-border-subtle bg-app-surface px-2 py-1 text-xs text-app-text placeholder:text-app-text-subtle/50 focus:border-red-400/50 focus:outline-none"
+                        className="flex-1 rounded border border-app-border-subtle bg-app-surface px-2 py-1 text-xs text-app-text placeholder:text-app-text-subtle/50 focus:border-primary/50 focus:outline-none"
                       />
                     </div>
                   </div>
@@ -2701,7 +2701,7 @@ function WidgetEditorItem({
                         onChange({ business: { ...widget.business, permissions: permissions.length > 0 ? permissions : undefined } });
                       }}
                       placeholder="如 approval.read, approval.action, message.read"
-                      className="w-full rounded border border-app-border-subtle bg-app-surface px-2 py-1 text-xs text-app-text placeholder:text-app-text-subtle/50 focus:border-red-400/50 focus:outline-none"
+                      className="w-full rounded border border-app-border-subtle bg-app-surface px-2 py-1 text-xs text-app-text placeholder:text-app-text-subtle/50 focus:border-primary/50 focus:outline-none"
                     />
                   </div>
                   <div className="rounded bg-app-surface-subtle/50 px-2 py-1.5">
@@ -2719,7 +2719,7 @@ function WidgetEditorItem({
               <select
                 value={currentGroup}
                 onChange={(e) => onChange({ group: e.target.value || undefined })}
-                className="w-full rounded border border-app-border-subtle bg-app-surface px-2 py-1.5 text-xs text-app-text focus:border-red-400/50 focus:outline-none"
+                className="w-full rounded border border-app-border-subtle bg-app-surface px-2 py-1.5 text-xs text-app-text focus:border-primary/50 focus:outline-none"
               >
                 <option value="">{isManual ? '🚫 不分组' : '🔄 自动匹配'}</option>
                 {(isManual ? manualGroups : existingGroups).map((g) => (
@@ -2758,7 +2758,7 @@ function WidgetEditorItem({
                       placeholder={placeholder}
                       value={widget.position?.[key] ?? 0}
                       onChange={(e) => onChange({ position: { ...widget.position, [key]: Number(e.target.value) } })}
-                      className="w-full rounded border border-app-border-subtle bg-app-surface px-1 py-1.5 text-center text-xs text-app-text focus:border-red-400/50 focus:outline-none"
+                      className="w-full rounded border border-app-border-subtle bg-app-surface px-1 py-1.5 text-center text-xs text-app-text focus:border-primary/50 focus:outline-none"
                     />
                   </div>
                 ))}
@@ -2787,10 +2787,23 @@ function WidgetEditorItem({
                   // ignore while editing
                 }
               }}
-              className="h-24 w-full rounded border border-app-border-subtle bg-app-surface p-2 font-mono text-[10px] text-app-text focus:border-red-400/50 focus:outline-none"
+              className="h-24 w-full rounded border border-app-border-subtle bg-app-surface p-2 font-mono text-[10px] text-app-text focus:border-primary/50 focus:outline-none"
               spellCheck={false}
             />
           </Field>
+
+          <div className="flex items-center gap-2 pt-1">
+            <input
+              type="checkbox"
+              id={`enable-ai-analysis-${widget.id}`}
+              checked={widget.enableAIAnalysis !== false}
+              onChange={(e) => onChange({ enableAIAnalysis: e.target.checked })}
+              className="h-3.5 w-3.5 rounded border-app-border-subtle text-primary focus:ring-primary/30"
+            />
+            <label htmlFor={`enable-ai-analysis-${widget.id}`} className="text-[11px] text-app-text-muted cursor-pointer select-none">
+              启用 AI 分析建议
+            </label>
+          </div>
 
           <LinkConfigEditor
             link={widget.link}
@@ -2822,6 +2835,7 @@ function WidgetSnapshotEditor({
     detail: widget.detail,
     link: widget.link,
     group: widget.group,
+    enableAIAnalysis: widget.enableAIAnalysis,
   };
 
   const isManual = !!manualGroups && manualGroups.length > 0;
@@ -2843,7 +2857,7 @@ function WidgetSnapshotEditor({
           <input
             value={safeWidget.title}
             onChange={(e) => onChange({ ...safeWidget, title: e.target.value })}
-            className="w-full rounded-lg border border-app-border-subtle bg-app-surface-subtle px-3 py-2 text-sm text-app-text focus:border-red-400/50 focus:outline-none"
+            className="w-full rounded-lg border border-app-border-subtle bg-app-surface-subtle px-3 py-2 text-sm text-app-text focus:border-primary/50 focus:outline-none"
           />
         </Field>
         <Field label="类型">
@@ -2857,7 +2871,7 @@ function WidgetSnapshotEditor({
               }
               onChange(patch);
             }}
-            className="w-full rounded-lg border border-app-border-subtle bg-app-surface-subtle px-3 py-2 text-sm text-app-text focus:border-red-400/50 focus:outline-none"
+            className="w-full rounded-lg border border-app-border-subtle bg-app-surface-subtle px-3 py-2 text-sm text-app-text focus:border-primary/50 focus:outline-none"
           >
             {WIDGET_TYPES.map((type) => (
               <option key={type} value={type}>{WIDGET_TYPE_LABELS[type]}</option>
@@ -2870,7 +2884,7 @@ function WidgetSnapshotEditor({
               <select
                 value={safeWidget.group || ''}
                 onChange={(e) => onChange({ ...safeWidget, group: e.target.value || undefined })}
-                className="w-full rounded-lg border border-app-border-subtle bg-app-surface-subtle px-3 py-2 text-sm text-app-text focus:border-red-400/50 focus:outline-none"
+                className="w-full rounded-lg border border-app-border-subtle bg-app-surface-subtle px-3 py-2 text-sm text-app-text focus:border-primary/50 focus:outline-none"
               >
                 <option value="">🚫 不分组</option>
                 {manualGroups!.map((g) => (
@@ -2896,7 +2910,7 @@ function WidgetSnapshotEditor({
               value={safeWidget.group || ''}
               onChange={(e) => onChange({ ...safeWidget, group: e.target.value || undefined })}
               placeholder="留空则自动匹配"
-              className="w-full rounded-lg border border-app-border-subtle bg-app-surface-subtle px-3 py-2 text-sm text-app-text focus:border-red-400/50 focus:outline-none"
+              className="w-full rounded-lg border border-app-border-subtle bg-app-surface-subtle px-3 py-2 text-sm text-app-text focus:border-primary/50 focus:outline-none"
             />
           )}
         </Field>
@@ -2912,10 +2926,23 @@ function WidgetSnapshotEditor({
               // ignore
             }
           }}
-          className="h-28 w-full rounded-lg border border-app-border-subtle bg-app-surface-subtle p-3 font-mono text-[11px] text-app-text focus:border-red-400/50 focus:outline-none"
+          className="h-28 w-full rounded-lg border border-app-border-subtle bg-app-surface-subtle p-3 font-mono text-[11px] text-app-text focus:border-primary/50 focus:outline-none"
           spellCheck={false}
         />
       </Field>
+
+      <div className="flex items-center gap-2 mt-2">
+        <input
+          type="checkbox"
+          id="enable-ai-analysis"
+          checked={safeWidget.enableAIAnalysis !== false}
+          onChange={(e) => onChange({ ...safeWidget, enableAIAnalysis: e.target.checked })}
+          className="h-3.5 w-3.5 rounded border-app-border-subtle text-primary focus:ring-primary/30"
+        />
+        <label htmlFor="enable-ai-analysis" className="text-xs text-app-text-muted cursor-pointer select-none">
+          启用 AI 分析建议（数据类组件默认开启）
+        </label>
+      </div>
 
       <LinkConfigEditor
         link={safeWidget.link}
@@ -3043,7 +3070,7 @@ function LinkConfigEditor({
           <button
             type="button"
             onClick={() => onChange(undefined)}
-            className="rounded p-0.5 text-app-text-subtle transition-colors hover:text-red-400"
+            className="rounded p-0.5 text-app-text-subtle transition-colors hover:text-primary"
             title="移除"
           >
             <Trash2 className="h-3 w-3" />
@@ -3061,7 +3088,7 @@ function LinkConfigEditor({
                   const nextType = e.target.value as WidgetLinkConfig['type'];
                   onChange({ type: nextType });
                 }}
-                className="w-full rounded border border-app-border-subtle bg-app-surface px-2 py-1.5 text-xs text-app-text focus:border-red-400/50 focus:outline-none"
+                className="w-full rounded border border-app-border-subtle bg-app-surface px-2 py-1.5 text-xs text-app-text focus:border-primary/50 focus:outline-none"
               >
                 <option value="workspace">跳转驾驶舱</option>
                 <option value="widget">穿透组件</option>
@@ -3073,7 +3100,7 @@ function LinkConfigEditor({
                 value={(link?.title as string) || ''}
                 onChange={(e) => onChange({ ...link, type: type as WidgetLinkConfig['type'], title: e.target.value })}
                 placeholder="点击提示文字"
-                className="w-full rounded border border-app-border-subtle bg-app-surface px-2 py-1.5 text-xs text-app-text focus:border-red-400/50 focus:outline-none"
+                className="w-full rounded border border-app-border-subtle bg-app-surface px-2 py-1.5 text-xs text-app-text focus:border-primary/50 focus:outline-none"
               />
             </Field>
           </div>
@@ -3085,7 +3112,7 @@ function LinkConfigEditor({
                   value={(link?.targetId as string) || ''}
                   onChange={(e) => onChange({ ...link, type, targetId: e.target.value })}
                   placeholder="ws-xxx"
-                  className="w-full rounded border border-app-border-subtle bg-app-surface px-2 py-1.5 text-xs text-app-text focus:border-red-400/50 focus:outline-none"
+                  className="w-full rounded border border-app-border-subtle bg-app-surface px-2 py-1.5 text-xs text-app-text focus:border-primary/50 focus:outline-none"
                 />
               </Field>
               <Field label="或目标模板名">
@@ -3093,7 +3120,7 @@ function LinkConfigEditor({
                   value={(link?.targetTemplate as string) || ''}
                   onChange={(e) => onChange({ ...link, type, targetTemplate: e.target.value })}
                   placeholder="模板名称"
-                  className="w-full rounded border border-app-border-subtle bg-app-surface px-2 py-1.5 text-xs text-app-text focus:border-red-400/50 focus:outline-none"
+                  className="w-full rounded border border-app-border-subtle bg-app-surface px-2 py-1.5 text-xs text-app-text focus:border-primary/50 focus:outline-none"
                 />
               </Field>
             </div>
@@ -3105,7 +3132,7 @@ function LinkConfigEditor({
                 value={(link?.targetId as string) || ''}
                 onChange={(e) => onChange({ ...link, type, targetId: e.target.value })}
                 placeholder="widget-xxx"
-                className="w-full rounded border border-app-border-subtle bg-app-surface px-2 py-1.5 text-xs text-app-text focus:border-red-400/50 focus:outline-none"
+                className="w-full rounded border border-app-border-subtle bg-app-surface px-2 py-1.5 text-xs text-app-text focus:border-primary/50 focus:outline-none"
               />
             </Field>
           )}
@@ -3116,7 +3143,7 @@ function LinkConfigEditor({
                 value={(link?.url as string) || ''}
                 onChange={(e) => onChange({ ...link, type, url: e.target.value })}
                 placeholder="https://..."
-                className="w-full rounded border border-app-border-subtle bg-app-surface px-2 py-1.5 text-xs text-app-text focus:border-red-400/50 focus:outline-none"
+                className="w-full rounded border border-app-border-subtle bg-app-surface px-2 py-1.5 text-xs text-app-text focus:border-primary/50 focus:outline-none"
               />
             </Field>
           )}
@@ -3126,7 +3153,7 @@ function LinkConfigEditor({
             <select
               value={(link?.openMode as string) || 'drawer'}
               onChange={(e) => onChange({ ...link, type, openMode: e.target.value as 'drawer' | 'blank' | 'self' })}
-              className="w-full rounded border border-app-border-subtle bg-app-surface px-2 py-1.5 text-xs text-app-text focus:border-red-400/50 focus:outline-none"
+              className="w-full rounded border border-app-border-subtle bg-app-surface px-2 py-1.5 text-xs text-app-text focus:border-primary/50 focus:outline-none"
             >
               <option value="drawer">浮层面板（Drawer，推荐用于详情穿透）</option>
               <option value="blank">新浏览器标签页</option>

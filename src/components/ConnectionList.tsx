@@ -112,7 +112,7 @@ export default function ConnectionList({
         <Button
           size="sm"
           onClick={() => { setShowForm(true); setEditing(null); }}
-          className="h-8 text-xs bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-400 hover:to-orange-400 text-app-text border-0"
+          className="h-8 text-xs bg-primary hover:bg-primary/90 text-white border-0"
         >
           <Plus className="w-3.5 h-3.5 mr-1" />
           添加连接

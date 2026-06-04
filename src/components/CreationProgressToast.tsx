@@ -74,10 +74,10 @@ export default function CreationProgressToast({
             success ? (
               <CheckCircle className="w-4 h-4 text-emerald-400" />
             ) : (
-              <XCircle className="w-4 h-4 text-red-400" />
+              <XCircle className="w-4 h-4 text-primary" />
             )
           ) : (
-            <Loader2 className="w-4 h-4 text-red-400 animate-spin" />
+            <Loader2 className="w-4 h-4 text-primary animate-spin" />
           )}
           <span className="text-[15px] font-semibold text-app-text-secondary">{title}</span>
           {done && (
@@ -100,7 +100,7 @@ export default function CreationProgressToast({
                 <div key={s} className="flex items-center gap-1">
                   <div
                     className={`w-1.5 h-1.5 rounded-full transition-colors ${
-                      isActive ? 'bg-red-400' : isPast ? 'bg-app-text-muted' : 'bg-app-border'
+                      isActive ? 'bg-primary' : isPast ? 'bg-app-text-muted' : 'bg-app-border'
                     }`}
                   />
                   <span
@@ -150,7 +150,7 @@ export default function CreationProgressToast({
         <div
           className={`max-h-48 overflow-y-auto whitespace-pre-wrap text-[13px] leading-6 ${
             message.includes('❌') || message.includes('失败') || message.includes('错误')
-              ? 'text-red-400'
+              ? 'text-primary'
               : success && done
                 ? 'text-emerald-400'
                 : 'text-app-text-muted'
