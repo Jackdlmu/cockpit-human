@@ -463,7 +463,7 @@
         ],
         "cockpitAgentActive": true,
         "reason": "驾驶舱智能体自主运行中",
-        "timestamp": "2026-06-04T07:37:43.653Z"
+        "timestamp": "2026-06-04T07:37:58.645Z"
       }
     },
     {
@@ -870,7 +870,7 @@
         ],
         "cockpitAgentActive": true,
         "reason": "驾驶舱智能体自主运行中",
-        "timestamp": "2026-06-04T07:37:43.665Z"
+        "timestamp": "2026-06-04T07:37:58.656Z"
       }
     },
     {
@@ -1306,7 +1306,7 @@
         ],
         "cockpitAgentActive": true,
         "reason": "驾驶舱智能体自主运行中",
-        "timestamp": "2026-06-04T07:37:43.671Z"
+        "timestamp": "2026-06-04T07:37:58.662Z"
       },
       "workspace": {
         "id": "ws-1780323169615-93ef9",
@@ -2602,7 +2602,7 @@
         ],
         "cockpitAgentActive": true,
         "reason": "驾驶舱智能体自主运行中",
-        "timestamp": "2026-06-04T07:37:43.676Z"
+        "timestamp": "2026-06-04T07:37:58.667Z"
       },
       "grouping": {
         "enabled": true,
@@ -3006,7 +3006,7 @@
         ],
         "cockpitAgentActive": true,
         "reason": "驾驶舱智能体自主运行中",
-        "timestamp": "2026-06-04T07:37:43.681Z"
+        "timestamp": "2026-06-04T07:37:58.675Z"
       }
     },
     {
@@ -3313,7 +3313,7 @@
         ],
         "cockpitAgentActive": true,
         "reason": "驾驶舱智能体自主运行中",
-        "timestamp": "2026-06-04T07:37:43.687Z"
+        "timestamp": "2026-06-04T07:37:58.680Z"
       }
     },
     {
@@ -3691,7 +3691,7 @@
         ],
         "cockpitAgentActive": true,
         "reason": "驾驶舱智能体自主运行中",
-        "timestamp": "2026-06-04T07:37:28.686Z"
+        "timestamp": "2026-06-04T07:37:58.686Z"
       },
       "initializedAt": "2026-06-03T01:41:50.637Z"
     },
@@ -4008,7 +4008,7 @@
         ],
         "cockpitAgentActive": true,
         "reason": "驾驶舱智能体自主运行中",
-        "timestamp": "2026-06-04T07:37:28.693Z"
+        "timestamp": "2026-06-04T07:37:43.697Z"
       }
     },
     {
@@ -4422,7 +4422,7 @@
         ],
         "cockpitAgentActive": true,
         "reason": "驾驶舱智能体自主运行中",
-        "timestamp": "2026-06-04T07:37:28.700Z"
+        "timestamp": "2026-06-04T07:37:43.702Z"
       }
     },
     {
@@ -5159,7 +5159,7 @@
         ],
         "cockpitAgentActive": true,
         "reason": "LLM直连模式，智能驾驶舱独立运行",
-        "timestamp": "2026-06-04T07:37:28.708Z"
+        "timestamp": "2026-06-04T07:37:43.708Z"
       }
     }
   ]
